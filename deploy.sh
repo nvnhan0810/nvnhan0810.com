@@ -16,6 +16,8 @@ fi
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-}"
 DEPLOY_POST_COMMANDS="${DEPLOY_POST_COMMANDS:-}"
+DEPLOY_ENV_REMOTE_FILE="${DEPLOY_ENV_REMOTE_FILE:-}"
+DEPLOY_ENV_USE_SUDO="${DEPLOY_ENV_USE_SUDO:-0}"
 
 ssh_base=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
 rsync_ssh=(-e "ssh -p $DEPLOY_PORT -o BatchMode=yes -o StrictHostKeyChecking=accept-new")
@@ -26,6 +28,33 @@ if [[ -n "$DEPLOY_SSH_KEY" ]]; then
 fi
 
 SAIL="${SAIL:-./vendor/bin/sail}"
+
+ENV_FILE=".env"
+ENV_BACKUP_FILE=".env.bk"
+did_backup_env="0"
+
+restore_local_env() {
+  if [[ "$did_backup_env" == "1" ]]; then
+    rm -f "$ENV_FILE"
+    mv -f "$ENV_BACKUP_FILE" "$ENV_FILE"
+  fi
+}
+
+if [[ -f "$ENV_FILE" ]]; then
+  mv -f "$ENV_FILE" "$ENV_BACKUP_FILE"
+  did_backup_env="1"
+fi
+
+trap restore_local_env EXIT
+
+remote_env_file="${DEPLOY_ENV_REMOTE_FILE:-${DEPLOY_PATH%/}/${ENV_FILE}}"
+remote_env_cmd="cat \"${remote_env_file}\""
+if [[ "${DEPLOY_ENV_USE_SUDO}" == "1" ]]; then
+  remote_env_cmd="sudo ${remote_env_cmd}"
+fi
+
+echo "Syncing ${ENV_FILE} from ${DEPLOY_USER}@${DEPLOY_HOST}:${remote_env_file}"
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "${remote_env_cmd}" > "$ENV_FILE"
 
 "$SAIL" up -d
 "$SAIL" npm ci
@@ -54,6 +83,7 @@ rsync_args+=(
   --exclude "vendor/"
   --exclude "storage/"
   --exclude "bootstrap/cache/"
+  --exclude "public/hot"
   --exclude ".env"
   --exclude ".env.*"
   --exclude ".deploy.env"
@@ -64,6 +94,7 @@ echo "Deploying to ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
 rsync "${rsync_args[@]}" "${rsync_ssh[@]}" ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH%/}/"
 
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" \
+  && rm -f public/hot \
   && mkdir -p bootstrap/cache \
     storage/framework/cache storage/framework/sessions storage/framework/views \
     storage/logs \
