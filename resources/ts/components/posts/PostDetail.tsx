@@ -1,15 +1,18 @@
+import { useTranslation } from "@/ts/providers/i18n-provider";
 import { Post } from "@/ts/types/post";
 import { Tag } from "@/ts/types/tag";
 import TagBadge from "../tags/TagBadge";
 import PostContent from "./PostContent";
-import { format } from "date-fns";
 
 type Props = {
   post: Post;
   useTagLink?: boolean;
-}
+};
 
 const PostDetail = ({ post, useTagLink = false }: Props) => {
+  const { locale } = useTranslation();
+  const dateLocale = locale === "vi" ? "vi-VN" : "en-US";
+
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
       <header className="mb-8 not-prose">
@@ -19,11 +22,14 @@ const PostDetail = ({ post, useTagLink = false }: Props) => {
         
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
           <time dateTime={post.published_at || post.created_at}>
-             {new Date(post.published_at || post.created_at).toLocaleDateString('vi-VN', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-             })}
+            {new Date(post.published_at || post.created_at).toLocaleDateString(
+              dateLocale,
+              {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }
+            )}
           </time>
           {/* Add author if available in Post type, otherwise skip */}
         </div>
@@ -40,7 +46,7 @@ const PostDetail = ({ post, useTagLink = false }: Props) => {
       </header>
 
       {post.description && (
-        <div className="text-xl text-muted-foreground italic mb-8 border-l-4 border-primary pl-4 py-2 bg-muted/30">
+        <div className="mb-8 border-l-4 border-emerald-600 bg-muted/30 py-2 pl-4 text-xl italic text-muted-foreground">
           {post.description}
         </div>
       )}

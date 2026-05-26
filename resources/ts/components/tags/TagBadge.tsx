@@ -16,7 +16,8 @@ const TagBadge = ({ tag, classes = '', useLink = true }: TagBadgeProps) => {
   const displayName = tag.name.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
 
   const baseClasses = "inline-flex items-center border rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
-  const defaultColorClasses = "bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent";
+  const defaultColorClasses =
+    "border-border bg-muted/50 text-muted-foreground hover:border-emerald-600/40 hover:bg-emerald-600/10 hover:text-emerald-500";
 
   if ((tag.public_posts_count !== undefined && tag.public_posts_count === 0)) {
     return null;
@@ -24,7 +25,7 @@ const TagBadge = ({ tag, classes = '', useLink = true }: TagBadgeProps) => {
 
   if (useLink) {
     return (
-      <Link href={routes('home', { tag: tag.slug })}>
+      <Link href={routes('posts.index', { tag: tag.slug })}>
         <span className={cn(baseClasses, defaultColorClasses, classes)}>
           {displayName}
         </span>

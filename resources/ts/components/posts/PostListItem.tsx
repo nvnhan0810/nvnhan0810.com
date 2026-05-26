@@ -11,10 +11,10 @@ const PostListItem = ({ post }: { post: Post }) => {
     <Link
       key={post.id}
       href={routes('posts.show', { slug: post.slug })}
-      className="group flex flex-col h-full bg-card hover:bg-accent/50 border border-border rounded-xl p-5 transition-all duration-300 hover:shadow-lg"
+      className="group flex h-full flex-col rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-emerald-600/40 hover:bg-emerald-600/5"
     >
       <div className="flex-grow">
-        <h2 className="line-clamp-2 text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors">
+        <h2 className="mb-3 line-clamp-2 text-xl font-bold text-foreground transition-colors group-hover:text-emerald-500">
           {post.title}
         </h2>
 

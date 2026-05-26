@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
 use App\Http\Controllers\Public\PostController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::prefix('auth')->group(function () {
     Route::get('/login', function () {
@@ -16,7 +18,13 @@ Route::prefix('auth')->group(function () {
     Route::get('/callback', [AuthController::class, 'callback'])->name('login.callback');
 });
 
-Route::get('/', [PostController::class, 'index'])->name('home');
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
+
+Route::get('/', function () {
+    return Inertia::render('public/HomePage');
+})->name('home');
+
+Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
 Route::get('/posts/{slug}', [PostController::class, 'show'])->name('posts.show');
 
 

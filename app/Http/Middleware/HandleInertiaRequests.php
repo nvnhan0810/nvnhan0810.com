@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
 
@@ -44,6 +45,7 @@ class HandleInertiaRequests extends Middleware
                 'email' => $request->user()->email,
                 'avatar' => $request->user()->avatar,
             ] : null,
+            'locale' => App::getLocale(),
         ];
     }
 }

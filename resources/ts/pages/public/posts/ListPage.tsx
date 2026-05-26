@@ -3,6 +3,7 @@ import PostListItem from "@/ts/components/posts/PostListItem";
 import SearchForm from "@/ts/components/posts/SearchForm";
 import TagBadge from "@/ts/components/tags/TagBadge";
 import PublicLayout from "@/ts/layouts/PublicLayout";
+import { useTranslation } from "@/ts/providers/i18n-provider";
 import { AuthUser } from "@/ts/types/auth";
 import { Pagination } from "@/ts/types/common";
 import { Tag } from "@/ts/types/tag";
@@ -10,69 +11,88 @@ import { router } from "@inertiajs/react";
 import { Post } from "@ts/types/post";
 import { useRoute } from "ziggy-js";
 
-const ListPage = ({ posts, tags, auth }: { posts: Pagination<Post>, tags: Tag[], auth: AuthUser | null }) => {
-
+const ListPage = ({
+  posts,
+  tags,
+  auth,
+}: {
+  posts: Pagination<Post>;
+  tags: Tag[];
+  auth: AuthUser | null;
+}) => {
   const route = useRoute();
+  const { t } = useTranslation();
   const { data } = posts;
 
   const handleSearch = (search: string) => {
-    router.get(route('home'), { search: search }, {
-      preserveUrl: true,
-      preserveScroll: true,
-      replace: true,
-    });
+    router.get(
+      route("posts.index"),
+      { search: search },
+      {
+        preserveUrl: true,
+        preserveScroll: true,
+        replace: true,
+      }
+    );
   };
 
   const queryParams = new URLSearchParams(window.location.search);
-  const currentTag = queryParams.get('tag');
+  const currentTag = queryParams.get("tag");
 
   return (
     <PublicLayout auth={auth}>
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Main Content */}
-        <div className="flex-1 min-w-0">
-          <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              {currentTag ? `Posts tagged "${currentTag}"` : 'Latest Posts'}
-            </h1>
-            <div className="w-full sm:w-auto">
-              <SearchForm onSearch={handleSearch} />
-            </div>
+      <header className="mb-10">
+        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-emerald-500">
+          {t("blog.label")}
+        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            {currentTag
+              ? t("blog.taggedPosts", { tag: currentTag })
+              : t("blog.latestPosts")}
+          </h1>
+          <div className="w-full sm:w-auto">
+            <SearchForm onSearch={handleSearch} />
           </div>
+        </div>
+      </header>
 
+      <div className="flex flex-col gap-8 lg:flex-row">
+        <div className="min-w-0 flex-1">
           {data.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 {data.map((post: Post) => (
                   <PostListItem key={post.id} post={post} />
                 ))}
               </div>
-              <div className="mt-8 flex justify-center">
+              <div className="mt-10 flex justify-center">
                 <PaginationBar pagination={posts} />
               </div>
             </>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-lg">No posts found.</p>
+            <div className="rounded-xl border border-border bg-card py-16 text-center">
+              <p className="text-lg text-muted-foreground">{t("blog.noPosts")}</p>
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <aside className="lg:w-80 flex-shrink-0">
-          <div className="sticky top-24 space-y-8">
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <h3 className="font-semibold text-lg mb-4 text-foreground">Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag: Tag) => (
-                  <TagBadge 
-                    key={tag.id} 
-                    tag={tag} 
-                    useLink={true} 
-                    classes={currentTag === tag.slug ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
-                  />
-                ))}
-              </div>
+        <aside className="lg:w-72 lg:flex-shrink-0">
+          <div className="sticky top-20 rounded-xl border border-border bg-card p-5">
+            <h3 className="mb-4 text-lg font-semibold">{t("blog.tags")}</h3>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag: Tag) => (
+                <TagBadge
+                  key={tag.id}
+                  tag={tag}
+                  useLink={true}
+                  classes={
+                    currentTag === tag.slug
+                      ? "border-emerald-600/50 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30"
+                      : ""
+                  }
+                />
+              ))}
             </div>
           </div>
         </aside>

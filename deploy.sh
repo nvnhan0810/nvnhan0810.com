@@ -34,10 +34,18 @@ ENV_BACKUP_FILE=".env.bk"
 did_backup_env="0"
 
 restore_local_env() {
-  if [[ "$did_backup_env" == "1" ]]; then
+  if [[ "$did_backup_env" == "1" && -f "$ENV_BACKUP_FILE" ]]; then
     rm -f "$ENV_FILE"
     mv -f "$ENV_BACKUP_FILE" "$ENV_FILE"
+    did_backup_env="0"
   fi
+}
+
+run_ziggy_generate() {
+  "$SAIL" artisan ziggy:generate resources/ts/utils/ziggy --types
+  mkdir -p resources/ts/types
+  mv -f resources/ts/utils/ziggy.d.ts resources/ts/types/ziggy.d.ts
+  mv -f resources/ts/utils/ziggy.js resources/ts/utils/ziggy.ts
 }
 
 if [[ -f "$ENV_FILE" ]]; then
@@ -58,10 +66,10 @@ echo "Syncing ${ENV_FILE} from ${DEPLOY_USER}@${DEPLOY_HOST}:${remote_env_file}"
 
 "$SAIL" up -d
 "$SAIL" npm ci
-"$SAIL" artisan ziggy:generate resources/ts/utils/ziggy --types
-mkdir -p resources/ts/types
-mv -f resources/ts/utils/ziggy.d.ts resources/ts/types/ziggy.d.ts
-mv -f resources/ts/utils/ziggy.js resources/ts/utils/ziggy.ts
+
+echo "Generating Ziggy routes with production ${ENV_FILE}..."
+run_ziggy_generate
+
 "$SAIL" npm run build
 
 rsync_args=(
@@ -105,4 +113,13 @@ if [[ -n "$DEPLOY_POST_COMMANDS" ]]; then
 fi
 
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "chown -R www-data:www-data \"${DEPLOY_PATH%/}\""
+
+echo "Restoring local ${ENV_FILE}..."
+restore_local_env
+trap - EXIT
+
+echo "Regenerating Ziggy routes for local development..."
+run_ziggy_generate
+
+echo "Deploy finished."
 

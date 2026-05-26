@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Http\Controllers\Concerns\LocalizesPosts;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\Series;
@@ -11,17 +12,26 @@ use Inertia\Inertia;
 
 class PostController extends Controller
 {
-    public function index(Request $request) {
+    use LocalizesPosts;
+
+    public function index(Request $request)
+    {
         $search = $request->search;
         $tag = $request->tag;
+        $locale = $this->currentLocale();
 
-        $data = Post::with(['publicTags'])->where('is_published', true)
+        $data = Post::with(['publicTags', 'translations'])
+            ->where('is_published', true)
             ->whereDate('published_at', '<=', now())
-            ->when($search, function($searchQuery) use ($search) {
-                $searchQuery->where('title', 'LIKE', "%{$search}%");
+            ->when($search, function ($searchQuery) use ($search, $locale) {
+                $searchQuery->whereHas('translations', function ($translationQuery) use ($search, $locale) {
+                    $translationQuery
+                        ->where('locale', $locale)
+                        ->where('title', 'LIKE', "%{$search}%");
+                });
             })
-            ->when($tag, function($tagQuery) use ($tag) {
-                $tagQuery->whereHas('publicTags', function($tagQuery) use ($tag) {
+            ->when($tag, function ($tagQuery) use ($tag) {
+                $tagQuery->whereHas('publicTags', function ($tagQuery) use ($tag) {
                     $tagQuery->where('slug', $tag);
                 });
             })
@@ -29,8 +39,9 @@ class PostController extends Controller
             ->orderBy('created_at', 'DESC')
             ->paginate(50);
 
-        $tags = Tag::withCount(['publicPosts'])->get();
+        $this->localizePaginator($data, $locale);
 
+        $tags = Tag::withCount(['publicPosts'])->get();
 
         return Inertia::render('public/posts/ListPage', [
             'posts' => $data,
@@ -38,19 +49,24 @@ class PostController extends Controller
         ]);
     }
 
-    public function show(string $slug) {
-        $post = Post::with(['publicTags'])
+    public function show(string $slug)
+    {
+        $locale = $this->currentLocale();
+
+        $post = Post::with(['publicTags', 'translations'])
             ->where('is_published', true)
             ->whereDate('published_at', '<=', now())
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $series = Series::with(['posts'])->whereHas('posts', function($query) use ($post) {
+        $series = Series::with(['posts.translations'])->whereHas('posts', function ($query) use ($post) {
             $query->where('post_id', $post->id);
         })->get();
 
+        $this->localizeSeriesPosts($series, $locale);
+
         return Inertia::render('public/posts/ShowPage', [
-            'post' => $post,
+            'post' => $post->toLocalizedArray($locale),
             'series' => $series,
         ]);
     }

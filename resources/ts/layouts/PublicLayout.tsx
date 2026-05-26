@@ -1,26 +1,29 @@
-import Header from "@components/common/Header";
+import SiteNav from "@/ts/components/common/SiteNav";
+import { useTranslation } from "@/ts/providers/i18n-provider";
 import "@sass/app.scss";
-import Footer from "../components/common/Footer";
 import { AuthUser } from "../types/auth";
 
 export type RootProps = {
   auth: AuthUser | null;
-}
+  locale: "en" | "vi";
+};
 
 type PublicLayoutProps = RootProps & {
   children: React.ReactNode;
 };
 
 const PublicLayout = ({ children, auth }: PublicLayoutProps) => {
+  const { cv } = useTranslation();
+
   return (
-    <div className="min-h-screen bg-background font-sans antialiased flex flex-col">
-      <Header auth={auth} />
-      <main className="flex-grow py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto w-full">
-          {children}
-        </div>
+    <div className="min-h-screen bg-background font-sans antialiased text-foreground">
+      <SiteNav auth={auth} active="blog" />
+      <main className="mx-auto max-w-5xl flex-grow px-4 py-10 sm:px-6 sm:py-12">
+        {children}
       </main>
-      <Footer />
+      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
+        © {new Date().getFullYear()} {cv.name}
+      </footer>
     </div>
   );
 };
