@@ -1,6 +1,6 @@
 "use client";
 
-import { PaginationInfo } from "@/ts/types/common";
+import type { PaginationInfo } from "@/ts/types/common";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "../ui/pagination";
 
 type PaginationBarProps = {
@@ -11,12 +11,12 @@ const PaginationBar = ({ pagination }: PaginationBarProps) => {
   const { current_page, links } = pagination;
 
   const getPageHref = (page: number) => {
-    if (page < 1) {
-      page = 1;
-    } else if (page > pagination.last_page) {
-      page = pagination.last_page;
+    const safePage =
+      page < 1 ? 1 : page > pagination.last_page ? pagination.last_page : page;
+    if (typeof window === "undefined") {
+      return `?page=${safePage}`;
     }
-    return `${window.location.pathname}?page=${page}`;
+    return `${window.location.pathname}?page=${safePage}`;
   }
 
   return (
@@ -29,14 +29,14 @@ const PaginationBar = ({ pagination }: PaginationBarProps) => {
         {links.slice(1, -1).map((link, index) => {
           if (link.label === "...") {
             return (
-              <PaginationItem key={`ellipsis-${index}`}>
+              <PaginationItem key={`ellipsis-${link.url ?? index}`}>
                 <PaginationEllipsis />
               </PaginationItem>
             );
           }
 
-          const page = parseInt(link.label);
-          if (isNaN(page)) return null;
+          const page = Number.parseInt(link.label, 10);
+          if (Number.isNaN(page)) return null;
 
           return (
             <PaginationItem key={page}>

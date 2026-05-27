@@ -1,5 +1,5 @@
 import { createInertiaApp } from "@inertiajs/react";
-import { createRoot } from "react-dom/client";
+import { hydrateRoot } from "react-dom/client";
 
 import { I18nProvider } from "./providers/i18n-provider";
 import { ThemeProvider } from "./providers/theme-provider";
@@ -14,7 +14,8 @@ createInertiaApp({
     return pages[`./pages/${name}.tsx`];
   },
   setup({ el, App, props }) {
-    createRoot(el).render(
+    hydrateRoot(
+      el,
       <ThemeProvider defaultTheme="dark">
         <App {...props}>
           {({ Component, props: pageProps, key }) => (
@@ -23,7 +24,7 @@ createInertiaApp({
             </I18nProvider>
           )}
         </App>
-      </ThemeProvider>
+      </ThemeProvider>,
     );
   },
 });

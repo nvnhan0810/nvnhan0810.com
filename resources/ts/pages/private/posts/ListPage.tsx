@@ -3,12 +3,12 @@ import SearchForm from "@/ts/components/posts/SearchForm";
 import TagBadge from "@/ts/components/tags/TagBadge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/ts/components/ui/alert-dialog";
 import { Button } from "@/ts/components/ui/button";
-import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
-import { Pagination } from "@/ts/types/common";
-import { Post } from "@/ts/types/post";
-import { Tag } from "@/ts/types/tag";
+import PrivateLayout, { type RootProps } from "@/ts/layouts/PrivateLayout";
+import type { Pagination } from "@/ts/types/common";
+import type { Post } from "@/ts/types/post";
+import type { Tag } from "@/ts/types/tag";
 import { router } from "@inertiajs/react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Plus } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
@@ -71,6 +71,9 @@ const ListPage = ({ auth, posts }: Props) => {
 
         <div className="mb-4 flex justify-start items-center gap-2">
           <SearchForm onSearch={handleSearch} />
+          <span className="text-sm text-amber-300">
+            Background nền vàng: chưa publish
+          </span>
         </div>
 
         <div className="max-w-auto overflow-x-auto">
@@ -87,9 +90,20 @@ const ListPage = ({ auth, posts }: Props) => {
             </thead>
             <tbody className="text-gray-300">
               {posts.data.map((post) => (
-                <tr key={post.id}>
+                <tr
+                  key={post.id}
+                  className={
+                    post.is_published
+                      ? ""
+                      : "bg-amber-500/10 ring-1 ring-inset ring-amber-500/20"
+                  }
+                >
                   <td className="px-4 py-2 border border-gray-300">{post.id}</td>
-                  <td className="px-4 py-2 border border-gray-300">{post.title}</td>
+                  <td className="px-4 py-2 border border-gray-300">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-100">{post.title}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-2 border border-gray-300">{post.description}</td>
                   <td className="px-4 py-2 border border-gray-300">
                     <div className="flex gap-2">
@@ -98,7 +112,13 @@ const ListPage = ({ auth, posts }: Props) => {
                       })}
                     </div>
                   </td>
-                  <td className="px-4 py-2 border border-gray-300">{format(post.published_at, 'dd/MM/yyyy')}</td>
+                  <td className="px-4 py-2 border border-gray-300">
+                    {post.is_published && post.published_at ? (
+                      format(parseISO(post.published_at), "dd/MM/yyyy")
+                    ) : (
+                      <span className="text-amber-300 font-medium">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 border border-gray-300">
                     <div className="flex gap-2">
                       <a href={route('admin.posts.edit', post.id)} className="text-blue-500">Edit</a>

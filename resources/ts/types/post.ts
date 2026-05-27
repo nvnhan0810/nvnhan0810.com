@@ -1,5 +1,5 @@
 import type { Locale } from "@/ts/i18n";
-import { Tag } from "./tag";
+import type { Tag } from "./tag";
 
 export type PostTranslationFields = {
   locale: Locale;
@@ -14,7 +14,7 @@ export type Post = {
   slug: string;
   description?: string;
   content: string;
-  published_at: string;
+  published_at: string | null;
   is_published: boolean;
   translations?: Partial<Record<Locale, PostTranslationFields>>;
   public_tags?: Tag[];

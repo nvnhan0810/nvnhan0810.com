@@ -78,7 +78,7 @@ rsync_args=(
   --human-readable
   --partial
   --stats
-  --delete 
+  --delete
 )
 
 # Sync the app source + built assets. Exclude secrets/runtime/dev-only directories.
@@ -87,7 +87,6 @@ rsync_args+=(
   --exclude ".github/"
   --exclude ".idea/"
   --exclude ".vscode/"
-  --exclude "node_modules/"
   --exclude "vendor/"
   --exclude "storage/"
   --exclude "bootstrap/cache/"
@@ -113,6 +112,9 @@ if [[ -n "$DEPLOY_POST_COMMANDS" ]]; then
 fi
 
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "chown -R www-data:www-data \"${DEPLOY_PATH%/}\""
+
+echo "Restarting Inertia SSR supervisor (nvnhan0810-ssr)..."
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo supervisorctl restart nvnhan0810-ssr"
 
 echo "Restoring local ${ENV_FILE}..."
 restore_local_env

@@ -37,6 +37,10 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        if ($request->is('admin', 'admin/*')) {
+            config(['inertia.ssr.enabled' => false]);
+        }
+
         return [
             ...parent::share($request),
             'auth' => Auth::user() ? [

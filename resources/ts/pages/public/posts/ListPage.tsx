@@ -4,11 +4,11 @@ import SearchForm from "@/ts/components/posts/SearchForm";
 import TagBadge from "@/ts/components/tags/TagBadge";
 import PublicLayout from "@/ts/layouts/PublicLayout";
 import { useTranslation } from "@/ts/providers/i18n-provider";
-import { AuthUser } from "@/ts/types/auth";
-import { Pagination } from "@/ts/types/common";
-import { Tag } from "@/ts/types/tag";
+import type { AuthUser } from "@/ts/types/auth";
+import type { Pagination } from "@/ts/types/common";
+import type { Tag } from "@/ts/types/tag";
 import { router } from "@inertiajs/react";
-import { Post } from "@ts/types/post";
+import type { Post } from "@ts/types/post";
 import { useRoute } from "ziggy-js";
 
 const ListPage = ({
@@ -36,11 +36,13 @@ const ListPage = ({
     );
   };
 
-  const queryParams = new URLSearchParams(window.location.search);
-  const currentTag = queryParams.get("tag");
+  const currentTag =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("tag");
 
   return (
-    <PublicLayout auth={auth}>
+    <PublicLayout auth={auth} locale="vi">
       <header className="mb-10">
         <p className="mb-2 text-sm font-medium uppercase tracking-widest text-emerald-500">
           {t("blog.label")}

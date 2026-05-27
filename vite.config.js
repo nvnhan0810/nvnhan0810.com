@@ -7,6 +7,7 @@ export default defineConfig({
     plugins: [
         laravel({
             input: ['resources/sass/app.scss', 'resources/ts/App.tsx'],
+            ssr: 'resources/ts/ssr.tsx',
             refresh: true,
         }),
         react({
@@ -14,6 +15,10 @@ export default defineConfig({
             jsxRuntime: 'automatic',
         }),
     ],
+    ssr: {
+        // Bundle all deps into bootstrap/ssr/ssr.js — no node_modules needed on VPS
+        noExternal: true,
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, 'resources'),
