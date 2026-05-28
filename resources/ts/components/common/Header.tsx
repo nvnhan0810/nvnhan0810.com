@@ -19,9 +19,6 @@ const Header = ({ auth }: { auth: AuthUser | null }) => {
             </Link>
             {auth && (
               <>
-                <Link href={route('admin.index')} className="text-muted-foreground hover:text-foreground transition-colors p-2" title="Quản lý bài viết">
-                  <BookOpenIcon className="w-5 h-5" />
-                </Link>
                 <Link href={route('admin.tags.index')} className="text-muted-foreground hover:text-foreground transition-colors p-2" title="Quản lý thẻ">
                   <TagIcon className="w-5 h-5" />
                 </Link>
