@@ -32,6 +32,7 @@ const en: Messages = {
     taggedPosts: 'Posts tagged "{{tag}}"',
     tags: "Tags",
     noPosts: "No posts found.",
+    metaDescription: "Technical articles, engineering notes, and project lessons by Nguyen Van Nhan.",
     searchPlaceholder: "Search",
     search: "Search",
     backToBlog: "Back to blog",

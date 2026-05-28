@@ -65,6 +65,7 @@ export type Messages = {
     taggedPosts: string;
     tags: string;
     noPosts: string;
+    metaDescription: string;
     searchPlaceholder: string;
     search: string;
     backToBlog: string;

@@ -42,4 +42,7 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URL'),
     ],
+    'google_analytics' => [
+        'measurement_id' => env('GOOGLE_ANALYTICS_MEASUREMENT_ID'),
+    ],
 ];

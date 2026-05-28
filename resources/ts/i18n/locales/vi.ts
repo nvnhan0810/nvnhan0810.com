@@ -32,6 +32,7 @@ const vi: Messages = {
     taggedPosts: 'Bài viết gắn thẻ "{{tag}}"',
     tags: "Thẻ",
     noPosts: "Không tìm thấy bài viết.",
+    metaDescription: "Các bài viết kỹ thuật, ghi chú lập trình và kinh nghiệm triển khai dự án.",
     searchPlaceholder: "Tìm kiếm",
     search: "Tìm kiếm",
     backToBlog: "Quay lại blog",
@@ -43,7 +44,7 @@ const vi: Messages = {
     language: "Ngôn ngữ",
   },
   cv: {
-    name: "Nguyễn Văn Nhân",
+    name: "Nguyễn Văn Nhàn",
     title: "Lập trình viên Senior",
     phone: "0799833537",
     email: "nguyenvannhan0810@gmail.com",

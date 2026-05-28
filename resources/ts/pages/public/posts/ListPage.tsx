@@ -1,4 +1,5 @@
 import PaginationBar from "@/ts/components/common/PaginationBar";
+import SeoHead from "@/ts/components/common/SeoHead";
 import PostListItem from "@/ts/components/posts/PostListItem";
 import SearchForm from "@/ts/components/posts/SearchForm";
 import TagBadge from "@/ts/components/tags/TagBadge";
@@ -43,6 +44,11 @@ const ListPage = ({
 
   return (
     <PublicLayout auth={auth} locale="vi">
+      <SeoHead
+        title={currentTag ? `${t("blog.taggedPosts", { tag: currentTag })} | Blog` : `${t("blog.latestPosts")} | Blog`}
+        description={t("blog.metaDescription")}
+        url={route("posts.index", undefined, true)}
+      />
       <header className="mb-10">
         <p className="mb-2 text-sm font-medium uppercase tracking-widest text-emerald-500">
           {t("blog.label")}

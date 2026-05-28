@@ -1,7 +1,8 @@
 import PostDetail from "@/ts/components/posts/PostDetail";
-import PublicLayout, { RootProps } from "@/ts/layouts/PublicLayout";
+import SeoHead from "@/ts/components/common/SeoHead";
+import PublicLayout, { type RootProps } from "@/ts/layouts/PublicLayout";
 import { useTranslation } from "@/ts/providers/i18n-provider";
-import { Post } from "@/ts/types/post";
+import type { Post } from "@/ts/types/post";
 import type { Series } from "@/ts/types/series";
 import { cn } from "@/ts/utils";
 import { Link } from "@inertiajs/react";
@@ -20,6 +21,12 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
 
   return (
     <PublicLayout auth={auth} locale={locale}>
+      <SeoHead
+        title={`${post.title} | Blog`}
+        description={post.description?.trim() || "Read this article on nvnhan0810.com"}
+        url={route("posts.show", { slug: post.slug }, true)}
+        type="article"
+      />
       <Link
         href={route("posts.index")}
         className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-emerald-500"

@@ -1,4 +1,5 @@
 import LocaleSwitcher from "@/ts/components/common/LocaleSwitcher";
+import SeoHead from "@/ts/components/common/SeoHead";
 import { profile } from "@/ts/constants/profile";
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import PortfolioLayout from "@/ts/layouts/PortfolioLayout";
@@ -47,6 +48,11 @@ const HomePage = () => {
 
   return (
     <PortfolioLayout>
+      <SeoHead
+        title={`${cv.name} - ${cv.title}`}
+        description={cv.summary}
+        url={route("home", undefined, true)}
+      />
       <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <a href="#top" className="text-sm font-semibold tracking-tight">
