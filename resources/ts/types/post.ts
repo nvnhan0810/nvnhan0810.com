@@ -5,7 +5,8 @@ export type PostTranslationFields = {
   locale: Locale;
   title: string;
   description?: string;
-  content: string;
+  content?: string | null;
+  source_url?: string | null;
 };
 
 export type Post = {
@@ -13,7 +14,8 @@ export type Post = {
   title: string;
   slug: string;
   description?: string;
-  content: string;
+  content: string | null;
+  source_url?: string | null;
   published_at: string | null;
   is_published: boolean;
   translations?: Partial<Record<Locale, PostTranslationFields>>;

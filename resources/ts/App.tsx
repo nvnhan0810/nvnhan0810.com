@@ -1,12 +1,14 @@
 import { createInertiaApp } from "@inertiajs/react";
-import { hydrateRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 
 import { I18nProvider } from "./providers/i18n-provider";
 import { ThemeProvider } from "./providers/theme-provider";
 import type { Locale } from "./i18n";
 import { Ziggy } from "./utils/ziggy";
 
-(globalThis as any).Ziggy = Ziggy;
+type GlobalWithZiggy = typeof globalThis & { Ziggy?: typeof Ziggy };
+
+(globalThis as GlobalWithZiggy).Ziggy = Ziggy;
 
 createInertiaApp({
   resolve: (name) => {
@@ -14,8 +16,7 @@ createInertiaApp({
     return pages[`./pages/${name}.tsx`];
   },
   setup({ el, App, props }) {
-    hydrateRoot(
-      el,
+    const appNode = (
       <ThemeProvider defaultTheme="dark">
         <App {...props}>
           {({ Component, props: pageProps, key }) => (
@@ -24,7 +25,14 @@ createInertiaApp({
             </I18nProvider>
           )}
         </App>
-      </ThemeProvider>,
+      </ThemeProvider>
     );
+
+    if (el.hasChildNodes()) {
+      hydrateRoot(el, appNode);
+      return;
+    }
+
+    createRoot(el).render(appNode);
   },
 });

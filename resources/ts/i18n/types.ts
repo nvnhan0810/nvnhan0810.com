@@ -70,6 +70,7 @@ export type Messages = {
     backToBlog: string;
     article: string;
     series: string;
+    sourceOriginal: string;
   };
   common: {
     language: string;

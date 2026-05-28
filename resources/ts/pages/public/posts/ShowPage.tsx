@@ -13,12 +13,13 @@ type Props = RootProps & {
   series: Series[];
 };
 
-const PostDetailPage = ({ post, auth, series = [] }: Props) => {
+const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
   const route = useRoute();
   const { t } = useTranslation();
+  const sourceUrl = post.source_url?.trim() ?? "";
 
   return (
-    <PublicLayout auth={auth}>
+    <PublicLayout auth={auth} locale={locale}>
       <Link
         href={route("posts.index")}
         className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-emerald-500"
@@ -38,6 +39,19 @@ const PostDetailPage = ({ post, auth, series = [] }: Props) => {
             <p className="mb-3 text-sm font-medium uppercase tracking-widest text-emerald-500">
               {t("blog.article")}
             </p>
+            {sourceUrl !== "" && (
+              <div className="mb-4 rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm text-emerald-400">
+                {t("blog.sourceOriginal")}{" "}
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium underline"
+                >
+                  {sourceUrl}
+                </a>
+              </div>
+            )}
             <PostDetail post={post} useTagLink={true} />
           </article>
         </div>

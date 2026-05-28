@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Post } from "../types/post";
+import { useCallback, useState } from "react";
+import type { Post } from "../types/post";
 import {
   buildPreviewPost,
   parseMarkdownToPostFields,
   postFieldsToMarkdown,
+  validateParsedPostFields,
 } from "../utils/postMarkdown";
 
 type Props = {
@@ -14,26 +15,31 @@ const usePostPreview = ({ initialPost }: Props) => {
   const [post, setPost] = useState<Post | undefined>(initialPost);
   const [errors, setErrors] = useState<string[]>([]);
 
-  const parseContentToPost = (content: string) => {
+  const parseContentToPost = useCallback((
+    content: string,
+    options?: { requireContent?: boolean }
+  ) => {
     const parsed = parseMarkdownToPostFields(content);
+    const nextErrors = validateParsedPostFields(parsed, options);
 
-    if (parsed.errors.length > 0 || errors.length !== parsed.errors.length) {
-      setErrors(parsed.errors);
-    } else if (errors.length > 0) {
-      setErrors([]);
-    }
+    setErrors((current) =>
+      current.length === nextErrors.length &&
+      current.every((item, idx) => item === nextErrors[idx])
+        ? current
+        : nextErrors
+    );
 
-    setPost(buildPreviewPost(parsed, post));
-  };
+    setPost((current) => buildPreviewPost(parsed, current));
+  }, []);
 
-  const parsePostToContent = (value: Post) => {
+  const parsePostToContent = useCallback((value: Post) => {
     return postFieldsToMarkdown({
       title: value.title,
       description: value.description,
-      content: value.content,
+      content: value.content ?? "",
       tags: value.tags,
     });
-  };
+  }, []);
 
   return { post, errors, parsePostToContent, parseContentToPost, setPost };
 };

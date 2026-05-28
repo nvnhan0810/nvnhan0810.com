@@ -1,7 +1,7 @@
 import { profile } from "@/ts/constants/profile";
 import { AuthUser } from "@/ts/types/auth";
 import { Link, router } from "@inertiajs/react";
-import { BookOpenIcon, CircleUserRound, HomeIcon, ListCollapse, MailIcon, TagIcon, Github, Linkedin } from "lucide-react";
+import { BookOpenIcon, CircleUserRound, ListCollapse, MailIcon, TagIcon, Github, Linkedin } from "lucide-react";
 import { useRoute } from "ziggy-js";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -14,8 +14,8 @@ const Header = ({ auth }: { auth: AuthUser | null }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href={route('home')} className="text-muted-foreground hover:text-foreground transition-colors p-2" title="Trang chủ">
-              <HomeIcon className="w-5 h-5" />
+            <Link href={route('posts.index')} className="text-muted-foreground hover:text-foreground transition-colors p-2" title="Blog">
+              <BookOpenIcon className="w-5 h-5" />
             </Link>
             {auth && (
               <>

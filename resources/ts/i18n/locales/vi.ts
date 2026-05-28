@@ -37,6 +37,7 @@ const vi: Messages = {
     backToBlog: "Quay lại blog",
     article: "Bài viết",
     series: "Thuộc series",
+    sourceOriginal: "Source gốc:",
   },
   common: {
     language: "Ngôn ngữ",

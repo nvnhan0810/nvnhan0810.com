@@ -37,6 +37,7 @@ const en: Messages = {
     backToBlog: "Back to blog",
     article: "Article",
     series: "In series",
+    sourceOriginal: "Original source:",
   },
   common: {
     language: "Language",

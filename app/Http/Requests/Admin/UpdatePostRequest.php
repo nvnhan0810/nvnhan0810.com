@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Post;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdatePostRequest extends FormRequest
 {
@@ -16,14 +17,16 @@ class UpdatePostRequest extends FormRequest
     {
         return [
             'translations' => 'required|array',
-            'translations.en' => 'required|array',
-            'translations.en.title' => 'required|string',
+            'translations.en' => 'nullable|array',
+            'translations.en.title' => 'nullable|string|required_with:translations.en.content',
             'translations.en.description' => 'nullable|string',
-            'translations.en.content' => 'required|string',
+            'translations.en.content' => 'nullable|string|required_with:translations.en.title',
+            'translations.en.source_url' => 'nullable|url|max:2048',
             'translations.vi' => 'nullable|array',
-            'translations.vi.title' => 'nullable|string',
+            'translations.vi.title' => 'nullable|string|required_with:translations.vi.content',
             'translations.vi.description' => 'nullable|string',
-            'translations.vi.content' => 'nullable|string',
+            'translations.vi.content' => 'nullable|string|required_with:translations.vi.title',
+            'translations.vi.source_url' => 'nullable|url|max:2048',
             'is_published' => 'required|boolean',
             'published_at' => 'required|date',
             'tags' => 'nullable|array',
@@ -44,14 +47,43 @@ class UpdatePostRequest extends FormRequest
 
             $title = trim($translations[$locale]['title'] ?? '');
             $content = trim($translations[$locale]['content'] ?? '');
+            $sourceUrl = trim($translations[$locale]['source_url'] ?? '');
 
             if ($title === '' && $content === '') {
                 unset($translations[$locale]);
+                continue;
             }
+
+            $translations[$locale]['source_url'] = $sourceUrl !== '' ? $sourceUrl : null;
         }
 
         $this->merge([
             'translations' => $translations,
         ]);
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $translations = $this->input('translations', []);
+            $hasContent = false;
+
+            foreach (Post::SUPPORTED_LOCALES as $locale) {
+                $title = trim(data_get($translations, "{$locale}.title", ''));
+                $content = trim(data_get($translations, "{$locale}.content", ''));
+
+                if ($title !== '' && $content !== '') {
+                    $hasContent = true;
+                    break;
+                }
+            }
+
+            if (! $hasContent) {
+                $validator->errors()->add(
+                    'translations',
+                    'At least one locale (en or vi) must include both title and content.'
+                );
+            }
+        });
     }
 }

@@ -52,7 +52,7 @@ const PostDetail = ({ post, useTagLink = false }: Props) => {
       )}
 
       <div className="mt-8">
-        <PostContent doc={post.content} />
+        <PostContent doc={post.content ?? ""} />
       </div>
     </article>
   );

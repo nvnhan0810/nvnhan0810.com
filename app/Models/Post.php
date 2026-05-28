@@ -64,6 +64,7 @@ class Post extends Model
             'title' => $translation->title,
             'description' => $translation->description,
             'content' => $translation->content,
+            'source_url' => $translation->source_url,
             'published_at' => $this->published_at,
             'is_published' => $this->is_published,
             'created_at' => $this->created_at,
@@ -86,6 +87,7 @@ class Post extends Model
                         'title' => $item->title,
                         'description' => $item->description,
                         'content' => $item->content,
+                        'source_url' => $item->source_url,
                     ],
                 ])
                 ->all();

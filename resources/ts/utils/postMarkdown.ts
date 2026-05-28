@@ -44,21 +44,20 @@ const checkSyntax = (
 
 export const parseMarkdownToPostFields = (content: string): ParsedPostFields => {
   let contentArr = content?.split("\n") ?? [];
-  const errors: string[] = [];
 
-  let { result: title, index: titleIndex } = checkSyntax(contentArr, "title");
+  const { result: title, index: titleIndex } = checkSyntax(contentArr, "title");
   if (titleIndex > -1) {
     contentArr = contentArr.slice(titleIndex + 1);
   }
 
-  let { result: tagStr, index: tagsIndex } = checkSyntax(contentArr, "tags");
+  const { result: tagStr, index: tagsIndex } = checkSyntax(contentArr, "tags");
   let tags: string[] = [];
   if (tagsIndex > -1) {
     contentArr = contentArr.slice(tagsIndex + 1);
     tags = tagStr.split(",").map((tag) => tag.trim()).filter(Boolean);
   }
 
-  let { result: description, index: descriptionIndex } = checkSyntax(
+  const { result: description, index: descriptionIndex } = checkSyntax(
     contentArr,
     "description"
   );
@@ -68,21 +67,31 @@ export const parseMarkdownToPostFields = (content: string): ParsedPostFields => 
 
   const body = contentArr.join("\n");
 
-  if (title === "") {
-    errors.push("Title is required");
-  }
-
-  if (body === "") {
-    errors.push("Body is required");
-  }
-
   return {
     title,
     description: description || undefined,
     content: body,
     tags,
-    errors,
+    errors: [],
   };
+};
+
+export const validateParsedPostFields = (
+  parsed: ParsedPostFields,
+  options?: { requireContent?: boolean }
+): string[] => {
+  const errors: string[] = [];
+  const requireContent = options?.requireContent ?? true;
+
+  if (parsed.title.trim() === "") {
+    errors.push("Title is required");
+  }
+
+  if (requireContent && parsed.content.trim() === "") {
+    errors.push("Body is required");
+  }
+
+  return errors;
 };
 
 export const postFieldsToMarkdown = (fields: {
@@ -107,24 +116,27 @@ export const postFieldsToMarkdown = (fields: {
 };
 
 export const buildTranslationsFromDocs = (
-  docs: Record<Locale, string>
+  docs: Record<Locale, string>,
+  sourceUrls?: Partial<Record<Locale, string>>
 ): Record<Locale, PostTranslationFields> => {
   const translations: Partial<Record<Locale, PostTranslationFields>> = {};
 
-  (Object.keys(docs) as Locale[]).forEach((locale) => {
+  for (const locale of Object.keys(docs) as Locale[]) {
     const parsed = parseMarkdownToPostFields(docs[locale]);
 
-    if (parsed.title === "" && parsed.content === "") {
-      return;
+    const sourceUrl = sourceUrls?.[locale]?.trim() ?? "";
+    if (parsed.title === "" || parsed.content === "") {
+      continue;
     }
 
     translations[locale] = {
       locale,
       title: parsed.title,
       description: parsed.description,
-      content: parsed.content,
+      content: parsed.content || null,
+      source_url: sourceUrl || null,
     };
-  });
+  }
 
   return translations as Record<Locale, PostTranslationFields>;
 };
@@ -133,20 +145,23 @@ export const buildDocsFromPost = (post: Post): Record<Locale, string> => {
   const docs: Record<Locale, string> = { en: "", vi: "" };
 
   if (post.translations) {
-    (Object.keys(post.translations) as Locale[]).forEach((locale) => {
-      const translation = post.translations![locale];
+    for (const locale of Object.keys(post.translations) as Locale[]) {
+      const translation = post.translations[locale];
+      if (!translation) {
+        continue;
+      }
       docs[locale] = postFieldsToMarkdown({
         title: translation.title,
         description: translation.description,
-        content: translation.content,
+        content: translation.content ?? "",
         tags: post.tags,
       });
-    });
+    }
   } else {
     docs.en = postFieldsToMarkdown({
       title: post.title,
       description: post.description,
-      content: post.content,
+      content: post.content ?? "",
       tags: post.tags,
     });
   }

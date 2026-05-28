@@ -1,6 +1,6 @@
 import usePostPreview from "@/ts/hooks/usePostPreview";
 import type { Locale } from "@/ts/i18n";
-import { Post, PostPayload } from "@/ts/types/post";
+import type { Post, PostPayload } from "@/ts/types/post";
 import { Link } from "@inertiajs/react";
 import { format } from "date-fns";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
@@ -12,6 +12,7 @@ import { Label } from "../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
+import { Input } from "../ui/input";
 import PostDetail from "./PostDetail";
 import { cn } from "@/ts/utils";
 import type { Series } from "@/ts/types/series";
@@ -48,6 +49,10 @@ const PostForm = ({
   const [seriesIds, setSeriesIds] = useState<number[]>(selectedSeriesIds);
   const [activeLocale, setActiveLocale] = useState<Locale>("en");
   const [docs, setDocs] = useState<Record<Locale, string>>({ en: "", vi: "" });
+  const [sourceUrls, setSourceUrls] = useState<Record<Locale, string>>({
+    en: "",
+    vi: "",
+  });
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [formErrors, setFormErrors] = useState<string[]>([]);
 
@@ -69,13 +74,17 @@ const PostForm = ({
     is_published: basePost.is_published,
   });
 
-  const { post, errors, parseContentToPost, setPost } = usePostPreview({
+  const { post, parseContentToPost, setPost } = usePostPreview({
     initialPost: basePost,
   });
 
   useEffect(() => {
     if (initialPost) {
       setDocs(buildDocsFromPost(initialPost));
+      setSourceUrls({
+        en: initialPost.translations?.en?.source_url ?? "",
+        vi: initialPost.translations?.vi?.source_url ?? "",
+      });
       setMeta({
         published_at: initialPost.published_at,
         is_published: initialPost.is_published,
@@ -84,8 +93,8 @@ const PostForm = ({
   }, [initialPost]);
 
   useEffect(() => {
-    parseContentToPost(docs[activeLocale]);
-  }, [docs, activeLocale]);
+    parseContentToPost(docs[activeLocale], { requireContent: false });
+  }, [docs, activeLocale, parseContentToPost]);
 
   useEffect(() => {
     const syncHeight = () => {
@@ -108,19 +117,28 @@ const PostForm = ({
     }
 
     return () => window.removeEventListener("resize", syncHeight);
-  }, [post]);
+  }, []);
 
   const handleSave = () => {
     const enParsed = parseMarkdownToPostFields(docs.en);
-    const validationErrors = [...enParsed.errors];
+    const viParsed = parseMarkdownToPostFields(docs.vi);
+    const hasEnContent =
+      enParsed.title.trim() !== "" && enParsed.content.trim() !== "";
+    const hasViContent =
+      viParsed.title.trim() !== "" && viParsed.content.trim() !== "";
+    const validationErrors: string[] = [];
+
+    if (!hasEnContent && !hasViContent) {
+      validationErrors.push("Cần ít nhất một locale (EN hoặc VI) có đủ Title và Body.");
+    }
 
     if (validationErrors.length > 0) {
       setFormErrors(validationErrors);
-      setActiveLocale("en");
+      setActiveLocale(hasEnContent ? "vi" : "en");
       return;
     }
 
-    const translations = buildTranslationsFromDocs(docs);
+    const translations = buildTranslationsFromDocs(docs, sourceUrls);
     const enTags = enParsed.tags;
 
     onSave({
@@ -139,10 +157,25 @@ const PostForm = ({
     }));
     const parsed = parseMarkdownToPostFields(value);
     setPost(buildPreviewPost(parsed, { ...basePost, ...meta }));
-    setFormErrors(parsed.errors);
+    const enParsed = parseMarkdownToPostFields(
+      activeLocale === "en" ? value : docs.en
+    );
+    const viParsed = parseMarkdownToPostFields(
+      activeLocale === "vi" ? value : docs.vi
+    );
+    const hasEnContent =
+      enParsed.title.trim() !== "" && enParsed.content.trim() !== "";
+    const hasViContent =
+      viParsed.title.trim() !== "" && viParsed.content.trim() !== "";
+
+    setFormErrors(
+      !hasEnContent && !hasViContent
+        ? ["Cần ít nhất một locale (EN hoặc VI) có đủ Title và Body."]
+        : []
+    );
   };
 
-  const displayErrors = [...new Set([...formErrors, ...errors])];
+  const displayErrors = [...new Set(formErrors)];
 
   return (
     <div className="flex flex-col gap-4">
@@ -174,12 +207,31 @@ const PostForm = ({
         </div>
         <p className="text-sm text-muted-foreground">
           Đang chỉnh sửa: <span className="text-emerald-500">{localeLabels[activeLocale]}</span>
-          {activeLocale === "en" && " (bắt buộc)"}
         </p>
       </div>
 
       <div className="flex gap-4">
         <div className="flex w-1/2 flex-col gap-2">
+          <div className="space-y-2 rounded-md border border-gray-700 bg-zinc-900 p-3">
+            <Label htmlFor={`source-url-${activeLocale}`}>
+              Source URL ({localeLabels[activeLocale]})
+            </Label>
+            <Input
+              id={`source-url-${activeLocale}`}
+              type="url"
+              placeholder="https://example.com/original-post"
+              value={sourceUrls[activeLocale]}
+              onChange={(e) =>
+                setSourceUrls((current) => ({
+                  ...current,
+                  [activeLocale]: e.target.value,
+                }))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect.
+            </p>
+          </div>
           <Textarea
             ref={textareaRef}
             placeholder={`# Title (${localeLabels[activeLocale]})`}
@@ -281,7 +333,6 @@ const PostForm = ({
           <Button
             variant="outline"
             onClick={handleSave}
-            disabled={parseMarkdownToPostFields(docs.en).errors.length > 0}
           >
             Lưu
           </Button>

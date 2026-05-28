@@ -13,6 +13,7 @@ class PostTranslation extends Model
         'title',
         'description',
         'content',
+        'source_url',
     ];
 
     public function post(): BelongsTo

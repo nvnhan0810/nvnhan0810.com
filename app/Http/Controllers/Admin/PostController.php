@@ -165,7 +165,8 @@ class PostController extends Controller
                 [
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
-                    'content' => $data['content'],
+                    'content' => $data['content'] ?? null,
+                    'source_url' => $data['source_url'] ?? null,
                 ]
             );
         }

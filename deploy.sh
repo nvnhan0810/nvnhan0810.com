@@ -107,6 +107,9 @@ rsync "${rsync_args[@]}" "${rsync_ssh[@]}" ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${D
     storage/logs \
   && chmod -R ug+rwX bootstrap/cache storage"
 
+echo "Running database migrations on VPS..."
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && php artisan migrate --force"
+
 if [[ -n "$DEPLOY_POST_COMMANDS" ]]; then
   "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && ${DEPLOY_POST_COMMANDS}"
 fi

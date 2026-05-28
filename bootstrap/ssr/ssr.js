@@ -1822,18 +1822,17 @@ const checkSyntax = (content2, type2) => {
 };
 const parseMarkdownToPostFields = (content2) => {
   let contentArr = (content2 == null ? void 0 : content2.split("\n")) ?? [];
-  const errors = [];
-  let { result: title, index: titleIndex } = checkSyntax(contentArr, "title");
+  const { result: title, index: titleIndex } = checkSyntax(contentArr, "title");
   if (titleIndex > -1) {
     contentArr = contentArr.slice(titleIndex + 1);
   }
-  let { result: tagStr, index: tagsIndex } = checkSyntax(contentArr, "tags");
+  const { result: tagStr, index: tagsIndex } = checkSyntax(contentArr, "tags");
   let tags = [];
   if (tagsIndex > -1) {
     contentArr = contentArr.slice(tagsIndex + 1);
     tags = tagStr.split(",").map((tag) => tag.trim()).filter(Boolean);
   }
-  let { result: description, index: descriptionIndex } = checkSyntax(
+  const { result: description, index: descriptionIndex } = checkSyntax(
     contentArr,
     "description"
   );
@@ -1841,19 +1840,24 @@ const parseMarkdownToPostFields = (content2) => {
     contentArr = contentArr.slice(descriptionIndex + 1);
   }
   const body = contentArr.join("\n");
-  if (title === "") {
-    errors.push("Title is required");
-  }
-  if (body === "") {
-    errors.push("Body is required");
-  }
   return {
     title,
     description: description || void 0,
     content: body,
     tags,
-    errors
+    errors: []
   };
+};
+const validateParsedPostFields = (parsed, options2) => {
+  const errors = [];
+  const requireContent = (options2 == null ? void 0 : options2.requireContent) ?? true;
+  if (parsed.title.trim() === "") {
+    errors.push("Title is required");
+  }
+  if (requireContent && parsed.content.trim() === "") {
+    errors.push("Body is required");
+  }
+  return errors;
 };
 const postFieldsToMarkdown = (fields) => {
   let content2 = `# ${fields.title}
@@ -1872,39 +1876,45 @@ const postFieldsToMarkdown = (fields) => {
   content2 += fields.content;
   return content2;
 };
-const buildTranslationsFromDocs = (docs2) => {
+const buildTranslationsFromDocs = (docs2, sourceUrls) => {
+  var _a;
   const translations = {};
-  Object.keys(docs2).forEach((locale) => {
+  for (const locale of Object.keys(docs2)) {
     const parsed = parseMarkdownToPostFields(docs2[locale]);
-    if (parsed.title === "" && parsed.content === "") {
-      return;
+    const sourceUrl = ((_a = sourceUrls == null ? void 0 : sourceUrls[locale]) == null ? void 0 : _a.trim()) ?? "";
+    if (parsed.title === "" || parsed.content === "") {
+      continue;
     }
     translations[locale] = {
       locale,
       title: parsed.title,
       description: parsed.description,
-      content: parsed.content
+      content: parsed.content || null,
+      source_url: sourceUrl || null
     };
-  });
+  }
   return translations;
 };
 const buildDocsFromPost = (post) => {
   const docs2 = { en: "", vi: "" };
   if (post.translations) {
-    Object.keys(post.translations).forEach((locale) => {
+    for (const locale of Object.keys(post.translations)) {
       const translation = post.translations[locale];
+      if (!translation) {
+        continue;
+      }
       docs2[locale] = postFieldsToMarkdown({
         title: translation.title,
         description: translation.description,
-        content: translation.content,
+        content: translation.content ?? "",
         tags: post.tags
       });
-    });
+    }
   } else {
     docs2.en = postFieldsToMarkdown({
       title: post.title,
       description: post.description,
-      content: post.content,
+      content: post.content ?? "",
       tags: post.tags
     });
   }
@@ -1934,23 +1944,22 @@ const buildPreviewPost = (parsed, base) => {
 const usePostPreview = ({ initialPost }) => {
   const [post, setPost] = reactExports.useState(initialPost);
   const [errors, setErrors] = reactExports.useState([]);
-  const parseContentToPost = (content2) => {
+  const parseContentToPost = reactExports.useCallback((content2, options2) => {
     const parsed = parseMarkdownToPostFields(content2);
-    if (parsed.errors.length > 0 || errors.length !== parsed.errors.length) {
-      setErrors(parsed.errors);
-    } else if (errors.length > 0) {
-      setErrors([]);
-    }
-    setPost(buildPreviewPost(parsed, post));
-  };
-  const parsePostToContent = (value) => {
+    const nextErrors = validateParsedPostFields(parsed, options2);
+    setErrors(
+      (current) => current.length === nextErrors.length && current.every((item, idx) => item === nextErrors[idx]) ? current : nextErrors
+    );
+    setPost((current) => buildPreviewPost(parsed, current));
+  }, []);
+  const parsePostToContent = reactExports.useCallback((value) => {
     return postFieldsToMarkdown({
       title: value.title,
       description: value.description,
-      content: value.content,
+      content: value.content ?? "",
       tags: value.tags
     });
-  };
+  }, []);
   return { post, errors, parsePostToContent, parseContentToPost, setPost };
 };
 var type;
@@ -30148,6 +30157,24 @@ const Textarea = reactExports.forwardRef(({ className, ...props }, ref2) => {
   );
 });
 Textarea.displayName = "Textarea";
+const Input = reactExports.forwardRef(
+  ({ className, type: type2, ...props }, ref2) => {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        type: type2,
+        className: cn(
+          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "border-gray-700",
+          className
+        ),
+        ref: ref2,
+        ...props
+      }
+    );
+  }
+);
+Input.displayName = "Input";
 const en = {
   nav: {
     portfolio: "Portfolio",
@@ -30184,7 +30211,8 @@ const en = {
     search: "Search",
     backToBlog: "Back to blog",
     article: "Article",
-    series: "In series"
+    series: "In series",
+    sourceOriginal: "Original source:"
   },
   common: {
     language: "Language"
@@ -30349,7 +30377,8 @@ const vi = {
     search: "Tìm kiếm",
     backToBlog: "Quay lại blog",
     article: "Bài viết",
-    series: "Thuộc series"
+    series: "Thuộc series",
+    sourceOriginal: "Source gốc:"
   },
   common: {
     language: "Ngôn ngữ"
@@ -60591,7 +60620,7 @@ const PostDetail = ({ post, useTagLink = false }) => {
       /* @__PURE__ */ jsxRuntimeExports.jsx("hr", { className: "border-border" })
     ] }),
     post.description && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-8 border-l-4 border-emerald-600 bg-muted/30 py-2 pl-4 text-xl italic text-muted-foreground", children: post.description }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-8", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PostContent, { doc: post.content }) })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-8", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PostContent, { doc: post.content ?? "" }) })
   ] });
 };
 var CHECKBOX_NAME = "Checkbox";
@@ -60886,6 +60915,10 @@ const PostForm = ({
   const [seriesIds, setSeriesIds] = reactExports.useState(selectedSeriesIds);
   const [activeLocale, setActiveLocale] = reactExports.useState("en");
   const [docs2, setDocs] = reactExports.useState({ en: "", vi: "" });
+  const [sourceUrls, setSourceUrls] = reactExports.useState({
+    en: "",
+    vi: ""
+  });
   const [openDatePicker, setOpenDatePicker] = reactExports.useState(false);
   const [formErrors, setFormErrors] = reactExports.useState([]);
   const basePost = reactExports.useMemo(
@@ -60903,12 +60936,17 @@ const PostForm = ({
     published_at: basePost.published_at,
     is_published: basePost.is_published
   });
-  const { post, errors, parseContentToPost, setPost } = usePostPreview({
+  const { post, parseContentToPost, setPost } = usePostPreview({
     initialPost: basePost
   });
   reactExports.useEffect(() => {
+    var _a, _b, _c, _d;
     if (initialPost) {
       setDocs(buildDocsFromPost(initialPost));
+      setSourceUrls({
+        en: ((_b = (_a = initialPost.translations) == null ? void 0 : _a.en) == null ? void 0 : _b.source_url) ?? "",
+        vi: ((_d = (_c = initialPost.translations) == null ? void 0 : _c.vi) == null ? void 0 : _d.source_url) ?? ""
+      });
       setMeta({
         published_at: initialPost.published_at,
         is_published: initialPost.is_published
@@ -60916,8 +60954,8 @@ const PostForm = ({
     }
   }, [initialPost]);
   reactExports.useEffect(() => {
-    parseContentToPost(docs2[activeLocale]);
-  }, [docs2, activeLocale]);
+    parseContentToPost(docs2[activeLocale], { requireContent: false });
+  }, [docs2, activeLocale, parseContentToPost]);
   reactExports.useEffect(() => {
     const syncHeight = () => {
       if (postDetailRef.current && textareaRef.current) {
@@ -60935,16 +60973,22 @@ const PostForm = ({
       };
     }
     return () => window.removeEventListener("resize", syncHeight);
-  }, [post]);
+  }, []);
   const handleSave = () => {
     const enParsed = parseMarkdownToPostFields(docs2.en);
-    const validationErrors = [...enParsed.errors];
+    const viParsed = parseMarkdownToPostFields(docs2.vi);
+    const hasEnContent = enParsed.title.trim() !== "" && enParsed.content.trim() !== "";
+    const hasViContent = viParsed.title.trim() !== "" && viParsed.content.trim() !== "";
+    const validationErrors = [];
+    if (!hasEnContent && !hasViContent) {
+      validationErrors.push("Cần ít nhất một locale (EN hoặc VI) có đủ Title và Body.");
+    }
     if (validationErrors.length > 0) {
       setFormErrors(validationErrors);
-      setActiveLocale("en");
+      setActiveLocale(hasEnContent ? "vi" : "en");
       return;
     }
-    const translations = buildTranslationsFromDocs(docs2);
+    const translations = buildTranslationsFromDocs(docs2, sourceUrls);
     const enTags = enParsed.tags;
     onSave({
       translations,
@@ -60961,9 +61005,19 @@ const PostForm = ({
     }));
     const parsed = parseMarkdownToPostFields(value);
     setPost(buildPreviewPost(parsed, { ...basePost, ...meta }));
-    setFormErrors(parsed.errors);
+    const enParsed = parseMarkdownToPostFields(
+      activeLocale === "en" ? value : docs2.en
+    );
+    const viParsed = parseMarkdownToPostFields(
+      activeLocale === "vi" ? value : docs2.vi
+    );
+    const hasEnContent = enParsed.title.trim() !== "" && enParsed.content.trim() !== "";
+    const hasViContent = viParsed.title.trim() !== "" && viParsed.content.trim() !== "";
+    setFormErrors(
+      !hasEnContent && !hasViContent ? ["Cần ít nhất một locale (EN hoặc VI) có đủ Title và Body."] : []
+    );
   };
-  const displayErrors = [.../* @__PURE__ */ new Set([...formErrors, ...errors])];
+  const displayErrors = [...new Set(formErrors)];
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-4", children: [
     displayErrors.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-red-500", children: displayErrors.map((error) => /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: error }, error)) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center justify-between gap-3", children: [
@@ -60982,21 +61036,43 @@ const PostForm = ({
       )) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-muted-foreground", children: [
         "Đang chỉnh sửa: ",
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-emerald-500", children: localeLabels[activeLocale] }),
-        activeLocale === "en" && " (bắt buộc)"
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-emerald-500", children: localeLabels[activeLocale] })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex w-1/2 flex-col gap-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Textarea,
-        {
-          ref: textareaRef,
-          placeholder: `# Title (${localeLabels[activeLocale]})`,
-          className: "min-h-[200px] resize-none overflow-y-auto border-gray-700",
-          value: docs2[activeLocale],
-          onChange: (e) => handleDocChange(e.target.value)
-        }
-      ) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex w-1/2 flex-col gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 rounded-md border border-gray-700 bg-zinc-900 p-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(Label$1, { htmlFor: `source-url-${activeLocale}`, children: [
+            "Source URL (",
+            localeLabels[activeLocale],
+            ")"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Input,
+            {
+              id: `source-url-${activeLocale}`,
+              type: "url",
+              placeholder: "https://example.com/original-post",
+              value: sourceUrls[activeLocale],
+              onChange: (e) => setSourceUrls((current) => ({
+                ...current,
+                [activeLocale]: e.target.value
+              }))
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect." })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Textarea,
+          {
+            ref: textareaRef,
+            placeholder: `# Title (${localeLabels[activeLocale]})`,
+            className: "min-h-[200px] resize-none overflow-y-auto border-gray-700",
+            value: docs2[activeLocale],
+            onChange: (e) => handleDocChange(e.target.value)
+          }
+        )
+      ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex w-1/2 flex-col gap-2 px-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: postDetailRef, children: post && /* @__PURE__ */ jsxRuntimeExports.jsx(PostDetail, { post }) }) })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-6 flex flex-col gap-4 rounded-md border border-gray-700 bg-zinc-900 p-4", children: [
@@ -61087,7 +61163,6 @@ const PostForm = ({
           {
             variant: "outline",
             onClick: handleSave,
-            disabled: parseMarkdownToPostFields(docs2.en).errors.length > 0,
             children: "Lưu"
           }
         )
@@ -62526,7 +62601,7 @@ const Header = ({ auth }) => {
   const route = u$1();
   return /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-14 items-center justify-between", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Link_default, { href: route("home"), className: "text-muted-foreground hover:text-foreground transition-colors p-2", title: "Trang chủ", children: /* @__PURE__ */ jsxRuntimeExports.jsx(House, { className: "w-5 h-5" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Link_default, { href: route("posts.index"), className: "text-muted-foreground hover:text-foreground transition-colors p-2", title: "Blog", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { className: "w-5 h-5" }) }),
       auth && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(Link_default, { href: route("admin.index"), className: "text-muted-foreground hover:text-foreground transition-colors p-2", title: "Quản lý bài viết", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { className: "w-5 h-5" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(Link_default, { href: route("admin.tags.index"), className: "text-muted-foreground hover:text-foreground transition-colors p-2", title: "Quản lý thẻ", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { className: "w-5 h-5" }) }),
@@ -62763,24 +62838,6 @@ const PaginationBar = ({ pagination }) => {
     /* @__PURE__ */ jsxRuntimeExports.jsx(PaginationItem, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(PaginationNext, { href: getPageHref(current_page + 1), isActive: current_page < pagination.last_page }) })
   ] }) });
 };
-const Input = reactExports.forwardRef(
-  ({ className, type: type2, ...props }, ref2) => {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "input",
-      {
-        type: type2,
-        className: cn(
-          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-          "border-gray-700",
-          className
-        ),
-        ref: ref2,
-        ...props
-      }
-    );
-  }
-);
-Input.displayName = "Input";
 const SearchForm = ({ onSearch }) => {
   const { t } = useTranslation();
   const [search2, setSearch] = reactExports.useState("");
@@ -68779,10 +68836,12 @@ const __vite_glob_0_9 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.def
   __proto__: null,
   default: ListPage
 }, Symbol.toStringTag, { value: "Module" }));
-const PostDetailPage = ({ post, auth, series = [] }) => {
+const PostDetailPage = ({ post, auth, locale, series = [] }) => {
+  var _a;
   const route = u$1();
   const { t } = useTranslation();
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(PublicLayout, { auth, children: [
+  const sourceUrl = ((_a = post.source_url) == null ? void 0 : _a.trim()) ?? "";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(PublicLayout, { auth, locale, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
       Link_default,
       {
@@ -68804,6 +68863,20 @@ const PostDetailPage = ({ post, auth, series = [] }) => {
           }),
           children: /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "rounded-xl border border-border bg-card p-6 md:p-10", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mb-3 text-sm font-medium uppercase tracking-widest text-emerald-500", children: t("blog.article") }),
+            sourceUrl !== "" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4 rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm text-emerald-400", children: [
+              t("blog.sourceOriginal"),
+              " ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "a",
+                {
+                  href: sourceUrl,
+                  target: "_blank",
+                  rel: "noreferrer",
+                  className: "font-medium underline",
+                  children: sourceUrl
+                }
+              )
+            ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(PostDetail, { post, useTagLink: true })
           ] })
         }
