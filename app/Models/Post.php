@@ -56,6 +56,12 @@ class Post extends Model
 
     public function toLocalizedArray(?string $locale = null): array
     {
+        $locale = $locale ?? app()->getLocale();
+
+        if (! in_array($locale, self::SUPPORTED_LOCALES, true)) {
+            $locale = self::DEFAULT_LOCALE;
+        }
+
         $translation = $this->translate($locale);
 
         $data = [
@@ -92,6 +98,11 @@ class Post extends Model
                 ])
                 ->all();
         }
+
+        $data['og_image_url'] = route('og.posts.show', [
+            'slug' => $this->slug,
+            'locale' => $locale,
+        ]);
 
         return $data;
     }

@@ -33,7 +33,7 @@ const SkillBar = ({ name, level }: { name: string; level: number }) => (
 
 const HomePage = () => {
   const route = useRoute();
-  const { cv, t } = useTranslation();
+  const { cv, t, locale } = useTranslation();
 
   const navItems = useMemo(
     () => [
@@ -49,9 +49,11 @@ const HomePage = () => {
   return (
     <PortfolioLayout>
       <SeoHead
-        title={`${cv.name} - ${cv.title}`}
+        title={`${cv.name} — ${cv.title}`}
         description={cv.summary}
         url={route("home", undefined, true)}
+        locale={locale === "vi" ? "vi_VN" : "en_US"}
+        imageAlt={`${cv.name} — ${cv.title}`}
       />
       <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">

@@ -5,6 +5,7 @@ import { useTranslation } from "@/ts/providers/i18n-provider";
 import type { Post } from "@/ts/types/post";
 import type { Series } from "@/ts/types/series";
 import { cn } from "@/ts/utils";
+import { stripMarkdown, truncateDescription } from "@/ts/utils/seo";
 import { Link } from "@inertiajs/react";
 import { ArrowLeft } from "lucide-react";
 import { useRoute } from "ziggy-js";
@@ -18,14 +19,22 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
   const route = useRoute();
   const { t } = useTranslation();
   const sourceUrl = post.source_url?.trim() ?? "";
+  const seoDescription = post.description?.trim()
+    ? post.description
+    : truncateDescription(stripMarkdown(post.content));
+  const ogLocale = locale === "vi" ? "vi_VN" : "en_US";
 
   return (
     <PublicLayout auth={auth} locale={locale}>
       <SeoHead
         title={`${post.title} | Blog`}
-        description={post.description?.trim() || "Read this article on nvnhan0810.com"}
+        description={seoDescription}
         url={route("posts.show", { slug: post.slug }, true)}
         type="article"
+        locale={ogLocale}
+        publishedAt={post.published_at}
+        imageUrl={post.og_image_url}
+        imageAlt={post.title}
       />
       <Link
         href={route("posts.index")}

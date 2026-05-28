@@ -22,7 +22,7 @@ const ListPage = ({
   auth: AuthUser | null;
 }) => {
   const route = useRoute();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { data } = posts;
 
   const handleSearch = (search: string) => {
@@ -43,11 +43,16 @@ const ListPage = ({
       : new URLSearchParams(window.location.search).get("tag");
 
   return (
-    <PublicLayout auth={auth} locale="vi">
+    <PublicLayout auth={auth} locale={locale}>
       <SeoHead
-        title={currentTag ? `${t("blog.taggedPosts", { tag: currentTag })} | Blog` : `${t("blog.latestPosts")} | Blog`}
+        title={
+          currentTag
+            ? `${t("blog.taggedPosts", { tag: currentTag })} | Blog`
+            : `${t("blog.latestPosts")} | Blog`
+        }
         description={t("blog.metaDescription")}
         url={route("posts.index", undefined, true)}
+        locale={locale === "vi" ? "vi_VN" : "en_US"}
       />
       <header className="mb-10">
         <p className="mb-2 text-sm font-medium uppercase tracking-widest text-emerald-500">

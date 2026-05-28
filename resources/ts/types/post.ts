@@ -19,6 +19,7 @@ export type Post = {
   published_at: string | null;
   is_published: boolean;
   translations?: Partial<Record<Locale, PostTranslationFields>>;
+  og_image_url?: string;
   public_tags?: Tag[];
   tags?: Tag[];
 };

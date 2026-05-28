@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="index,follow" />
-    <meta name="author" content="Nguyen Van Nhan" />
+    <meta name="author" content="{{ config('seo.site_name') }}" />
+    {{-- OG/Twitter meta come from SeoHead via @inertiaHead (SSR). Do not duplicate here — crawlers use the first og:* tags. --}}
     @viteReactRefresh
     @vite('resources/sass/app.scss')
     @vite('resources/ts/App.tsx')
