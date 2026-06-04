@@ -7,7 +7,7 @@ import type { Series } from "@/ts/types/series";
 import { cn } from "@/ts/utils";
 import { stripMarkdown, truncateDescription } from "@/ts/utils/seo";
 import { Link } from "@inertiajs/react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
 type Props = RootProps & {
@@ -52,9 +52,20 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
           })}
         >
           <article className="rounded-xl border border-border bg-card p-6 md:p-10">
-            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-emerald-500">
-              {t("blog.article")}
-            </p>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-medium uppercase tracking-widest text-emerald-500">
+                {t("blog.article")}
+              </p>
+              {auth && (
+                <Link
+                  href={route("admin.posts.edit", { post: post.id })}
+                  className="text-muted-foreground transition-colors hover:text-emerald-500"
+                  title={t("blog.editPost")}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
             {sourceUrl !== "" && (
               <div className="mb-4 rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm text-emerald-400">
                 {t("blog.sourceOriginal")}{" "}

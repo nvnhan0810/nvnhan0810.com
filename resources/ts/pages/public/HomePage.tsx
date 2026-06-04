@@ -1,10 +1,14 @@
 import LocaleSwitcher from "@/ts/components/common/LocaleSwitcher";
 import SeoHead from "@/ts/components/common/SeoHead";
+import PostListItem from "@/ts/components/posts/PostListItem";
+import TechStackGrid from "@/ts/components/portfolio/TechStackGrid";
 import { profile } from "@/ts/constants/profile";
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import PortfolioLayout from "@/ts/layouts/PortfolioLayout";
+import type { Post } from "@/ts/types/post";
 import { Link } from "@inertiajs/react";
 import {
+  ArrowRight,
   BookOpen,
   FileDown,
   Github,
@@ -16,22 +20,11 @@ import {
 import { useMemo } from "react";
 import { useRoute } from "ziggy-js";
 
-const SkillBar = ({ name, level }: { name: string; level: number }) => (
-  <div>
-    <div className="mb-1 flex justify-between text-sm">
-      <span className="text-foreground">{name}</span>
-      <span className="text-muted-foreground">{level}/5</span>
-    </div>
-    <div className="h-2 overflow-hidden rounded-full bg-muted">
-      <div
-        className="h-full rounded-full bg-emerald-600 transition-all"
-        style={{ width: `${(level / 5) * 100}%` }}
-      />
-    </div>
-  </div>
-);
+type Props = {
+  posts: Post[];
+};
 
-const HomePage = () => {
+const HomePage = ({ posts }: Props) => {
   const route = useRoute();
   const { cv, t, locale } = useTranslation();
 
@@ -39,8 +32,7 @@ const HomePage = () => {
     () => [
       { id: "about", label: t("nav.about") },
       { id: "skills", label: t("nav.skills") },
-      { id: "experience", label: t("nav.experience") },
-      { id: "projects", label: t("nav.projects") },
+      { id: "blog", label: t("nav.blog") },
       { id: "contact", label: t("nav.contact") },
     ],
     [t]
@@ -75,7 +67,7 @@ const HomePage = () => {
               className="inline-flex items-center gap-1.5 text-emerald-500 transition-colors hover:text-emerald-400"
             >
               <BookOpen className="h-4 w-4" />
-              {t("nav.blog")}
+              {t("home.allPosts")}
             </Link>
             <LocaleSwitcher />
           </div>
@@ -85,7 +77,7 @@ const HomePage = () => {
               className="inline-flex items-center gap-1.5 text-sm text-emerald-500"
             >
               <BookOpen className="h-4 w-4" />
-              {t("nav.blog")}
+              {t("home.allPosts")}
             </Link>
             <LocaleSwitcher />
           </div>
@@ -173,76 +165,36 @@ const HomePage = () => {
 
         <section id="skills" className="mb-20 scroll-mt-20">
           <h2 className="mb-6 text-2xl font-bold">{t("home.skills")}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {cv.skills.map((skill) => (
-              <SkillBar key={skill.name} name={skill.name} level={skill.level} />
-            ))}
-          </div>
+          <TechStackGrid />
         </section>
 
-        <section id="experience" className="mb-20 scroll-mt-20">
-          <h2 className="mb-6 text-2xl font-bold">{t("home.workExperience")}</h2>
-          <div className="space-y-6">
-            {cv.experience.map((job) => (
-              <article
-                key={`${job.company}-${job.period}`}
-                className="relative rounded-xl border border-border bg-card p-5 pl-6 sm:pl-8"
-              >
-                <span className="absolute left-3 top-6 h-2 w-2 rounded-full bg-emerald-500 sm:left-4" />
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <h3 className="text-lg font-semibold">{job.company}</h3>
-                  <span className="text-sm text-emerald-500">{job.period}</span>
-                </div>
-                <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  {job.highlights.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
+        <section id="blog" className="mb-20 scroll-mt-20">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="mb-2 text-sm font-medium uppercase tracking-widest text-emerald-500">
+                {t("blog.label")}
+              </p>
+              <h2 className="text-2xl font-bold">{t("home.latestPosts")}</h2>
+            </div>
+            <Link
+              href={route("posts.index")}
+              className="inline-flex items-center gap-1.5 text-sm text-emerald-500 transition-colors hover:text-emerald-400"
+            >
+              {t("home.viewAllPosts")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-        </section>
-
-        <section id="projects" className="mb-20 scroll-mt-20">
-          <h2 className="mb-6 text-2xl font-bold">{t("home.projects")}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {cv.projects.map((project) => (
-              <article
-                key={project.name}
-                className="flex flex-col rounded-xl border border-border bg-card p-5"
-              >
-                <h3 className="font-semibold">{project.name}</h3>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                  {project.description}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {project.stack.map((tech) => (
-                    <span
-                      key={tech}
-                      className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-                {project.links && (
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {project.links.map((link) => (
-                      <a
-                        key={link.href}
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-emerald-500 hover:text-emerald-400"
-                      >
-                        {link.label} →
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
+          {posts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {posts.map((post) => (
+                <PostListItem key={post.id} post={post} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-card py-16 text-center">
+              <p className="text-muted-foreground">{t("blog.noPosts")}</p>
+            </div>
+          )}
         </section>
 
         <section id="contact" className="scroll-mt-20">

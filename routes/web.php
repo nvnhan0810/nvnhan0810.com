@@ -5,6 +5,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
+use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\OgImageController;
 use App\Http\Controllers\Public\PostController;
 use Illuminate\Support\Facades\Route;
@@ -22,9 +23,7 @@ Route::prefix('auth')->group(function () {
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
-Route::get('/', function () {
-    return Inertia::render('public/HomePage');
-})->name('home');
+Route::get('/', HomeController::class)->name('home');
 
 Route::get('/og/posts/{slug}.png', [OgImageController::class, 'post'])
     ->where('slug', '[A-Za-z0-9\-]+')

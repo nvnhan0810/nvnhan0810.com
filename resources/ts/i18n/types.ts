@@ -1,18 +1,5 @@
 export type Locale = "en" | "vi";
 
-export type CvProject = {
-  name: string;
-  description: string;
-  stack: string[];
-  links?: { label: string; href: string }[];
-};
-
-export type CvExperience = {
-  company: string;
-  period: string;
-  highlights: string[];
-};
-
 export type CvData = {
   name: string;
   title: string;
@@ -26,9 +13,6 @@ export type CvData = {
     period: string;
     gpa: string;
   };
-  skills: { name: string; level: number }[];
-  experience: CvExperience[];
-  projects: CvProject[];
   languages: string;
   interests: string[];
 };
@@ -39,8 +23,6 @@ export type Messages = {
     blog: string;
     about: string;
     skills: string;
-    experience: string;
-    projects: string;
     contact: string;
     admin: string;
   };
@@ -53,11 +35,12 @@ export type Messages = {
     phone: string;
     education: string;
     skills: string;
-    workExperience: string;
-    projects: string;
     contact: string;
     interests: string;
     readBlog: string;
+    latestPosts: string;
+    viewAllPosts: string;
+    allPosts: string;
   };
   blog: {
     label: string;
@@ -72,6 +55,7 @@ export type Messages = {
     article: string;
     series: string;
     sourceOriginal: string;
+    editPost: string;
   };
   common: {
     language: string;
