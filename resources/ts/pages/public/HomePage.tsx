@@ -2,6 +2,7 @@ import LocaleSwitcher from "@/ts/components/common/LocaleSwitcher";
 import SeoHead from "@/ts/components/common/SeoHead";
 import PostListItem from "@/ts/components/posts/PostListItem";
 import TechStackGrid from "@/ts/components/portfolio/TechStackGrid";
+import { appsCatalog } from "@/ts/constants/apps";
 import { profile } from "@/ts/constants/profile";
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import PortfolioLayout from "@/ts/layouts/PortfolioLayout";
@@ -26,12 +27,13 @@ type Props = {
 
 const HomePage = ({ posts }: Props) => {
   const route = useRoute();
-  const { cv, t, locale } = useTranslation();
+  const { cv, t, locale, messages } = useTranslation();
 
   const navItems = useMemo(
     () => [
       { id: "about", label: t("nav.about") },
       { id: "skills", label: t("nav.skills") },
+      { id: "apps", label: t("nav.apps") },
       { id: "blog", label: t("nav.blog") },
       { id: "contact", label: t("nav.contact") },
     ],
@@ -166,6 +168,60 @@ const HomePage = ({ posts }: Props) => {
         <section id="skills" className="mb-20 scroll-mt-20">
           <h2 className="mb-6 text-2xl font-bold">{t("home.skills")}</h2>
           <TechStackGrid />
+        </section>
+
+        <section id="apps" className="mb-20 scroll-mt-20">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="mb-2 text-sm font-medium uppercase tracking-widest text-emerald-500">
+                {t("apps.label")}
+              </p>
+              <h2 className="text-2xl font-bold">{t("home.appsTitle")}</h2>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                {t("apps.description")}
+              </p>
+            </div>
+            <Link
+              href={route("apps.index")}
+              className="inline-flex shrink-0 items-center gap-1.5 text-sm text-emerald-500 transition-colors hover:text-emerald-400"
+            >
+              {t("home.viewAllApps")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            {appsCatalog.map((app) => {
+              const content = messages.apps.items[app.slug];
+
+              return (
+                <Link
+                  key={app.slug}
+                  href={route("apps.index")}
+                  className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-emerald-600/40 hover:bg-emerald-600/5"
+                >
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {app.packageName}
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-foreground transition-colors group-hover:text-emerald-500">
+                    {content.name}
+                  </h3>
+                  <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                    {content.summary}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {app.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-emerald-600/30 bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-500"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </section>
 
         <section id="blog" className="mb-20 scroll-mt-20">

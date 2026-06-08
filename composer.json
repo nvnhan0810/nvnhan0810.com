@@ -14,6 +14,7 @@
         "laravel/framework": "^11.31",
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.9",
+        "nvnhan0810/laravel-telegram-logging": "^1.0",
         "tightenco/ziggy": "^2.5"
     },
     "require-dev": {

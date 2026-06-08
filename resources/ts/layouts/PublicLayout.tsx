@@ -10,14 +10,15 @@ export type RootProps = {
 
 type PublicLayoutProps = RootProps & {
   children: React.ReactNode;
+  active?: "home" | "blog" | "apps";
 };
 
-const PublicLayout = ({ children, auth }: PublicLayoutProps) => {
+const PublicLayout = ({ children, auth, active = "blog" }: PublicLayoutProps) => {
   const { cv } = useTranslation();
 
   return (
     <div className="min-h-screen bg-background font-sans antialiased text-foreground">
-      <SiteNav auth={auth} active="blog" />
+      <SiteNav auth={auth} active={active} />
       <main className="mx-auto max-w-5xl flex-grow px-4 py-10 sm:px-6 sm:py-12">
         {children}
       </main>

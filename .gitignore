@@ -28,3 +28,4 @@ yarn-error.log
 ziggy.js
 ziggy.ts
 ziggy.d.ts
+.env.bk

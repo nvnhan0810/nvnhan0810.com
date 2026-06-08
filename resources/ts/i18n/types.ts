@@ -1,5 +1,11 @@
 export type Locale = "en" | "vi";
 
+export type AppItemMessages = {
+  name: string;
+  summary: string;
+  features: string[];
+};
+
 export type CvData = {
   name: string;
   title: string;
@@ -25,6 +31,7 @@ export type Messages = {
     skills: string;
     contact: string;
     admin: string;
+    apps: string;
   };
   home: {
     portfolioLabel: string;
@@ -41,6 +48,8 @@ export type Messages = {
     latestPosts: string;
     viewAllPosts: string;
     allPosts: string;
+    appsTitle: string;
+    viewAllApps: string;
   };
   blog: {
     label: string;
@@ -56,6 +65,17 @@ export type Messages = {
     series: string;
     sourceOriginal: string;
     editPost: string;
+  };
+  apps: {
+    label: string;
+    title: string;
+    description: string;
+    metaDescription: string;
+    featuresLabel: string;
+    viewOnPackagist: string;
+    viewOnNpm: string;
+    viewOnGithub: string;
+    items: Record<string, AppItemMessages>;
   };
   common: {
     language: string;

@@ -8,6 +8,7 @@ const en: Messages = {
     skills: "Skills",
     contact: "Contact",
     admin: "Admin",
+    apps: "Apps",
   },
   home: {
     portfolioLabel: "Portfolio",
@@ -24,6 +25,8 @@ const en: Messages = {
     latestPosts: "Latest posts",
     viewAllPosts: "View all posts",
     allPosts: "All posts",
+    appsTitle: "Open-source packages",
+    viewAllApps: "View all apps",
   },
   blog: {
     label: "Blog",
@@ -39,6 +42,44 @@ const en: Messages = {
     series: "In series",
     sourceOriginal: "Original source:",
     editPost: "Edit post",
+  },
+  apps: {
+    label: "Apps",
+    title: "Open-source packages",
+    description:
+      "Open-source packages and tools I build and maintain — published on Packagist, npm, and GitHub.",
+    metaDescription:
+      "Open-source packages by Nguyen Van Nhan — Laravel Telegram logging, React Markdown Preview, and more.",
+    featuresLabel: "Features",
+    viewOnPackagist: "View on Packagist",
+    viewOnNpm: "View on npm",
+    viewOnGithub: "View on GitHub",
+    items: {
+      "laravel-telegram-logging": {
+        name: "Laravel Telegram Logging",
+        summary:
+          "A Laravel log channel that forwards warning and error logs to Telegram. Handy for small teams that want instant alerts without a full observability stack.",
+        features: [
+          "Configurable minimum log level (TELEGRAM_LOG_LEVEL)",
+          "Optional queue support so HTTP requests are not blocked",
+          "Custom HTML message templates with placeholders",
+          "Dedupe identical messages within a time window",
+          "Artisan command: php artisan telegram-log:test",
+        ],
+      },
+      "react-markdown-preview": {
+        name: "React Markdown Preview",
+        summary:
+          "A lightweight React component for rendering Markdown with GFM, syntax highlighting, and heading anchors — used on this site's blog.",
+        features: [
+          "Simple API: <MarkdownPreview doc={doc} />",
+          "GitHub Flavored Markdown via remark-gfm",
+          "Syntax highlighting with rehype-highlight",
+          "Auto-linked headings with slug anchors",
+          "Bundled light/dark markdown and highlight styles",
+        ],
+      },
+    },
   },
   common: {
     language: "Language",

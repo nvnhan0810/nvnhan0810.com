@@ -5,6 +5,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
+use App\Http\Controllers\Public\AppsController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\OgImageController;
 use App\Http\Controllers\Public\PostController;
@@ -28,6 +29,8 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('/og/posts/{slug}.png', [OgImageController::class, 'post'])
     ->where('slug', '[A-Za-z0-9\-]+')
     ->name('og.posts.show');
+
+Route::get('/apps', AppsController::class)->name('apps.index');
 
 Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
 Route::get('/posts/{slug}', [PostController::class, 'show'])->name('posts.show');
@@ -63,6 +66,12 @@ Route::get('/sitemap.xml', function () {
             'lastmod' => now()->toAtomString(),
             'changefreq' => 'daily',
             'priority' => '0.8',
+        ],
+        [
+            'loc' => url('/apps'),
+            'lastmod' => now()->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority' => '0.6',
         ],
     ])->merge(
         $posts->map(fn ($post) => [

@@ -119,6 +119,7 @@ fi
 
 echo "Restarting Inertia SSR supervisor (nvnhan0810-ssr)..."
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo supervisorctl restart nvnhan0810-ssr"
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo supervisorctl restart nvnhan0810-queue-worker:*"
 
 echo "Restoring local ${ENV_FILE}..."
 restore_local_env

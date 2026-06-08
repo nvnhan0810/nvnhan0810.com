@@ -8,6 +8,7 @@ const vi: Messages = {
     skills: "Kỹ năng",
     contact: "Liên hệ",
     admin: "Quản trị",
+    apps: "Ứng dụng",
   },
   home: {
     portfolioLabel: "Portfolio",
@@ -24,6 +25,8 @@ const vi: Messages = {
     latestPosts: "Bài viết mới nhất",
     viewAllPosts: "Xem tất cả bài viết",
     allPosts: "Tất cả bài viết",
+    appsTitle: "Package mã nguồn mở",
+    viewAllApps: "Xem tất cả ứng dụng",
   },
   blog: {
     label: "Blog",
@@ -39,6 +42,44 @@ const vi: Messages = {
     series: "Thuộc series",
     sourceOriginal: "Source gốc:",
     editPost: "Chỉnh sửa bài viết",
+  },
+  apps: {
+    label: "Ứng dụng",
+    title: "Package mã nguồn mở",
+    description:
+      "Các package và công cụ mã nguồn mở tôi xây dựng, duy trì — phát hành trên Packagist, npm và GitHub.",
+    metaDescription:
+      "Package mã nguồn mở của Nguyễn Văn Nhàn — Laravel Telegram logging, React Markdown Preview và hơn thế nữa.",
+    featuresLabel: "Tính năng",
+    viewOnPackagist: "Xem trên Packagist",
+    viewOnNpm: "Xem trên npm",
+    viewOnGithub: "Xem trên GitHub",
+    items: {
+      "laravel-telegram-logging": {
+        name: "Laravel Telegram Logging",
+        summary:
+          "Kênh log Laravel gửi warning/error lên Telegram — phù hợp team nhỏ cần cảnh báo nhanh mà không cần hệ thống observability đầy đủ.",
+        features: [
+          "Cấu hình mức log tối thiểu (TELEGRAM_LOG_LEVEL)",
+          "Hỗ trợ queue — không chặn HTTP request",
+          "Template HTML tùy chỉnh với placeholder",
+          "Gộp tin nhắn trùng trong khoảng thời gian",
+          "Lệnh Artisan: php artisan telegram-log:test",
+        ],
+      },
+      "react-markdown-preview": {
+        name: "React Markdown Preview",
+        summary:
+          "Component React nhẹ để render Markdown với GFM, highlight code và anchor heading — đang dùng cho blog trên site này.",
+        features: [
+          "API đơn giản: <MarkdownPreview doc={doc} />",
+          "GitHub Flavored Markdown qua remark-gfm",
+          "Highlight syntax với rehype-highlight",
+          "Heading tự động gắn link anchor",
+          "Kèm CSS markdown light/dark và highlight",
+        ],
+      },
+    },
   },
   common: {
     language: "Ngôn ngữ",
