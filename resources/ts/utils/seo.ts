@@ -1,6 +1,6 @@
 const MAX_DESCRIPTION_LENGTH = 200;
 
-export const OG_IMAGE_PATH = "/images/og-default.png";
+export const OG_IMAGE_PATH = "/og/home.png";
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 

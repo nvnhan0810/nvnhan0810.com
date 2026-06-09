@@ -12,7 +12,6 @@ const en: Messages = {
   },
   home: {
     portfolioLabel: "Portfolio",
-    downloadCv: "Download CV (PDF)",
     contactMe: "Contact me",
     about: "About",
     location: "Location",
@@ -391,12 +390,12 @@ const en: Messages = {
   },
   cv: {
     name: "Nguyen Van Nhan",
-    title: "Senior Software Developer",
+    title: "Software Developer",
     phone: "0799833537",
     email: "nguyenvannhan0810@gmail.com",
     location: "Thu Duc, Ho Chi Minh",
     summary:
-      "Senior Software Developer with 8 years of experience building scalable web and mobile applications. Strong expertise in full-stack web development, mobile application development, and system architecture design. Committed to delivering reliable, high-quality solutions for international clients.",
+      "Software Developer with 8 years of experience building scalable web and mobile applications. Strong expertise in full-stack web development, mobile application development, and system architecture design. Committed to delivering reliable, high-quality solutions for international clients.",
     education: {
       school: "Ho Chi Minh University of Technology and Education (HCMUTE)",
       major: "Information Technology Engineer",

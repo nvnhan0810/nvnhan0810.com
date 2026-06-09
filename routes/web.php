@@ -25,7 +25,16 @@ Route::prefix('auth')->group(function () {
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
+Route::get('/favicon.ico', function () {
+    return response()->file(public_path('images/favicon-32x32.png'), [
+        'Content-Type' => 'image/png',
+        'Cache-Control' => 'public, max-age=604800',
+    ]);
+});
+
 Route::get('/', HomeController::class)->name('home');
+
+Route::get('/og/home.png', [OgImageController::class, 'home'])->name('og.home');
 
 Route::get('/og/posts/{slug}.png', [OgImageController::class, 'post'])
     ->where('slug', '[A-Za-z0-9\-]+')

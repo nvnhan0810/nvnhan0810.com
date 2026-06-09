@@ -13,6 +13,44 @@ class OgImageController extends Controller
 {
     public function __construct(private readonly OgImageGenerator $ogImages) {}
 
+    public function home(Request $request): Response
+    {
+        $locale = $request->query('locale', app()->getLocale());
+
+        if (! in_array($locale, ['en', 'vi'], true)) {
+            $locale = 'en';
+        }
+
+        $portfolio = config("seo.portfolio.{$locale}", config('seo.portfolio.en'));
+        $footer = parse_url(config('app.url', 'https://nvnhan0810.com'), PHP_URL_HOST) ?: 'nvnhan0810.com';
+
+        try {
+            $binary = $this->ogImages->renderPortfolioBinary(
+                $portfolio['name'],
+                $portfolio['title'],
+                $portfolio['tagline'],
+                $footer,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            $fallback = public_path('images/og-default.png');
+            if (! is_readable($fallback)) {
+                throw $e;
+            }
+
+            return response()->file($fallback, [
+                'Content-Type' => 'image/png',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        return response($binary, 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
     public function post(Request $request, string $slug): Response
     {
         $locale = $request->query('locale', Post::DEFAULT_LOCALE);

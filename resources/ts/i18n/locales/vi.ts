@@ -12,7 +12,6 @@ const vi: Messages = {
   },
   home: {
     portfolioLabel: "Portfolio",
-    downloadCv: "Tải CV (PDF)",
     contactMe: "Liên hệ",
     about: "Giới thiệu",
     location: "Địa chỉ",
@@ -389,12 +388,12 @@ const vi: Messages = {
   },
   cv: {
     name: "Nguyễn Văn Nhàn",
-    title: "Lập trình viên Senior",
+    title: "Lập trình viên",
     phone: "0799833537",
     email: "nguyenvannhan0810@gmail.com",
     location: "Thủ Đức, TP. Hồ Chí Minh",
     summary:
-      "Lập trình viên Senior với 8 năm kinh nghiệm xây dựng ứng dụng web và mobile có khả năng mở rộng. Thành thạo phát triển full-stack, mobile và thiết kế kiến trúc hệ thống. Cam kết mang đến giải pháp chất lượng cao, đáng tin cậy cho khách hàng quốc tế.",
+      "Lập trình viên với 8 năm kinh nghiệm xây dựng ứng dụng web và mobile có khả năng mở rộng. Thành thạo phát triển full-stack, mobile và thiết kế kiến trúc hệ thống. Cam kết mang đến giải pháp chất lượng cao, đáng tin cậy cho khách hàng quốc tế.",
     education: {
       school: "Trường Đại học Sư phạm Kỹ thuật TP. Hồ Chí Minh (HCMUTE)",
       major: "Kỹ sư Công nghệ Thông tin",

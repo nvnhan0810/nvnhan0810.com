@@ -80,7 +80,6 @@ export type Messages = {
   };
   home: {
     portfolioLabel: string;
-    downloadCv: string;
     contactMe: string;
     about: string;
     location: string;
