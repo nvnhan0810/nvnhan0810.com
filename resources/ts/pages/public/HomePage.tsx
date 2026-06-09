@@ -192,16 +192,18 @@ const HomePage = ({ posts }: Props) => {
           <div className="grid gap-5 md:grid-cols-2">
             {appsCatalog.map((app) => {
               const content = messages.apps.items[app.slug];
+              const href =
+                app.kind === "project"
+                  ? route("apps.show", { slug: app.slug })
+                  : route("apps.index");
 
               return (
                 <Link
                   key={app.slug}
-                  href={route("apps.index")}
+                  href={href}
                   className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-emerald-600/40 hover:bg-emerald-600/5"
                 >
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {app.packageName}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{app.label}</p>
                   <h3 className="mt-2 text-lg font-semibold text-foreground transition-colors group-hover:text-emerald-500">
                     {content.name}
                   </h3>

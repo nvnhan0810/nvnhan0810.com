@@ -5,6 +5,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
+use App\Http\Controllers\Public\AppShowController;
 use App\Http\Controllers\Public\AppsController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\OgImageController;
@@ -31,6 +32,9 @@ Route::get('/og/posts/{slug}.png', [OgImageController::class, 'post'])
     ->name('og.posts.show');
 
 Route::get('/apps', AppsController::class)->name('apps.index');
+Route::get('/apps/{slug}', AppShowController::class)
+    ->where('slug', '[a-z0-9\-]+')
+    ->name('apps.show');
 
 Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
 Route::get('/posts/{slug}', [PostController::class, 'show'])->name('posts.show');
@@ -69,6 +73,18 @@ Route::get('/sitemap.xml', function () {
         ],
         [
             'loc' => url('/apps'),
+            'lastmod' => now()->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority' => '0.6',
+        ],
+        [
+            'loc' => url('/apps/foreign-language-course'),
+            'lastmod' => now()->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority' => '0.6',
+        ],
+        [
+            'loc' => url('/apps/db-management-tool'),
             'lastmod' => now()->toAtomString(),
             'changefreq' => 'monthly',
             'priority' => '0.6',

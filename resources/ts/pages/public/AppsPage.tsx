@@ -2,7 +2,8 @@ import SeoHead from "@/ts/components/common/SeoHead";
 import { appsCatalog } from "@/ts/constants/apps";
 import PublicLayout, { type RootProps } from "@/ts/layouts/PublicLayout";
 import { useTranslation } from "@/ts/providers/i18n-provider";
-import { ExternalLink, Github, Package } from "lucide-react";
+import { Link } from "@inertiajs/react";
+import { ArrowRight, ExternalLink, Github, Package } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
 const AppsPage = ({ auth, locale }: RootProps) => {
@@ -32,6 +33,10 @@ const AppsPage = ({ auth, locale }: RootProps) => {
       <div className="grid gap-6">
         {appsCatalog.map((app) => {
           const content = messages.apps.items[app.slug];
+          const detailHref =
+            app.kind === "project"
+              ? route("apps.show", { slug: app.slug })
+              : null;
 
           return (
             <article
@@ -44,8 +49,8 @@ const AppsPage = ({ auth, locale }: RootProps) => {
                     <h2 className="text-xl font-bold text-foreground">
                       {content.name}
                     </h2>
-                    <p className="mt-1 font-mono text-sm text-muted-foreground">
-                      {app.packageName}
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {app.label}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -78,6 +83,15 @@ const AppsPage = ({ auth, locale }: RootProps) => {
                 </div>
 
                 <div className="flex flex-wrap gap-3 pt-1">
+                  {detailHref && (
+                    <Link
+                      href={detailHref}
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
+                    >
+                      {t("apps.viewDetails")}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  )}
                   {app.packagistUrl && (
                     <a
                       href={app.packagistUrl}

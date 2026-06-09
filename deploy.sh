@@ -108,6 +108,7 @@ rsync "${rsync_args[@]}" "${rsync_ssh[@]}" ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${D
   && chmod -R ug+rwX bootstrap/cache storage"
 
 echo "Running database migrations on VPS..."
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && composer i -o --no-dev"
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && php artisan migrate --force"
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && php artisan optimize:clear && php artisan optimize"
 
