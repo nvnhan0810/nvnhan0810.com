@@ -3,9 +3,18 @@
 ARG APP_URL=https://nvnhan0810.com
 
 # -----------------------------------------------------------------------------
-# PHP dependencies
+# PHP dependencies (pin PHP 8.4 — composer:2 tracks latest PHP, currently 8.5)
 # -----------------------------------------------------------------------------
-FROM composer:2 AS vendor
+FROM php:8.4-cli-bookworm AS vendor
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libzip-dev \
+    && docker-php-ext-install zip \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG APP_URL
 WORKDIR /app
