@@ -4,7 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="index,follow" />
-    <meta name="author" content="Nguyen Van Nhan" />
+    <meta name="author" content="{{ config('seo.site_name') }}" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/android-chrome-192x192.png" />
+    {{-- OG/Twitter meta come from SeoHead via @inertiaHead (SSR). Do not duplicate here — crawlers use the first og:* tags. --}}
     @viteReactRefresh
     @vite('resources/sass/app.scss')
     @vite('resources/ts/App.tsx')

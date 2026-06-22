@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "49aac04e01827abccaafab0460b74563",
+    "content-hash": "50d72ddd266cb18106a988f67aca67c2",
     "packages": [
         {
             "name": "brick/math",
@@ -2788,6 +2788,61 @@
                 }
             ],
             "time": "2024-11-21T10:39:51+00:00"
+        },
+        {
+            "name": "nvnhan0810/laravel-telegram-logging",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nvnhan0810/laravel-telegram-logging.git",
+                "reference": "bb40078e6928cb60a64731e3510085b5bfdc8060"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nvnhan0810/laravel-telegram-logging/zipball/bb40078e6928cb60a64731e3510085b5bfdc8060",
+                "reference": "bb40078e6928cb60a64731e3510085b5bfdc8060",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/contracts": "^11.0|^12.0|^13.0",
+                "illuminate/http": "^11.0|^12.0|^13.0",
+                "illuminate/log": "^11.0|^12.0|^13.0",
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "monolog/monolog": "^3.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.0|^11.0",
+                "phpunit/phpunit": "^11.0|^12.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Nvnhan0810\\TelegramLogging\\TelegramLoggingServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Nvnhan0810\\TelegramLogging\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "nvnhan0810"
+                }
+            ],
+            "description": "Laravel log channel — send warnings/errors to Telegram with optional queue and message templates.",
+            "support": {
+                "issues": "https://github.com/nvnhan0810/laravel-telegram-logging/issues",
+                "source": "https://github.com/nvnhan0810/laravel-telegram-logging/tree/v1.0.0"
+            },
+            "time": "2026-06-08T15:22:06+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
@@ -8659,5 +8714,5 @@
         "php": "^8.2"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

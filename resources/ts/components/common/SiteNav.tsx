@@ -5,6 +5,7 @@ import { AuthUser } from "@/ts/types/auth";
 import { Link } from "@inertiajs/react";
 import {
   BookOpen,
+  Boxes,
   Github,
   Home,
   Linkedin,
@@ -15,7 +16,7 @@ import { useRoute } from "ziggy-js";
 
 type SiteNavProps = {
   auth: AuthUser | null;
-  active?: "home" | "blog";
+  active?: "home" | "blog" | "apps";
 };
 
 const linkClass = (isActive: boolean) =>
@@ -48,6 +49,13 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
           >
             <BookOpen className="h-4 w-4" />
             {t("nav.blog")}
+          </Link>
+          <Link
+            href={route("apps.index")}
+            className={`inline-flex items-center gap-1.5 ${linkClass(active === "apps")}`}
+          >
+            <Boxes className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("nav.apps")}</span>
           </Link>
 
           {auth && (

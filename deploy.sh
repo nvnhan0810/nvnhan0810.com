@@ -108,6 +108,7 @@ rsync "${rsync_args[@]}" "${rsync_ssh[@]}" ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${D
   && chmod -R ug+rwX bootstrap/cache storage"
 
 echo "Running database migrations on VPS..."
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && composer i -o --no-dev"
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && php artisan migrate --force"
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "cd \"${DEPLOY_PATH%/}\" && php artisan optimize:clear && php artisan optimize"
 
@@ -119,6 +120,7 @@ fi
 
 echo "Restarting Inertia SSR supervisor (nvnhan0810-ssr)..."
 "${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo supervisorctl restart nvnhan0810-ssr"
+"${ssh_base[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo supervisorctl restart nvnhan0810-queue-worker:*"
 
 echo "Restoring local ${ENV_FILE}..."
 restore_local_env

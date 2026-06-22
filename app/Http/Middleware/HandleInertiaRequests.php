@@ -50,6 +50,12 @@ class HandleInertiaRequests extends Middleware
                 'avatar' => $request->user()->avatar,
             ] : null,
             'locale' => App::getLocale(),
+            'seo' => [
+                'siteName' => config('seo.site_name'),
+                'siteUrl' => rtrim(config('app.url'), '/'),
+                'defaultOgImage' => url(config('seo.default_og_image')),
+                'twitterSite' => config('seo.twitter_site'),
+            ],
         ];
     }
 }

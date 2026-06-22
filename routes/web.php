@@ -5,6 +5,10 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
+use App\Http\Controllers\Public\AppShowController;
+use App\Http\Controllers\Public\AppsController;
+use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\OgImageController;
 use App\Http\Controllers\Public\PostController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -21,9 +25,25 @@ Route::prefix('auth')->group(function () {
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
-Route::get('/', function () {
-    return Inertia::render('public/HomePage');
-})->name('home');
+Route::get('/favicon.ico', function () {
+    return response()->file(public_path('images/favicon-32x32.png'), [
+        'Content-Type' => 'image/png',
+        'Cache-Control' => 'public, max-age=604800',
+    ]);
+});
+
+Route::get('/', HomeController::class)->name('home');
+
+Route::get('/og/home.png', [OgImageController::class, 'home'])->name('og.home');
+
+Route::get('/og/posts/{slug}.png', [OgImageController::class, 'post'])
+    ->where('slug', '[A-Za-z0-9\-]+')
+    ->name('og.posts.show');
+
+Route::get('/apps', AppsController::class)->name('apps.index');
+Route::get('/apps/{slug}', AppShowController::class)
+    ->where('slug', '[a-z0-9\-]+')
+    ->name('apps.show');
 
 Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
 Route::get('/posts/{slug}', [PostController::class, 'show'])->name('posts.show');
@@ -59,6 +79,24 @@ Route::get('/sitemap.xml', function () {
             'lastmod' => now()->toAtomString(),
             'changefreq' => 'daily',
             'priority' => '0.8',
+        ],
+        [
+            'loc' => url('/apps'),
+            'lastmod' => now()->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority' => '0.6',
+        ],
+        [
+            'loc' => url('/apps/foreign-language-course'),
+            'lastmod' => now()->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority' => '0.6',
+        ],
+        [
+            'loc' => url('/apps/db-management-tool'),
+            'lastmod' => now()->toAtomString(),
+            'changefreq' => 'monthly',
+            'priority' => '0.6',
         ],
     ])->merge(
         $posts->map(fn ($post) => [
