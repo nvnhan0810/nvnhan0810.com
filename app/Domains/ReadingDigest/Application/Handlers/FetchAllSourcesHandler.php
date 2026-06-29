@@ -36,11 +36,16 @@ class FetchAllSourcesHandler
                 $stored += $this->fetchSourceHandler->handle($source->id, $limitPerSource, $since);
             } catch (\Throwable $e) {
                 $errors[$source->id] = $e->getMessage();
-                Log::warning('Reading digest source fetch failed', [
-                    'source_id' => $source->id,
-                    'source_name' => $source->name,
-                    'error' => $e->getMessage(),
-                ]);
+
+                try {
+                    Log::warning('Reading digest source fetch failed', [
+                        'source_id' => $source->id,
+                        'source_name' => $source->name,
+                        'error' => $e->getMessage(),
+                    ]);
+                } catch (\Throwable) {
+                    // Logging must not abort digest when cache/Telegram channel is misconfigured.
+                }
             }
         }
 
