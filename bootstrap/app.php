@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->redirectGuestsTo(fn () => route('google.login'));
+
         $middleware->web(append: [
             SetLocale::class,
             HandleInertiaRequests::class,

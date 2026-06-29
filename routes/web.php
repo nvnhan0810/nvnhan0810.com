@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Response;
 
 Route::prefix('auth')->group(function () {
     Route::get('/login', function () {
-        abort(403);
+        return redirect()->route('google.login');
     })->name('login');
 
     Route::get('/google/login', [AuthController::class, 'login'])->name('google.login');
