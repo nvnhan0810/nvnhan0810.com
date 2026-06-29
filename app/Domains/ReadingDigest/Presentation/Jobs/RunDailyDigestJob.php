@@ -2,6 +2,7 @@
 
 namespace App\Domains\ReadingDigest\Presentation\Jobs;
 
+use App\Domains\ReadingDigest\Application\Handlers\FetchAllSourcesHandler;
 use App\Domains\ReadingDigest\Application\Handlers\RunDailyDigestHandler;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,13 +12,25 @@ class RunDailyDigestJob implements ShouldQueue
 {
     use Queueable;
 
-    public function handle(RunDailyDigestHandler $handler): void
-    {
+    public int $timeout = 600;
+
+    public function handle(
+        FetchAllSourcesHandler $fetchAllSources,
+        RunDailyDigestHandler $digestHandler,
+    ): void {
+        $fetchStats = $fetchAllSources->handle();
+
         $user = User::query()->orderBy('id')->first();
         if (! $user) {
             return;
         }
 
-        $handler->handle($user->id);
+        $run = $digestHandler->handle($user->id);
+
+        $run->update([
+            'stats' => array_merge($run->stats ?? [], [
+                'fetch' => $fetchStats,
+            ]),
+        ]);
     }
 }

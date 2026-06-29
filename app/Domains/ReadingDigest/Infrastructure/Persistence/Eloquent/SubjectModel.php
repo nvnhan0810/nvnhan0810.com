@@ -37,6 +37,6 @@ class SubjectModel extends Model
             'rd_subject_source',
             'subject_id',
             'source_id'
-        )->withPivot('config')->withTimestamps(false);
+        )->withPivot('config');
     }
 }

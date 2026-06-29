@@ -41,6 +41,11 @@ class RunDailyDigestHandler
 
         foreach ($subjects as $subject) {
             if ($subject->sources->isEmpty()) {
+                \Illuminate\Support\Facades\Log::warning('Reading digest subject has no linked sources; skipping', [
+                    'subject_id' => $subject->id,
+                    'subject_name' => $subject->name,
+                ]);
+
                 continue;
             }
 
@@ -80,6 +85,7 @@ class RunDailyDigestHandler
             'stats' => [
                 'subjects' => $subjects->count(),
                 'items' => $totalItems,
+                'subjects_with_sources' => $subjects->filter(fn ($s) => $s->sources->isNotEmpty())->count(),
             ],
         ]);
 

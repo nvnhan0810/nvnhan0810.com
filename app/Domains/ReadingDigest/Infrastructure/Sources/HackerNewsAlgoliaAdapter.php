@@ -52,6 +52,7 @@ class HackerNewsAlgoliaAdapter implements SourceFetcherInterface
                 contentHtml: null,
                 publishedAt: $published,
                 rawTags: array_filter([(string) ($hit['_tags'][0] ?? null)]),
+                language: 'en',
             );
         }
 

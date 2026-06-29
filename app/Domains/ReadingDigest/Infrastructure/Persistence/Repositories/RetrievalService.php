@@ -2,6 +2,7 @@
 
 namespace App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories;
 
+use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
 use App\Domains\ReadingDigest\Domain\Services\RetrievalScoringService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\ArticleInteractionModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
@@ -32,7 +33,14 @@ class RetrievalService
         $preferredSources = $preferences['preferred_sources'] ?? [];
         $preferredDifficulty = $preferences['preferred_difficulty'] ?? null;
         $preferredArticleTypes = $preferences['preferred_article_types'] ?? [];
-        $preferredLanguages = $preferences['preferred_language'] ?? ['en'];
+        $preferredLanguages = array_values(array_intersect(
+            $preferences['preferred_language'] ?? ArticleLanguageService::allowed(),
+            ArticleLanguageService::allowed(),
+        ));
+
+        if ($preferredLanguages === []) {
+            $preferredLanguages = ArticleLanguageService::allowed();
+        }
 
         $interestScores = UserInterestScoreModel::query()
             ->where('user_id', $userId)
@@ -97,6 +105,17 @@ class RetrievalService
             ->take($limit)
             ->values()
             ->all();
+
+        if ($scored === []) {
+            return $articles
+                ->take($limit)
+                ->map(fn (DigestArticleModel $article) => [
+                    'article' => $article,
+                    'score' => 0.0,
+                ])
+                ->values()
+                ->all();
+        }
 
         return $scored;
     }

@@ -2,6 +2,7 @@
 
 namespace App\Domains\ReadingDigest\Presentation\Http\Controllers;
 
+use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ class ArticleInboxController extends Controller
     {
         $articles = DigestArticleModel::query()
             ->with(['source', 'taxonomyNodes'])
+            ->whereIn('language', ArticleLanguageService::allowed())
             ->when($request->search, fn ($q, $search) => $q->where('title', 'ilike', "%{$search}%"))
             ->orderByDesc('published_at')
             ->paginate(30)

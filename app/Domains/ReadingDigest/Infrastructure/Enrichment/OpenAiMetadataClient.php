@@ -33,10 +33,12 @@ class OpenAiMetadataClient
             ]);
 
             if (! $response->successful()) {
-                Log::warning('Cursor API enrichment failed', [
-                    'status' => $response->status(),
-                    'endpoint' => $this->cursorApi->baseUrl().'/chat/completions',
-                ]);
+                if ($response->status() !== 404) {
+                    Log::warning('LLM enrichment failed', [
+                        'status' => $response->status(),
+                        'endpoint' => $this->cursorApi->baseUrl().'/chat/completions',
+                    ]);
+                }
 
                 return $this->fallbackMetadata($title, $summary);
             }
@@ -46,7 +48,7 @@ class OpenAiMetadataClient
 
             return is_array($decoded) ? $decoded : $this->fallbackMetadata($title, $summary);
         } catch (\Throwable $e) {
-            Log::warning('Cursor API enrichment error', ['message' => $e->getMessage()]);
+            Log::warning('LLM enrichment error', ['message' => $e->getMessage()]);
 
             return $this->fallbackMetadata($title, $summary);
         }

@@ -76,6 +76,7 @@ export type RdDigestRun = {
 export type RdDigestRunItem = {
   id: string;
   rank: number;
+  tracking_token?: string;
   retrieval_score?: number | null;
   llm_score?: number | null;
   llm_reason?: string | null;
@@ -92,4 +93,5 @@ export type RdInterestScore = {
 export type SourceTypeOption = {
   value: string;
   label: string;
+  description?: string;
 };

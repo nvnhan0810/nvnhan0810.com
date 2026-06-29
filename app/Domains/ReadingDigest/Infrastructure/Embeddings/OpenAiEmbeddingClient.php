@@ -24,17 +24,19 @@ class OpenAiEmbeddingClient
             ]);
 
             if (! $response->successful()) {
-                Log::warning('Cursor API embedding failed', [
-                    'status' => $response->status(),
-                    'endpoint' => $this->cursorApi->baseUrl().'/embeddings',
-                ]);
+                if ($response->status() !== 404) {
+                    Log::warning('LLM embedding failed', [
+                        'status' => $response->status(),
+                        'endpoint' => $this->cursorApi->baseUrl().'/embeddings',
+                    ]);
+                }
 
                 return null;
             }
 
             return $response->json('data.0.embedding');
         } catch (\Throwable $e) {
-            Log::warning('Cursor API embedding error', ['message' => $e->getMessage()]);
+            Log::warning('LLM embedding error', ['message' => $e->getMessage()]);
 
             return null;
         }

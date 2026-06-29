@@ -13,11 +13,22 @@ enum SourceType: string
     public function label(): string
     {
         return match ($this) {
-            self::HnAlgolia => 'Hacker News (Algolia)',
-            self::Rss => 'RSS Feed',
-            self::Reddit => 'Reddit RSS',
-            self::GithubBlog => 'GitHub Blog',
-            self::CustomHtml => 'Custom HTML',
+            self::HnAlgolia => 'Hacker News',
+            self::Rss => 'Website RSS (news sites, blogs)',
+            self::Reddit => 'Reddit (RSS)',
+            self::GithubBlog => 'GitHub Blog (RSS)',
+            self::CustomHtml => 'Custom HTML (future)',
+        };
+    }
+
+    public function description(): string
+    {
+        return match ($this) {
+            self::Rss => 'Most publishers — paste the RSS/feed URL from tuoitre.vn, thanhnien.com, dev.to, etc.',
+            self::HnAlgolia => 'Hacker News stories via Algolia search API.',
+            self::Reddit => 'Subreddit RSS feed URL.',
+            self::GithubBlog => 'Engineering blog RSS feed.',
+            self::CustomHtml => 'Site without RSS — scraping adapter (not implemented yet).',
         };
     }
 }

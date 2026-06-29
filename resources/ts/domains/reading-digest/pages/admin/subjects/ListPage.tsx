@@ -37,7 +37,12 @@ const ListPage = ({ auth, subjects }: Props) => {
             {subjects.map((subject) => (
               <tr key={subject.id}>
                 <td className="px-3 py-2 border">{subject.name}</td>
-                <td className="px-3 py-2 border text-center">{subject.sources_count ?? 0}</td>
+                <td className={`px-3 py-2 border text-center ${(subject.sources_count ?? 0) === 0 ? "text-amber-400 font-medium" : ""}`}>
+                  {subject.sources_count ?? 0}
+                  {(subject.sources_count ?? 0) === 0 && (
+                    <span className="block text-xs text-amber-400/80">No sources — digest will be empty</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 border text-center">{subject.articles_per_digest}</td>
                 <td className="px-3 py-2 border text-center">{subject.enabled ? "Yes" : "No"}</td>
                 <td className="px-3 py-2 border text-center">

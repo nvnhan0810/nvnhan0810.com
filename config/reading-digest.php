@@ -9,8 +9,12 @@ return [
     'embedding_model' => env('DIGEST_EMBEDDING_MODEL', 'text-embedding-3-small'),
     'embedding_dimensions' => (int) env('DIGEST_EMBEDDING_DIMENSIONS', 1536),
     'ranking_model' => env('DIGEST_RANKING_MODEL', 'composer-2.5'),
+    /** cloud_agents = Cursor Cloud Agents API; proxy = local OpenAI-compatible proxy (e.g. cursor-brain). */
+    'llm_driver' => env('DIGEST_LLM_DRIVER', 'cloud_agents'),
     'cursor_api_key' => env('CURSOR_API_KEY'),
-    'cursor_api_base_url' => env('CURSOR_API_BASE_URL', 'https://api.cursor.com/v1'),
+    'cursor_api_base_url' => env('CURSOR_API_BASE_URL', 'http://127.0.0.1:3001/v1'),
+    /** Public site URL for Telegram button links (must be HTTPS in production, not localhost). */
+    'public_url' => env('DIGEST_PUBLIC_URL', env('APP_URL', 'http://localhost')),
     'table_prefix' => 'rd_',
     'queue' => env('DIGEST_QUEUE', 'default'),
     'telegram' => [
@@ -32,4 +36,9 @@ return [
         'rated_negative' => -6,
     ],
     'content_retention_days' => (int) env('DIGEST_CONTENT_RETENTION_DAYS', 90),
+    'fetch_limit_per_source' => (int) env('DIGEST_FETCH_LIMIT_PER_SOURCE', 50),
+    /** Only store articles published/fetched within this window during daily fetch. */
+    'fetch_since_hours' => (int) env('DIGEST_FETCH_SINCE_HOURS', 24),
+    /** ISO 639-1 codes kept in the digest pipeline (fetch, inbox, ranking). */
+    'allowed_languages' => ['en', 'vi'],
 ];

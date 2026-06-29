@@ -2,14 +2,15 @@
 
 namespace App\Domains\ReadingDigest\Presentation\Http\Controllers;
 
-use App\Domains\ReadingDigest\Application\Handlers\RunDailyDigestHandler;
 use App\Domains\ReadingDigest\Infrastructure\Enrichment\RankingService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestRunModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestSettingsModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SubjectModel;
+use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\UserInterestScoreModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\UserReadingProfileModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\DefaultPreferences;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\RetrievalService;
+use App\Domains\ReadingDigest\Presentation\Jobs\RunDailyDigestJob;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -28,11 +29,6 @@ class SettingsController extends Controller
             ]
         );
 
-        $profile = UserReadingProfileModel::query()->firstOrCreate(
-            ['user_id' => $userId],
-            ['preferences' => DefaultPreferences::make()]
-        );
-
         $recentRuns = DigestRunModel::query()
             ->where('user_id', $userId)
             ->orderByDesc('run_date')
@@ -41,9 +37,7 @@ class SettingsController extends Controller
 
         return Inertia::render('domains/reading-digest/pages/admin/settings/SettingsPage', [
             'settings' => $settings,
-            'profile' => $profile,
             'recentRuns' => $recentRuns,
-            'defaults' => DefaultPreferences::make(),
         ]);
     }
 
@@ -54,8 +48,6 @@ class SettingsController extends Controller
         $data = $request->validate([
             'notification_time' => 'required|string',
             'timezone' => 'required|string',
-            'settings' => 'nullable|array',
-            'preferences' => 'required|array',
         ]);
 
         DigestSettingsModel::query()->updateOrCreate(
@@ -63,23 +55,37 @@ class SettingsController extends Controller
             [
                 'notification_time' => $data['notification_time'],
                 'timezone' => $data['timezone'],
-                'settings' => $data['settings'] ?? [],
             ]
         );
 
-        UserReadingProfileModel::query()->updateOrCreate(
-            ['user_id' => $userId],
-            ['preferences' => $data['preferences']]
-        );
-
-        return back()->with('success', 'Settings saved.');
+        return back()->with('success', 'Đã lưu cài đặt.');
     }
 
-    public function sendNow(Request $request, RunDailyDigestHandler $handler)
+    public function resetLearning(Request $request)
     {
-        $handler->handle($request->user()->id);
+        $userId = $request->user()->id;
 
-        return back()->with('success', 'Digest run started.');
+        UserInterestScoreModel::query()
+            ->where('user_id', $userId)
+            ->delete();
+
+        UserReadingProfileModel::query()->updateOrCreate(
+            ['user_id' => $userId],
+            [
+                'preferences' => DefaultPreferences::make(),
+                'user_embedding' => null,
+                'embedding_updated_at' => null,
+            ]
+        );
+
+        return back()->with('success', 'Đã reset sở thích học từ vote.');
+    }
+
+    public function sendNow(Request $request)
+    {
+        RunDailyDigestJob::dispatch();
+
+        return back()->with('success', 'Fetch and digest queued — check Today in a minute.');
     }
 
     public function preview(Request $request, RetrievalService $retrievalService, RankingService $rankingService)

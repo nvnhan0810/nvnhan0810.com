@@ -2,8 +2,8 @@
 
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleInboxController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleRedirectController;
+use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleVoteController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\InteractionController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\ProfileDashboardController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SettingsController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SourceController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SubjectController;
@@ -15,6 +15,11 @@ Route::get('/reading-digest/a/{token}', [ArticleRedirectController::class, 'show
     ->name('reading-digest.article.redirect');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/reading-digest/v/{token}', [ArticleVoteController::class, 'show'])
+        ->name('reading-digest.article.vote');
+    Route::post('/reading-digest/v/{token}', [ArticleVoteController::class, 'store'])
+        ->name('reading-digest.article.vote.store');
+
     Route::post('/reading-digest/interactions', [InteractionController::class, 'store'])
         ->middleware('throttle:60,1')
         ->name('reading-digest.interactions.store');
@@ -40,12 +45,13 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::post('/settings/reset-learning', [SettingsController::class, 'resetLearning'])->name('settings.reset-learning');
         Route::post('/send-now', [SettingsController::class, 'sendNow'])->name('send-now');
         Route::post('/preview', [SettingsController::class, 'preview'])->name('preview');
 
         Route::get('/today', [TodayDigestController::class, 'index'])->name('today');
-        Route::get('/profile', [ProfileDashboardController::class, 'index'])->name('profile.index');
-        Route::post('/profile/reset', [ProfileDashboardController::class, 'reset'])->name('profile.reset');
+        Route::get('/profile', fn () => redirect()->route('admin.reading-digest.settings.index'))->name('profile.index');
+        Route::post('/profile/reset', fn () => redirect()->route('admin.reading-digest.settings.index'))->name('profile.reset');
 
         Route::get('/taxonomy', [TaxonomyController::class, 'index'])->name('taxonomy.index');
         Route::post('/taxonomy', [TaxonomyController::class, 'store'])->name('taxonomy.store');

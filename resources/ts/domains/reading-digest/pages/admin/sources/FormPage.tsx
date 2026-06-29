@@ -6,15 +6,14 @@ import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
 import { router, useForm } from "@inertiajs/react";
 import { useRoute } from "ziggy-js";
 import ReadingDigestNav from "../../../components/ReadingDigestNav";
-import type { RdSource, RdTaxonomyNode, SourceTypeOption } from "../../../types";
+import type { RdSource, SourceTypeOption } from "../../../types";
 
 type Props = RootProps & {
   source: RdSource | null;
   sourceTypes: SourceTypeOption[];
-  taxonomyNodes: RdTaxonomyNode[];
 };
 
-const FormPage = ({ auth, source, sourceTypes, taxonomyNodes }: Props) => {
+const FormPage = ({ auth, source, sourceTypes }: Props) => {
   const route = useRoute();
   const isEdit = Boolean(source?.id);
 
@@ -22,14 +21,11 @@ const FormPage = ({ auth, source, sourceTypes, taxonomyNodes }: Props) => {
     name: source?.name ?? "",
     type: source?.type ?? "rss",
     url: source?.url ?? "",
-    fetch_interval_minutes: source?.fetch_interval_minutes ?? 60,
     enabled: source?.enabled ?? true,
     config: source?.config ?? { query: "", tags: "story" },
-    tag_mappings: source?.tag_mappings?.map((m) => ({
-      raw_tag: m.raw_tag,
-      taxonomy_node_id: m.taxonomy_node_id,
-    })) ?? [{ raw_tag: "", taxonomy_node_id: "" }],
   });
+
+  const selectedType = sourceTypes.find((t) => t.value === data.type);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,14 +39,22 @@ const FormPage = ({ auth, source, sourceTypes, taxonomyNodes }: Props) => {
   return (
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
-      <h1 className="text-2xl font-bold text-gray-100 mb-4">{isEdit ? "Edit Source" : "Create Source"}</h1>
+      <h1 className="text-2xl font-bold text-gray-100 mb-2">{isEdit ? "Sửa nguồn" : "Thêm nguồn"}</h1>
+      <p className="text-sm text-muted-foreground mb-4 max-w-2xl">
+        Website hoặc RSS feed bạn tin cậy. Sau khi lưu, vào <strong>Chủ đề</strong> và tick chọn nguồn này —
+        nếu không gắn chủ đề thì digest sẽ không có bài từ nguồn đó.
+      </p>
       <form onSubmit={submit} className="max-w-2xl space-y-4">
         <div>
-          <Label>Name</Label>
-          <Input value={data.name} onChange={(e) => setData("name", e.target.value)} />
+          <Label>Tên hiển thị</Label>
+          <Input
+            placeholder="VD: Tuổi Trẻ — Công nghệ"
+            value={data.name}
+            onChange={(e) => setData("name", e.target.value)}
+          />
         </div>
         <div>
-          <Label>Type</Label>
+          <Label>Cách lấy bài</Label>
           <select
             className="w-full border border-border rounded-md bg-background px-3 py-2"
             value={data.type}
@@ -60,10 +64,17 @@ const FormPage = ({ auth, source, sourceTypes, taxonomyNodes }: Props) => {
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
+          {selectedType?.description && (
+            <p className="text-xs text-muted-foreground mt-1">{selectedType.description}</p>
+          )}
         </div>
         <div>
-          <Label>URL</Label>
-          <Input value={data.url} onChange={(e) => setData("url", e.target.value)} />
+          <Label>URL feed / site</Label>
+          <Input
+            placeholder="https://example.com/rss.xml"
+            value={data.url}
+            onChange={(e) => setData("url", e.target.value)}
+          />
         </div>
         {data.type === "hn_algolia" && (
           <div className="grid grid-cols-2 gap-4">
@@ -85,50 +96,12 @@ const FormPage = ({ auth, source, sourceTypes, taxonomyNodes }: Props) => {
         )}
         <div className="flex items-center gap-2">
           <Checkbox checked={data.enabled} onCheckedChange={(v) => setData("enabled", Boolean(v))} />
-          <Label>Enabled</Label>
-        </div>
-        <div>
-          <Label className="mb-2 block">Tag mappings</Label>
-          {data.tag_mappings.map((mapping, index) => (
-            <div key={index} className="flex gap-2 mb-2">
-              <Input
-                placeholder="raw tag"
-                value={mapping.raw_tag}
-                onChange={(e) => {
-                  const next = [...data.tag_mappings];
-                  next[index] = { ...next[index], raw_tag: e.target.value };
-                  setData("tag_mappings", next);
-                }}
-              />
-              <select
-                className="flex-1 border border-border rounded-md bg-background px-2"
-                value={mapping.taxonomy_node_id}
-                onChange={(e) => {
-                  const next = [...data.tag_mappings];
-                  next[index] = { ...next[index], taxonomy_node_id: e.target.value };
-                  setData("tag_mappings", next);
-                }}
-              >
-                <option value="">— taxonomy —</option>
-                {taxonomyNodes.map((node) => (
-                  <option key={node.id} value={node.id}>{node.path}</option>
-                ))}
-              </select>
-            </div>
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setData("tag_mappings", [...data.tag_mappings, { raw_tag: "", taxonomy_node_id: "" }])}
-          >
-            Add mapping
-          </Button>
+          <Label>Bật — lấy bài khi chạy digest hằng ngày</Label>
         </div>
         <div className="flex gap-2">
-          <Button type="submit" disabled={processing}>Save</Button>
+          <Button type="submit" disabled={processing}>Lưu</Button>
           <Button type="button" variant="outline" onClick={() => router.get(route("admin.reading-digest.sources.index"))}>
-            Cancel
+            Hủy
           </Button>
         </div>
       </form>

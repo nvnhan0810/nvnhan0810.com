@@ -37,21 +37,19 @@ class SubjectController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:rd_subjects,slug',
             'description' => 'nullable|string',
             'articles_per_digest' => 'integer|min:1|max:20',
-            'max_age_days' => 'integer|min:1|max:90',
             'enabled' => 'boolean',
-            'source_ids' => 'array',
+            'source_ids' => 'required|array|min:1',
             'source_ids.*' => 'uuid|exists:rd_sources,id',
         ]);
 
         $subject = SubjectModel::create([
             'name' => $data['name'],
-            'slug' => $data['slug'] ?? SlugHelpers::createFromString($data['name']),
+            'slug' => SlugHelpers::createFromString($data['name']),
             'description' => $data['description'] ?? null,
             'articles_per_digest' => $data['articles_per_digest'] ?? 5,
-            'max_age_days' => $data['max_age_days'] ?? 7,
+            'max_age_days' => 7,
             'enabled' => $data['enabled'] ?? true,
         ]);
 
@@ -77,21 +75,18 @@ class SubjectController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:rd_subjects,slug,'.$id,
             'description' => 'nullable|string',
             'articles_per_digest' => 'integer|min:1|max:20',
-            'max_age_days' => 'integer|min:1|max:90',
             'enabled' => 'boolean',
-            'source_ids' => 'array',
+            'source_ids' => 'required|array|min:1',
             'source_ids.*' => 'uuid|exists:rd_sources,id',
         ]);
 
         $subject->update([
             'name' => $data['name'],
-            'slug' => $data['slug'],
+            'slug' => SlugHelpers::createFromString($data['name']),
             'description' => $data['description'] ?? null,
             'articles_per_digest' => $data['articles_per_digest'] ?? 5,
-            'max_age_days' => $data['max_age_days'] ?? 7,
             'enabled' => $data['enabled'] ?? true,
         ]);
 

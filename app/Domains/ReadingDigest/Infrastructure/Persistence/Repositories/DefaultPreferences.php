@@ -19,7 +19,7 @@ class DefaultPreferences
             'ignored_taxonomy_ids' => [],
             'preferred_difficulty' => 'advanced',
             'preferred_length' => 'medium',
-            'preferred_language' => ['en'],
+            'preferred_language' => ['en', 'vi'],
             'preferred_article_types' => ['tutorial', 'deep_dive', 'architecture', 'performance'],
             'disliked_styles' => ['marketing', 'opinion', 'clickbait'],
             'llm_ranking_enabled' => true,

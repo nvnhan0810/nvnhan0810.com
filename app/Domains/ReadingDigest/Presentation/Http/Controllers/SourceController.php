@@ -5,8 +5,6 @@ namespace App\Domains\ReadingDigest\Presentation\Http\Controllers;
 use App\Domains\ReadingDigest\Application\Handlers\FetchSourceHandler;
 use App\Domains\ReadingDigest\Domain\Enums\SourceType;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceModel;
-use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceTagMappingModel;
-use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\TaxonomyNodeModel;
 use App\Domains\ReadingDigest\Presentation\Jobs\FetchSourceJob;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -29,16 +27,7 @@ class SourceController extends Controller
 
     public function create()
     {
-        $taxonomyNodes = TaxonomyNodeModel::query()->orderBy('path')->get(['id', 'label', 'path']);
-
-        return Inertia::render('domains/reading-digest/pages/admin/sources/FormPage', [
-            'source' => null,
-            'sourceTypes' => collect(SourceType::cases())->map(fn ($t) => [
-                'value' => $t->value,
-                'label' => $t->label(),
-            ]),
-            'taxonomyNodes' => $taxonomyNodes,
-        ]);
+        return Inertia::render('domains/reading-digest/pages/admin/sources/FormPage', $this->formProps(null));
     }
 
     public function store(Request $request)
@@ -47,22 +36,18 @@ class SourceController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|string',
             'url' => 'required|string|max:2048',
-            'fetch_interval_minutes' => 'integer|min:15|max:1440',
             'enabled' => 'boolean',
             'config' => 'nullable|array',
-            'tag_mappings' => 'nullable|array',
         ]);
 
         $source = SourceModel::create([
             'name' => $data['name'],
             'type' => $data['type'],
             'url' => $data['url'],
-            'fetch_interval_minutes' => $data['fetch_interval_minutes'] ?? 60,
+            'fetch_interval_minutes' => 1440,
             'enabled' => $data['enabled'] ?? true,
             'config' => $data['config'] ?? null,
         ]);
-
-        $this->syncTagMappings($source, $data['tag_mappings'] ?? []);
 
         return redirect()->route('admin.reading-digest.sources.index');
     }
@@ -70,16 +55,8 @@ class SourceController extends Controller
     public function edit(string $id)
     {
         $source = SourceModel::query()->with('tagMappings.taxonomyNode')->findOrFail($id);
-        $taxonomyNodes = TaxonomyNodeModel::query()->orderBy('path')->get(['id', 'label', 'path']);
 
-        return Inertia::render('domains/reading-digest/pages/admin/sources/FormPage', [
-            'source' => $source,
-            'sourceTypes' => collect(SourceType::cases())->map(fn ($t) => [
-                'value' => $t->value,
-                'label' => $t->label(),
-            ]),
-            'taxonomyNodes' => $taxonomyNodes,
-        ]);
+        return Inertia::render('domains/reading-digest/pages/admin/sources/FormPage', $this->formProps($source));
     }
 
     public function update(Request $request, string $id)
@@ -90,22 +67,17 @@ class SourceController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|string',
             'url' => 'required|string|max:2048',
-            'fetch_interval_minutes' => 'integer|min:15|max:1440',
             'enabled' => 'boolean',
             'config' => 'nullable|array',
-            'tag_mappings' => 'nullable|array',
         ]);
 
         $source->update([
             'name' => $data['name'],
             'type' => $data['type'],
             'url' => $data['url'],
-            'fetch_interval_minutes' => $data['fetch_interval_minutes'] ?? 60,
             'enabled' => $data['enabled'] ?? true,
             'config' => $data['config'] ?? null,
         ]);
-
-        $this->syncTagMappings($source, $data['tag_mappings'] ?? []);
 
         return redirect()->route('admin.reading-digest.sources.index');
     }
@@ -127,6 +99,7 @@ class SourceController extends Controller
             'items' => collect($preview)->map(fn ($item) => [
                 'title' => $item->title,
                 'url' => $item->url,
+                'summary' => $item->summary,
                 'published_at' => $item->publishedAt?->format('c'),
             ]),
         ]);
@@ -139,20 +112,18 @@ class SourceController extends Controller
         return back()->with('success', 'Fetch queued.');
     }
 
-    private function syncTagMappings(SourceModel $source, array $mappings): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function formProps(?SourceModel $source): array
     {
-        SourceTagMappingModel::query()->where('source_id', $source->id)->delete();
-
-        foreach ($mappings as $mapping) {
-            if (empty($mapping['raw_tag']) || empty($mapping['taxonomy_node_id'])) {
-                continue;
-            }
-
-            SourceTagMappingModel::create([
-                'source_id' => $source->id,
-                'raw_tag' => strtolower(trim($mapping['raw_tag'])),
-                'taxonomy_node_id' => $mapping['taxonomy_node_id'],
-            ]);
-        }
+        return [
+            'source' => $source,
+            'sourceTypes' => collect(SourceType::cases())->map(fn ($t) => [
+                'value' => $t->value,
+                'label' => $t->label(),
+                'description' => $t->description(),
+            ]),
+        ];
     }
 }

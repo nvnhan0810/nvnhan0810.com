@@ -2,6 +2,7 @@
 
 namespace App\Domains\ReadingDigest\Application\Handlers;
 
+use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceModel;
 use App\Domains\ReadingDigest\Infrastructure\Sources\SourceFetcherRegistry;
@@ -14,7 +15,7 @@ class FetchSourceHandler
         private readonly SourceFetcherRegistry $fetcherRegistry,
     ) {}
 
-    public function handle(string $sourceId, int $limit = 50): int
+    public function handle(string $sourceId, int $limit = 50, ?\DateTimeInterface $since = null): int
     {
         $source = SourceModel::query()->findOrFail($sourceId);
 
@@ -24,6 +25,19 @@ class FetchSourceHandler
             $stored = 0;
 
             foreach ($items as $item) {
+                if ($since !== null && $item->publishedAt !== null && $item->publishedAt < $since) {
+                    continue;
+                }
+
+                $language = ArticleLanguageService::resolve(
+                    $item->language,
+                    trim($item->title.' '.($item->summary ?? '').' '.($item->contentText ?? '')),
+                );
+
+                if (! ArticleLanguageService::isAllowed($language)) {
+                    continue;
+                }
+
                 $urlHash = hash('sha256', strtolower(trim($item->url)));
 
                 $existing = DigestArticleModel::query()
@@ -49,7 +63,7 @@ class FetchSourceHandler
                     'summary' => $item->summary,
                     'content_text' => $item->contentText,
                     'content_html' => $item->contentHtml,
-                    'language' => $item->language ?? 'en',
+                    'language' => $language,
                     'estimated_read_time_minutes' => $readTime,
                     'metadata' => ['raw_tags' => $item->rawTags],
                     'published_at' => $item->publishedAt,

@@ -1,7 +1,30 @@
 # Article Digest & Personalized Recommendation
 
-> **Status:** Implemented (initial release). Blog domain untouched.  
+> **Status:** Implemented. Product intent confirmed — link-only references from trusted external sites. Blog domain untouched.  
 > **Goal:** Personal reading assistant that learns taste over time, fetches articles per **Subject**, ranks with taxonomy + embeddings + behavior + LLM, and sends a daily Telegram digest (default **08:00 Asia/Ho_Chi_Minh**).
+
+---
+
+## Product intent (confirmed)
+
+This feature is **not** a second blog on our site. It is a **personal reading inbox + recommendation engine** for content that lives elsewhere on the web.
+
+**Admin-driven setup only** — no hardcoded sources. You create **Subjects** (themes) and attach **Sources** (websites / RSS feeds) in admin.
+
+### Daily flow (automatic)
+
+At **notification time** from Settings (default 08:00):
+
+1. **Fetch** — pull new articles from sources linked to enabled subjects (last 24h only)
+2. **Enrich** — LLM metadata, taxonomy, embeddings (background queue)
+3. **Rank** — score candidates per subject
+4. **Telegram** — send digest with two links per article:
+   - **📖 Read** — `/reading-digest/a/{token}` → redirect to original URL (counts opens)
+   - **👍 Vote** — `/reading-digest/v/{token}` → feedback page (upvote / downvote / don&apos;t recommend / custom tags)
+
+**Manual:** Settings → **Fetch & send now** runs the same pipeline immediately.
+
+No background fetch every 30 minutes — only once daily before send (plus manual button).
 
 ---
 
@@ -16,6 +39,7 @@
 | Default profile seeder | Done | `Database\Seeders\ReadingDigest\DefaultProfileSeeder` |
 | Admin UI (subjects, sources, settings, taxonomy, articles, today, profile) | Done | Inertia pages + header nav link |
 | Fetch pipeline (RSS, HN Algolia) | Done | Reddit/github/custom reuse RSS adapter |
+| Scheduled source fetch | Done | Once daily before digest only (not every 30 min) |
 | LLM enrichment + ranking | Done | Via **Cursor API** (`CursorApiClient`) |
 | Embeddings + pgvector | Done | JSON vector always; pgvector column optional on PostgreSQL |
 | Hybrid retrieval + LLM ranking | Done | `RetrievalService` + `RankingService` |
@@ -53,8 +77,8 @@ The system separates two concerns:
 
 | Layer | Purpose |
 |-------|---------|
-| **Knowledge** | Store fetched articles with rich, normalized metadata |
-| **User Preference** | Learn from explicit settings + implicit behavior to rank and recommend |
+| **Knowledge** | Store **references** to external articles (title, summary, URL, metadata) — not republished content |
+| **User Preference** | Learn from explicit settings + implicit behavior (votes) to rank and recommend |
 
 ---
 
@@ -189,22 +213,43 @@ Created manually in admin — no onboarding wizard.
 
 ### 4.2 Source
 
-A **Source** is a fetchable origin:
+A **Source** is an external **website or publication** we monitor for new articles — e.g. `https://tuoitre.vn`, `https://thanhnien.com`, `https://dev.to`, or an RSS feed URL for a section of those sites.
 
 | Field | Description |
 |-------|-------------|
-| `type` | `hn_algolia`, `rss`, `reddit`, `github_blog`, `custom_html` |
-| `url` | Feed or API base URL |
+| `name` | Human label (e.g. “Tuổi Trẻ — Công nghệ”, “Dev.to RSS”) |
+| `type` | **Fetch adapter** — how we pull links: `rss`, `hn_algolia`, `reddit`, `github_blog`, `custom_html` |
+| `url` | Feed URL, site RSS endpoint, or API base (not necessarily the homepage) |
 | `config` | JSON (e.g. HN `query`, `tags`) |
 | `tag_mappings` | Raw tag → taxonomy node (admin UI) |
 
-**Implemented adapters:** `RssSourceAdapter`, `HackerNewsAlgoliaAdapter`. Reddit, GitHub blog, and custom HTML route through the RSS adapter.
+**Examples (product → typical setup):**
 
-Admin actions: CRUD, **Fetch now** (queues job), **Test fetch** (preview 5 items).
+| Source (product) | Typical admin setup |
+|------------------|---------------------|
+| Tuổi Trẻ | Type `rss`, URL = category RSS feed from tuoitre.vn |
+| Thanh Niên | Type `rss`, URL = section feed |
+| dev.to | Type `rss`, URL = `https://dev.to/feed` or tag feed |
+| Hacker News front page | Type `hn_algolia`, URL + query config |
 
-### 4.3 DigestArticle (Knowledge)
+**Implemented adapters:** `RssSourceAdapter`, `HackerNewsAlgoliaAdapter`. Reddit, GitHub blog, and custom HTML route through the RSS adapter until dedicated site scrapers exist.
 
-Each fetched item is an `rd_articles` row — **not** blog `Post`.
+Admin actions: CRUD, **Fetch now** (queues job), **Test fetch** (preview 5 items — title, summary, **original URL** only).
+
+### 4.3 DigestArticle (reference card, not blog post)
+
+Each fetched item is an `rd_articles` row — **not** blog `Post` and **not** a page we publish in full.
+
+**What we keep:**
+
+| Field | Purpose |
+|-------|---------|
+| `title`, `url` | Card display; **reading happens on the original site** |
+| `summary` | Shown in inbox / Today / ranking; from feed or LLM |
+| `content_text` / `content_html` | Optional; **internal** for embeddings and enrichment — not rendered as an on-site article |
+| `metadata`, taxonomy, scores | Filtering, ranking, voting |
+
+**What we show in UI:** summary, source name, scores, vote buttons, link out to publisher.
 
 **Dedup:** Unique on `(source_id, external_id)` and `url_hash` (SHA-256 of normalized URL).
 
@@ -348,6 +393,8 @@ RunDailyDigestJob
 
 ### 10.3 Message format
 
+Telegram lists **summaries + scores**; the link goes to the **original article** (via our tracking redirect for analytics):
+
 ```
 📚 Daily Reading — Mon, 29 Jun
 
@@ -355,7 +402,10 @@ RunDailyDigestJob
 1. (95) Deep dive into React Compiler internals
    React · Advanced · 12 min
    https://yoursite.com/reading-digest/a/{tracking_token}
+   → redirects to https://dev.to/... (original publisher)
 ```
+
+On **Today** / **Inbox**, the user sees the same model: card with summary and 👍/👎 — no full article body on our site.
 
 ### 10.4 Config
 
@@ -376,11 +426,11 @@ All under **`/admin/reading-digest/*`**. Header nav: newspaper icon → Today.
 | Route | Page | Features |
 |-------|------|----------|
 | `/admin/reading-digest/subjects` | List + CRUD | Attach sources, articles per digest, max age |
-| `/admin/reading-digest/sources` | List + CRUD | Tag mappings, fetch now, test fetch |
+| `/admin/reading-digest/sources` | List + CRUD | Register sites/feeds (e.g. tuoitre.vn RSS), tag mappings, fetch now, test fetch |
 | `/admin/reading-digest/settings` | Settings | Timezone, preferences JSON, send now, recent runs |
 | `/admin/reading-digest/taxonomy` | Taxonomy | View tree, add nodes |
-| `/admin/reading-digest/articles` | Inbox | Search, force include/exclude |
-| `/admin/reading-digest/today` | Digest review | Cards, 👍👎💾✕ |
+| `/admin/reading-digest/articles` | Inbox | Search fetched **references** (title, summary, link out); force include/exclude |
+| `/admin/reading-digest/today` | Digest review | Summary cards, scores, 👍👎💾✕ — vote to train ranking |
 | `/admin/reading-digest/profile` | Profile | Interest scores, reset profile |
 
 Blog admin (`/admin/posts`, tags, series) unchanged.
@@ -472,7 +522,8 @@ Loaded from `routes/reading-digest.php`.
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/reading-digest/a/{token}` | Public | Track click (if logged in) → redirect to article URL |
+| GET | `/reading-digest/a/{token}` | Public | Track open → redirect to original article URL |
+| GET/POST | `/reading-digest/v/{token}` | Yes | Vote page — upvote / downvote / dismiss / custom tags |
 | POST | `/reading-digest/interactions` | Yes | Record interaction |
 | GET/POST/PUT/DELETE | `/admin/reading-digest/subjects/*` | Yes | Subject CRUD |
 | GET/POST/PUT/DELETE | `/admin/reading-digest/sources/*` | Yes | Source CRUD + fetch + test |
@@ -558,12 +609,13 @@ Ensure scheduler cron is configured in production.
 1. Log in via Google OAuth
 2. Open **Reading Digest** from header (newspaper icon)
 3. Review seeded **Taxonomy**; extend if needed
-4. Create **Sources** (RSS feeds, HN with query config); map raw tags
-5. Create **Subjects**; attach sources
+4. Create **Sources** — register external sites/feeds (e.g. Tuổi Trẻ RSS, dev.to feed, HN query); map raw tags
+5. Create **Subjects**; attach sources (themes like “Vietnam tech news”, “Frontend deep dives”)
 6. Click **Fetch** on sources (or wait for future scheduled fetch — manual today)
-7. Configure **Settings** (time, preferences); use **Send now** to test digest
-8. Review **Today**; use 👍/👎 to train interest scores
-9. Enable **Telegram** env vars for daily push
+7. Open **Inbox** — skim summaries; links open the **original publisher**; toggle include/exclude if needed
+8. Configure **Settings** (time, preferences); use **Send now** to test digest
+9. Review **Today** — vote 👍/👎 on summary cards to train interest scores (no full article on our site)
+10. Enable **Telegram** env vars for daily push (links still go to original articles)
 
 ### PostgreSQL pgvector (optional)
 
@@ -653,7 +705,7 @@ Subjects and sources: **create in admin**, not via seeder.
 - [ ] LLM ranking cache
 - [ ] Content retention purge job
 - [ ] Signed tracking tokens
-- [ ] Scheduled source fetch (interval-based)
+- [x] Scheduled source fetch (daily before digest only)
 
 ---
 

@@ -2,13 +2,11 @@ import { Link } from "@inertiajs/react";
 import { useRoute } from "ziggy-js";
 
 const links = [
-  { route: "admin.reading-digest.today", label: "Today" },
-  { route: "admin.reading-digest.subjects.index", label: "Subjects" },
-  { route: "admin.reading-digest.sources.index", label: "Sources" },
-  { route: "admin.reading-digest.articles.index", label: "Articles" },
-  { route: "admin.reading-digest.taxonomy.index", label: "Taxonomy" },
-  { route: "admin.reading-digest.settings.index", label: "Settings" },
-  { route: "admin.reading-digest.profile.index", label: "Profile" },
+  { route: "admin.reading-digest.today", label: "Hôm nay" },
+  { route: "admin.reading-digest.subjects.index", label: "Chủ đề" },
+  { route: "admin.reading-digest.sources.index", label: "Nguồn" },
+  { route: "admin.reading-digest.articles.index", label: "Hộp thư" },
+  { route: "admin.reading-digest.settings.index", label: "Cài đặt" },
 ];
 
 const ReadingDigestNav = () => {

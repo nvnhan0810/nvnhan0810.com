@@ -19,28 +19,11 @@ class RankingService
     public function rank(array $candidates, array $profilePreferences, int $limit): array
     {
         if (count($candidates) < 5) {
-            return collect($candidates)
-                ->take($limit)
-                ->values()
-                ->map(fn ($item, $index) => [
-                    'article_id' => $item['article']->id,
-                    'score' => 100 - $index,
-                    'reason' => 'High retrieval score',
-                ])
-                ->all();
+            return $this->retrievalFallback($candidates, $limit, 'Recent articles from your sources');
         }
 
         if (! $this->cursorApi->isConfigured()) {
-            return collect($candidates)
-                ->sortByDesc('score')
-                ->take($limit)
-                ->values()
-                ->map(fn ($item) => [
-                    'article_id' => $item['article']->id,
-                    'score' => $item['score'],
-                    'reason' => 'Retrieval ranking (Cursor API disabled)',
-                ])
-                ->all();
+            return $this->retrievalFallback($candidates, $limit, 'Retrieval ranking (LLM disabled)');
         }
 
         $summaries = collect($candidates)->map(function ($item) {
@@ -81,20 +64,53 @@ class RankingService
             }
 
             $content = json_decode($response->json('choices.0.message.content'), true);
-            $rankings = $content['rankings'] ?? [];
+            $rankings = $this->normalizeRankings($content['rankings'] ?? [], $candidates, $limit);
 
-            return collect($rankings)->take($limit)->values()->all();
+            if ($rankings !== []) {
+                return $rankings;
+            }
+
+            throw new \RuntimeException('Ranking API returned no valid items');
         } catch (\Throwable) {
-            return collect($candidates)
-                ->sortByDesc('score')
-                ->take($limit)
-                ->values()
-                ->map(fn ($item) => [
-                    'article_id' => $item['article']->id,
-                    'score' => $item['score'],
-                    'reason' => 'Retrieval fallback ranking',
-                ])
-                ->all();
+            return $this->retrievalFallback($candidates, $limit, 'Retrieval fallback ranking');
         }
+    }
+
+    /**
+     * @param  array<int, array{article: DigestArticleModel, score: float}>  $candidates
+     * @return array<int, array{article_id: string, score: float, reason: string}>
+     */
+    private function retrievalFallback(array $candidates, int $limit, string $reason): array
+    {
+        return collect($candidates)
+            ->sortByDesc('score')
+            ->take($limit)
+            ->values()
+            ->map(fn ($item, $index) => [
+                'article_id' => $item['article']->id,
+                'score' => $item['score'] ?: (100 - $index),
+                'reason' => $reason,
+            ])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{article: DigestArticleModel, score: float}>  $candidates
+     * @return array<int, array{article_id: string, score: float, reason: string}>
+     */
+    private function normalizeRankings(array $rankings, array $candidates, int $limit): array
+    {
+        $candidateIds = collect($candidates)->pluck('article.id')->all();
+
+        return collect($rankings)
+            ->filter(fn ($row) => in_array($row['article_id'] ?? '', $candidateIds, true))
+            ->take($limit)
+            ->values()
+            ->map(fn ($row) => [
+                'article_id' => $row['article_id'],
+                'score' => (float) ($row['score'] ?? 0),
+                'reason' => (string) ($row['reason'] ?? 'LLM ranking'),
+            ])
+            ->all();
     }
 }
