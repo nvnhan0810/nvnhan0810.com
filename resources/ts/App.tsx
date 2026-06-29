@@ -16,8 +16,8 @@ type WindowWithAnalytics = Window & {
 
 createInertiaApp({
   resolve: (name) => {
-    const pages = import.meta.glob("./pages/**/*.tsx", { eager: true });
-    return pages[`./pages/${name}.tsx`];
+    const pages = import.meta.glob(["./pages/**/*.tsx", "./domains/**/*.tsx"], { eager: true });
+    return pages[`./pages/${name}.tsx`] ?? pages[`./${name}.tsx`];
   },
   setup({ el, App, props }) {
     if (typeof window !== "undefined") {

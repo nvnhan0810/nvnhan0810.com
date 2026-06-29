@@ -28,7 +28,7 @@ class AuthController extends Controller
 
             Auth::login($user, true);
 
-            return redirect()->intended('/');
+            return redirect()->intended(route('admin.index'));
         }
 
         abort(403, 'Unauthorized');
