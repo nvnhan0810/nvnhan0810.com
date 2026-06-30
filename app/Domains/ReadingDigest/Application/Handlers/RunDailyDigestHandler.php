@@ -10,6 +10,7 @@ use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\UserReadingPro
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\DefaultPreferences;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\RetrievalService;
 use App\Domains\ReadingDigest\Presentation\Jobs\SendDigestTelegramJob;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
 
 class RunDailyDigestHandler
@@ -89,7 +90,7 @@ class RunDailyDigestHandler
             ],
         ]);
 
-        SendDigestTelegramJob::dispatch($run->id);
+        Bus::dispatch(new SendDigestTelegramJob($run->id));
 
         return $run;
     }

@@ -13,6 +13,7 @@ use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\RetrievalS
 use App\Domains\ReadingDigest\Presentation\Jobs\RunDailyDigestJob;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
@@ -83,7 +84,7 @@ class SettingsController extends Controller
 
     public function sendNow(Request $request)
     {
-        RunDailyDigestJob::dispatch();
+        Bus::dispatch(new RunDailyDigestJob);
 
         return back()->with('success', 'Fetch and digest queued — check Today in a minute.');
     }
