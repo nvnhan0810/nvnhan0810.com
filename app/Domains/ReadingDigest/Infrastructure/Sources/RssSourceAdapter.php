@@ -79,7 +79,12 @@ class RssSourceAdapter implements SourceFetcherInterface
         $body = preg_replace('/^\xEF\xBB\xBF/', '', trim($body)) ?? '';
 
         if ($body === '' || ! str_starts_with($body, '<')) {
-            throw new RuntimeException('RSS feed did not return XML content');
+            $hint = match (true) {
+                str_starts_with($body, '{'), str_starts_with($body, '[') => ' Response looks like JSON — for dev.to use /feed/tag/... (RSS) or /api/articles?... (JSON API).',
+                default => '',
+            };
+
+            throw new RuntimeException('RSS feed did not return XML content.'.$hint);
         }
 
         libxml_use_internal_errors(true);
