@@ -13,6 +13,7 @@ use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\RetrievalS
 use App\Domains\ReadingDigest\Presentation\Jobs\RunDailyDigestJob;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
@@ -83,7 +84,31 @@ class SettingsController extends Controller
 
     public function sendNow(Request $request)
     {
-        RunDailyDigestJob::dispatch();
+        $userId = $request->user()->id;
+
+        Log::warning('[ReadingDigest] send-now: request received', [
+            'user_id' => $userId,
+            'queue_connection' => config('queue.default'),
+            'telegram_enabled' => config('reading-digest.telegram.enabled'),
+            'telegram_configured' => (bool) config('reading-digest.telegram.bot_token')
+                && (bool) config('reading-digest.telegram.chat_id'),
+        ]);
+
+        try {
+            RunDailyDigestJob::dispatch();
+
+            Log::warning('[ReadingDigest] send-now: RunDailyDigestJob dispatched', [
+                'user_id' => $userId,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[ReadingDigest] send-now: failed to dispatch RunDailyDigestJob', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+                'exception' => $e::class,
+            ]);
+
+            throw $e;
+        }
 
         return back()->with('success', 'Fetch and digest queued — check Today in a minute.');
     }
