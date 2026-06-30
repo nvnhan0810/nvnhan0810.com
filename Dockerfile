@@ -70,6 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxml2-dev \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
+    && ln -sf /usr/bin/node /usr/local/bin/node \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         gd \
