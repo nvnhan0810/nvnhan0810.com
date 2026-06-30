@@ -21,75 +21,35 @@ class FetchAllSourcesHandler
         $limitPerSource ??= (int) config('reading-digest.fetch_limit_per_source', 50);
         $since ??= now()->subHours((int) config('reading-digest.fetch_since_hours', 24));
 
-        Log::warning('[ReadingDigest] FetchAllSourcesHandler: started', [
-            'limit_per_source' => $limitPerSource,
-            'since' => $since->format('Y-m-d H:i:s'),
-        ]);
+        $purged = $this->purgeDisallowedArticles();
 
-        try {
-            $purged = $this->purgeDisallowedArticles();
+        $sources = SourceModel::query()
+            ->where('enabled', true)
+            ->orderBy('name')
+            ->get();
 
-            Log::warning('[ReadingDigest] FetchAllSourcesHandler: purge completed', [
-                'purged' => $purged,
-            ]);
+        $stored = 0;
+        $errors = [];
 
-            $sources = SourceModel::query()
-                ->where('enabled', true)
-                ->orderBy('name')
-                ->get();
-
-            Log::warning('[ReadingDigest] FetchAllSourcesHandler: sources loaded', [
-                'sources_count' => $sources->count(),
-            ]);
-
-            $stored = 0;
-            $errors = [];
-
-            foreach ($sources as $source) {
-                try {
-                    $count = $this->fetchSourceHandler->handle($source->id, $limitPerSource, $since);
-                    $stored += $count;
-
-                    Log::warning('[ReadingDigest] FetchAllSourcesHandler: source fetched', [
-                        'source_id' => $source->id,
-                        'source_name' => $source->name,
-                        'stored' => $count,
-                    ]);
-                } catch (\Throwable $e) {
-                    $errors[$source->id] = $e->getMessage();
-
-                    try {
-                        Log::warning('[ReadingDigest] FetchAllSourcesHandler: source fetch failed', [
-                            'source_id' => $source->id,
-                            'source_name' => $source->name,
-                            'error' => $e->getMessage(),
-                            'exception' => $e::class,
-                        ]);
-                    } catch (\Throwable) {
-                        // Logging must not abort digest when cache/Telegram channel is misconfigured.
-                    }
-                }
+        foreach ($sources as $source) {
+            try {
+                $stored += $this->fetchSourceHandler->handle($source->id, $limitPerSource, $since);
+            } catch (\Throwable $e) {
+                $errors[$source->id] = $e->getMessage();
+                Log::warning('Reading digest source fetch failed', [
+                    'source_id' => $source->id,
+                    'source_name' => $source->name,
+                    'error' => $e->getMessage(),
+                ]);
             }
-
-            $result = [
-                'sources' => $sources->count(),
-                'stored' => $stored,
-                'purged' => $purged,
-                'errors' => $errors,
-            ];
-
-            Log::warning('[ReadingDigest] FetchAllSourcesHandler: completed', $result);
-
-            return $result;
-        } catch (\Throwable $e) {
-            Log::warning('[ReadingDigest] FetchAllSourcesHandler: failed', [
-                'error' => $e->getMessage(),
-                'exception' => $e::class,
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
         }
+
+        return [
+            'sources' => $sources->count(),
+            'stored' => $stored,
+            'purged' => $purged,
+            'errors' => $errors,
+        ];
     }
 
     private function purgeDisallowedArticles(): int

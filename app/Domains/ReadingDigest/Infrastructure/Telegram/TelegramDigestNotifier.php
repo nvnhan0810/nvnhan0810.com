@@ -7,142 +7,59 @@ use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestRunModel
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestSettingsModel;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class TelegramDigestNotifier
 {
     private static bool $plainUrlWarningLogged = false;
-
     public function send(DigestRunModel $run): bool
     {
-        Log::warning('[ReadingDigest] TelegramDigestNotifier: started', [
-            'digest_run_id' => $run->id,
-            'user_id' => $run->user_id,
-        ]);
+        $config = config('reading-digest.telegram');
 
-        try {
-            $config = config('reading-digest.telegram');
+        if (! ($config['enabled'] ?? false)) {
+            return false;
+        }
 
-            Log::warning('[ReadingDigest] TelegramDigestNotifier: config loaded', [
-                'digest_run_id' => $run->id,
-                'enabled' => $config['enabled'] ?? false,
-                'bot_token_set' => ! empty($config['bot_token'] ?? null),
-                'chat_id_set' => ! empty($config['chat_id'] ?? null),
-                'public_url' => config('reading-digest.public_url'),
-                'app_url' => config('app.url'),
-            ]);
+        $token = $config['bot_token'] ?? null;
+        $chatId = $config['chat_id'] ?? null;
 
-            if (! ($config['enabled'] ?? false)) {
-                Log::warning('[ReadingDigest] TelegramDigestNotifier: disabled (DIGEST_TELEGRAM_ENABLED=false)', [
-                    'digest_run_id' => $run->id,
-                ]);
-
-                return false;
-            }
-
-            $token = $config['bot_token'] ?? null;
-            $chatId = $config['chat_id'] ?? null;
-
-            if (! $token || ! $chatId) {
-                Log::warning('[ReadingDigest] TelegramDigestNotifier: not configured (missing bot_token or chat_id)', [
-                    'digest_run_id' => $run->id,
-                    'bot_token_set' => (bool) $token,
-                    'chat_id_set' => (bool) $chatId,
-                ]);
-
-                return false;
-            }
-
-            $run->load(['items.article.source', 'items.subject']);
-
-            Log::warning('[ReadingDigest] TelegramDigestNotifier: run items loaded', [
-                'digest_run_id' => $run->id,
-                'items_count' => $run->items->count(),
-            ]);
-
-            $settings = DigestSettingsModel::query()
-                ->where('user_id', $run->user_id)
-                ->first();
-
-            $timezone = $settings?->timezone ?? config('reading-digest.timezone', 'Asia/Ho_Chi_Minh');
-            $sentAt = now($timezone);
-            $datetimeLabel = $sentAt->format('D, j M Y · H:i').' ('.$timezone.')';
-
-            $payloads = $this->buildMessagePayloads($run, $datetimeLabel);
-
-            Log::warning('[ReadingDigest] TelegramDigestNotifier: message payloads built', [
-                'digest_run_id' => $run->id,
-                'payloads_count' => count($payloads),
-            ]);
-
-            foreach ($payloads as $index => $payload) {
-                $body = [
-                    'chat_id' => $chatId,
-                    'text' => $payload['text'],
-                    'parse_mode' => 'HTML',
-                    'disable_web_page_preview' => true,
-                ];
-
-                if (isset($payload['reply_markup'])) {
-                    $body['reply_markup'] = $payload['reply_markup'];
-                }
-
-                Log::warning('[ReadingDigest] TelegramDigestNotifier: sending message', [
-                    'digest_run_id' => $run->id,
-                    'message_index' => $index,
-                    'text_length' => mb_strlen($payload['text']),
-                    'has_reply_markup' => isset($payload['reply_markup']),
-                ]);
-
-                try {
-                    $response = Http::timeout(30)->post("https://api.telegram.org/bot{$token}/sendMessage", $body);
-
-                    Log::warning('[ReadingDigest] TelegramDigestNotifier: API response', [
-                        'digest_run_id' => $run->id,
-                        'message_index' => $index,
-                        'status' => $response->status(),
-                        'successful' => $response->successful(),
-                        'body_preview' => mb_substr($response->body(), 0, 500),
-                    ]);
-
-                    if (! $response->successful()) {
-                        Log::warning('[ReadingDigest] TelegramDigestNotifier: send failed', [
-                            'digest_run_id' => $run->id,
-                            'message_index' => $index,
-                            'status' => $response->status(),
-                            'body' => $response->body(),
-                        ]);
-
-                        return false;
-                    }
-                } catch (Throwable $e) {
-                    Log::warning('[ReadingDigest] TelegramDigestNotifier: HTTP request failed', [
-                        'digest_run_id' => $run->id,
-                        'message_index' => $index,
-                        'error' => $e->getMessage(),
-                        'exception' => $e::class,
-                    ]);
-
-                    return false;
-                }
-            }
-
-            Log::warning('[ReadingDigest] TelegramDigestNotifier: all messages sent successfully', [
-                'digest_run_id' => $run->id,
-                'messages_sent' => count($payloads),
-            ]);
-
-            return true;
-        } catch (Throwable $e) {
-            Log::warning('[ReadingDigest] TelegramDigestNotifier: unexpected error', [
-                'digest_run_id' => $run->id,
-                'error' => $e->getMessage(),
-                'exception' => $e::class,
-                'trace' => $e->getTraceAsString(),
-            ]);
+        if (! $token || ! $chatId) {
+            Log::warning('Digest Telegram not configured');
 
             return false;
         }
+
+        $run->load(['items.article.source', 'items.subject']);
+
+        $settings = DigestSettingsModel::query()
+            ->where('user_id', $run->user_id)
+            ->first();
+
+        $timezone = $settings?->timezone ?? config('reading-digest.timezone', 'Asia/Ho_Chi_Minh');
+        $sentAt = now($timezone);
+        $datetimeLabel = $sentAt->format('D, j M Y · H:i').' ('.$timezone.')';
+
+        foreach ($this->buildMessagePayloads($run, $datetimeLabel) as $payload) {
+            $body = [
+                'chat_id' => $chatId,
+                'text' => $payload['text'],
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true,
+            ];
+
+            if (isset($payload['reply_markup'])) {
+                $body['reply_markup'] = $payload['reply_markup'];
+            }
+
+            $response = Http::timeout(30)->post("https://api.telegram.org/bot{$token}/sendMessage", $body);
+
+            if (! $response->successful()) {
+                Log::error('Digest Telegram send failed', ['body' => $response->body()]);
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -153,10 +70,6 @@ class TelegramDigestNotifier
         $items = $run->items->sortBy('rank');
 
         if ($items->isEmpty()) {
-            Log::warning('[ReadingDigest] TelegramDigestNotifier: no items — sending empty digest notice', [
-                'digest_run_id' => $run->id,
-            ]);
-
             return [[
                 'text' => $this->header($datetimeLabel)
                     ."\n\n⚠️ <i>No articles selected today.</i>"
@@ -173,14 +86,6 @@ class TelegramDigestNotifier
             $payload = $this->buildArticlePayload($item);
             if ($payload !== null) {
                 $payloads[] = $payload;
-            } else {
-                Log::warning('[ReadingDigest] TelegramDigestNotifier: skipped item (missing article or tracking_token)', [
-                    'digest_run_id' => $run->id,
-                    'item_id' => $item->id,
-                    'article_id' => $item->article_id,
-                    'has_article' => (bool) $item->article,
-                    'has_tracking_token' => (bool) $item->tracking_token,
-                ]);
             }
         }
 
@@ -231,9 +136,8 @@ class TelegramDigestNotifier
         if (! $this->isTelegramButtonUrl($readUrl) || ! $this->isTelegramButtonUrl($voteUrl)) {
             if (! self::$plainUrlWarningLogged) {
                 self::$plainUrlWarningLogged = true;
-                Log::warning('[ReadingDigest] TelegramDigestNotifier: using plain URL links (public URL invalid for inline buttons)', [
+                Log::warning('Digest Telegram using plain URL links because public URL is not valid for inline buttons', [
                     'read_url' => $readUrl,
-                    'vote_url' => $voteUrl,
                     'hint' => 'Set DIGEST_PUBLIC_URL to your public HTTPS domain (Telegram rejects localhost).',
                 ]);
             }
