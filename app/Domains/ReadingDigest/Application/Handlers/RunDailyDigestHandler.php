@@ -11,6 +11,7 @@ use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\DefaultPre
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\RetrievalService;
 use App\Domains\ReadingDigest\Presentation\Jobs\SendDigestTelegramJob;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class RunDailyDigestHandler
@@ -90,7 +91,33 @@ class RunDailyDigestHandler
             ],
         ]);
 
-        Bus::dispatch(new SendDigestTelegramJob($run->id));
+        $jobsBefore = DB::table('jobs')->count();
+        $sendBefore = DB::table('jobs')->where('payload', 'like', '%SendDigestTelegramJob%')->count();
+
+        try {
+            Bus::dispatch(new SendDigestTelegramJob($run->id));
+            $dispatchError = null;
+        } catch (\Throwable $e) {
+            $dispatchError = $e->getMessage();
+        }
+
+        $jobsAfter = DB::table('jobs')->count();
+        $sendAfter = DB::table('jobs')->where('payload', 'like', '%SendDigestTelegramJob%')->count();
+
+        file_put_contents(
+            '/tmp/digest-dispatch.log',
+            sprintf(
+                "[%s] run=%s jobs=%d→%d send=%d→%d error=%s\n",
+                now()->toIso8601String(),
+                $run->id,
+                $jobsBefore,
+                $jobsAfter,
+                $sendBefore,
+                $sendAfter,
+                $dispatchError ?? 'null',
+            ),
+            FILE_APPEND
+        );
 
         return $run;
     }
