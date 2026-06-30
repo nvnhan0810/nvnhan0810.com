@@ -107,7 +107,8 @@ Route::get('/sitemap.xml', function () {
         ])
     );
 
-    $xml = view('sitemap', compact('urls'))->render();
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
+        .view('sitemap', compact('urls'))->render();
 
     return Response::make($xml, 200, [
         'Content-Type' => 'application/xml; charset=UTF-8',
