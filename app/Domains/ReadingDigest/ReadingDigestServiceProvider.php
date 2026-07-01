@@ -3,6 +3,8 @@
 namespace App\Domains\ReadingDigest;
 
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestSettingsModel;
+use App\Domains\ReadingDigest\Presentation\Console\SetTelegramWebhookCommand;
+use App\Domains\ReadingDigest\Presentation\Http\Controllers\TelegramWebhookController;
 use App\Domains\ReadingDigest\Presentation\Jobs\DecayInterestScoresJob;
 use App\Domains\ReadingDigest\Presentation\Jobs\RebuildUserEmbeddingJob;
 use App\Domains\ReadingDigest\Presentation\Jobs\RunDailyDigestJob;
@@ -24,6 +26,17 @@ class ReadingDigestServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Route::middleware('web')->group(base_path('routes/reading-digest.php'));
+
+        // Telegram webhook must skip CSRF/session, so it is registered outside the web group.
+        Route::post('/reading-digest/telegram/webhook', [TelegramWebhookController::class, 'handle'])
+            ->middleware('throttle:240,1')
+            ->name('reading-digest.telegram.webhook');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                SetTelegramWebhookCommand::class,
+            ]);
+        }
 
         $this->app->booted(function () {
             $schedule = $this->app->make(Schedule::class);

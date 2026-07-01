@@ -120,49 +120,48 @@ class TelegramDigestNotifier
         }
 
         $readUrl = $this->readUrl($item->tracking_token);
-        $voteUrl = $this->voteUrl($item->tracking_token);
 
         return [
-            'text' => $text.$this->linkSuffix($readUrl, $voteUrl),
-            ...$this->linkMarkup($readUrl, $voteUrl),
+            'text' => $text.$this->linkSuffix($readUrl),
+            ...$this->voteMarkup($item->tracking_token, $readUrl),
         ];
     }
 
     /**
+     * Read stays a URL button; the vote is split into two callback buttons so
+     * the click is handled inline by the Telegram webhook (no browser needed).
+     *
      * @return array<string, mixed>
      */
-    private function linkMarkup(string $readUrl, string $voteUrl): array
+    private function voteMarkup(string $token, string $readUrl): array
     {
-        if (! $this->isTelegramButtonUrl($readUrl) || ! $this->isTelegramButtonUrl($voteUrl)) {
-            if (! self::$plainUrlWarningLogged) {
-                self::$plainUrlWarningLogged = true;
-                Log::warning('Digest Telegram using plain URL links because public URL is not valid for inline buttons', [
-                    'read_url' => $readUrl,
-                    'hint' => 'Set DIGEST_PUBLIC_URL to your public HTTPS domain (Telegram rejects localhost).',
-                ]);
-            }
+        $rows = [];
 
-            return [];
+        if ($this->isTelegramButtonUrl($readUrl)) {
+            $rows[] = [['text' => '📖 Read', 'url' => $readUrl]];
+        } elseif (! self::$plainUrlWarningLogged) {
+            self::$plainUrlWarningLogged = true;
+            Log::warning('Digest Telegram using plain URL for Read link because public URL is not valid for inline buttons', [
+                'read_url' => $readUrl,
+                'hint' => 'Set DIGEST_PUBLIC_URL to your public HTTPS domain (Telegram rejects localhost).',
+            ]);
         }
 
-        return [
-            'reply_markup' => [
-                'inline_keyboard' => [[
-                    ['text' => '📖 Read', 'url' => $readUrl],
-                    ['text' => '👍 Vote', 'url' => $voteUrl],
-                ]],
-            ],
+        $rows[] = [
+            ['text' => '👍 Upvote', 'callback_data' => 'rdv:u:'.$token],
+            ['text' => '👎 Downvote', 'callback_data' => 'rdv:d:'.$token],
         ];
+
+        return ['reply_markup' => ['inline_keyboard' => $rows]];
     }
 
-    private function linkSuffix(string $readUrl, string $voteUrl): string
+    private function linkSuffix(string $readUrl): string
     {
         if ($this->isTelegramButtonUrl($readUrl)) {
             return '';
         }
 
-        return "\n\n📖 Read:\n".$this->escape($readUrl)
-            ."\n\n👍 Vote:\n".$this->escape($voteUrl);
+        return "\n\n📖 Read:\n".$this->escape($readUrl);
     }
 
     private function isTelegramButtonUrl(string $url): bool
@@ -181,11 +180,6 @@ class TelegramDigestNotifier
     private function readUrl(string $token): string
     {
         return $this->absoluteRoute('reading-digest.article.redirect', ['token' => $token]);
-    }
-
-    private function voteUrl(string $token): string
-    {
-        return $this->absoluteRoute('reading-digest.article.vote', ['token' => $token]);
     }
 
     /**

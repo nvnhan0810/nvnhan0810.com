@@ -21,6 +21,8 @@ return [
         'enabled' => filter_var(env('DIGEST_TELEGRAM_ENABLED', false), FILTER_VALIDATE_BOOL),
         'bot_token' => env('DIGEST_TELEGRAM_BOT_TOKEN'),
         'chat_id' => env('DIGEST_TELEGRAM_CHAT_ID'),
+        /** Shared secret validated on incoming Telegram webhook calls (vote callbacks). */
+        'webhook_secret' => env('DIGEST_TELEGRAM_WEBHOOK_SECRET'),
     ],
     'interaction_weights' => [
         'impression' => -0.5,

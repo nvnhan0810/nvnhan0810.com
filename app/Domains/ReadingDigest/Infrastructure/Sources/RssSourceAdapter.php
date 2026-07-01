@@ -35,12 +35,12 @@ class RssSourceAdapter implements SourceFetcherInterface
             }
 
             $link = $this->extractLink($item);
-            $title = trim((string) ($item->title ?? ''));
+            $title = $this->cleanText((string) ($item->title ?? ''));
             if ($link === '' || $title === '') {
                 continue;
             }
 
-            $summary = trim(strip_tags((string) ($item->description ?? $item->summary ?? $item->content ?? '')));
+            $summary = $this->cleanText((string) ($item->description ?? $item->summary ?? $item->content ?? ''));
             $published = isset($item->pubDate)
                 ? new \DateTimeImmutable((string) $item->pubDate)
                 : (isset($item->published) ? new \DateTimeImmutable((string) $item->published) : null);
@@ -122,6 +122,27 @@ class RssSourceAdapter implements SourceFetcherInterface
         }
 
         return [];
+    }
+
+    /**
+     * Decode HTML entities, strip tags and collapse whitespace.
+     *
+     * Many feeds (esp. Vietnamese news via Google News) double-encode content,
+     * e.g. `c&amp;oacute;` which XML parsing turns into `c&oacute;`. A second
+     * decode pass turns the remaining named entities into real characters (`có`).
+     */
+    private function cleanText(string $value): string
+    {
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if (preg_match('/&(?:[a-zA-Z][a-zA-Z0-9]+|#\d+|#x[0-9a-fA-F]+);/', $value) === 1) {
+            $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        $value = strip_tags($value);
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+
+        return trim($value);
     }
 
     private function extractLink(SimpleXMLElement $item): string
