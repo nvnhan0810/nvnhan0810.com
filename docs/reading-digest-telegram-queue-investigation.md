@@ -74,23 +74,38 @@ SendDigestTelegramJob  RUNNING → DONE (13 giây)
 telegram_sent_at = 2026-07-01 00:09:33
 ```
 
-## Kết luận điều tra
+## NGUYÊN NHÂN GỐC (đã chốt 2026-07-01)
 
-1. **Nested `Bus::dispatch(SendDigestTelegramJob)` ghi DB đúng** — không phải lỗi insert.
-2. **Lỗi nằm sau INSERT:** sau khi parent job kết thúc (~30–60s, nhiều enrich pending), worker **không xử lý / không log** job con; queue rỗng nhưng Telegram chưa gửi.
-3. **Gửi Telegram hoạt động** khi `SendDigestTelegramJob` được worker nhận ở **top-level** (worker rảnh, không phải tail của pipeline parent dài).
-4. **Local khác production** ở workload (parent ~400ms vs ~30–60s LLM), `TELEGRAM_LOG_QUEUE`, và memory 128M — khả năng worker dừng hoặc không dequeue job con sau parent (cần thêm log memory nếu muốn chốt 100%).
+**Bảng `jobs` trên Postgres production có cột `id` KHÔNG auto-increment** — `id bigint`, `default = NULL`, không sequence, không primary key. Nên **mọi job insert vào đều có `id = NULL`**.
 
-**Một câu:** Production insert job gửi Telegram OK, nhưng worker không chạy job con sau parent; dispatch riêng từ tinker thì chạy và gửi OK.
+Worker của Laravel xoá job đã chạy xong bằng `DELETE FROM jobs WHERE id = ?`. Với tất cả `id = NULL`, câu lệnh này thành `DELETE ... WHERE id IS NULL` → **xoá SẠCH mọi job đang chờ**. Vì vậy khi `RunDailyDigestJob` (parent) chạy xong và worker xoá nó, **tất cả job con vừa dispatch trong lúc parent chạy** (`EnrichArticleMetadataJob`, `SendDigestTelegramJob`, cả `SendTelegramLogJob`) **bị xoá luôn** — không chạy, không fail, `jobs → 0`, `telegram_sent_at = null`.
 
-## Hướng xử lý (đã áp dụng trong code)
+### Bằng chứng chốt
 
-Gọi **`SendDigestHandler` đồng bộ** ở cuối `RunDailyDigestJob::handle()` (sau khi merge stats fetch), **bỏ** queue `SendDigestTelegramJob` khỏi `RunDailyDigestHandler`.
+- `information_schema.columns`: `jobs.id` → `default = NULL`, `is_identity = NO`, `pg_get_serial_sequence('jobs','id') = null`.
+- Insert 2 row test → cả hai `id = NULL`; `DELETE ... WHERE id = <first>` → **`deleted_rows = 2`** (xoá nhầm cả 2).
+- Probe closure lồng nhau trong worker: `outer_txlevel = 0`, sau khi dispatch inner `jobs = 2 txlevel = 0` (đã commit) → nhưng inner **không bao giờ chạy**, `jobs → 0`. Không phải rollback, mà bị **xoá nhầm**.
 
-- Digest + gửi Telegram là một luồng “send now” / daily — không cần thêm một tầng queue phụ thuộc worker dequeue sau job cha dài.
-- `SendDigestTelegramJob` vẫn giữ cho trường hợp dispatch riêng nếu cần.
+### Vì sao các trường hợp khác “chạy được”
 
-Tùy chọn infra: tăng `queue:work --memory=256` trong Supervisor nếu enrich job con vẫn cần queue ổn định.
+| Trường hợp | Lý do |
+|---|---|
+| Dispatch top-level (worker rảnh) | Chỉ có 1 row `id=NULL` → xoá đúng 1 row. OK. |
+| `RunDailyDigestJob::handle()` chạy tay trong tinker | Parent **không** là row trong `jobs` → không có lệnh xoá nhầm job con. OK. |
+| Bản “sync” gửi Telegram trong parent (08:00) | Gửi thẳng, **không qua queue** → không dính bảng `jobs` hỏng. |
+| Local | Bảng `jobs` local tạo bằng migration chuẩn (`->id()`), `id` auto-increment đúng. |
+
+**Không phải memory / OOM / TELEGRAM_LOG_QUEUE / nested dispatch / worker chết.** Toàn bộ DB production được import thiếu PK/sequence cho các cột id kiểu integer (đã từng vá cho `users`, `cache`, `cache_locks`), nhưng **`jobs` và `failed_jobs` bị bỏ sót**.
+
+## Hướng xử lý (đã áp dụng + verify trên prod)
+
+1. **Migration `2026_07_01_000000_ensure_queue_tables_constraints.php`**: tạo sequence + default `nextval` + primary key cho `jobs` và `failed_jobs` (idempotent, chỉ chạy khi thiếu PK). Đây là fix gốc.
+2. **Giữ `SendDigestTelegramJob` dạng queued** (`RunDailyDigestJob` dispatch job con như cũ) — sau khi sửa bảng `jobs`, luồng queue chạy đúng.
+3. Phụ (hardening, không phải nguyên nhân): `queue:work -d memory_limit=256M --memory=224` để worker recycle trước hard limit.
+
+**Verify prod (sau khi sửa `jobs.id`):** run `12:13:49` → `tg=2026-07-01 12:15:19`; `queue.log` chạy đủ `EnrichArticleMetadataJob`, `EmbedArticleJob`, `SendDigestTelegramJob`.
+
+**Một câu:** Cột `jobs.id` không auto-increment nên mọi job `id=NULL`; worker xoá parent bằng `WHERE id=NULL` → xoá luôn mọi job con. Sửa PK/sequence cho bảng `jobs` là hết.
 
 ## Lịch sử debug (tóm tắt)
 
