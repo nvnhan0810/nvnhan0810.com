@@ -101,7 +101,7 @@ Worker của Laravel xoá job đã chạy xong bằng `DELETE FROM jobs WHERE id
 
 1. **Migration `2026_07_01_000000_ensure_queue_tables_constraints.php`**: tạo sequence + default `nextval` + primary key cho `jobs` và `failed_jobs` (idempotent, chỉ chạy khi thiếu PK). Đây là fix gốc.
 2. **Giữ `SendDigestTelegramJob` dạng queued** (`RunDailyDigestJob` dispatch job con như cũ) — sau khi sửa bảng `jobs`, luồng queue chạy đúng.
-3. Phụ (hardening, không phải nguyên nhân): `queue:work -d memory_limit=256M --memory=224` để worker recycle trước hard limit.
+3. Memory **không phải** nguyên nhân → `queue:work` để mặc định (đã rollback `-d memory_limit` / `--memory`).
 
 **Verify prod (sau khi sửa `jobs.id`):** run `12:13:49` → `tg=2026-07-01 12:15:19`; `queue.log` chạy đủ `EnrichArticleMetadataJob`, `EmbedArticleJob`, `SendDigestTelegramJob`.
 
