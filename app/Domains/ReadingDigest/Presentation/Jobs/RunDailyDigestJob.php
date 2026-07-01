@@ -4,7 +4,6 @@ namespace App\Domains\ReadingDigest\Presentation\Jobs;
 
 use App\Domains\ReadingDigest\Application\Handlers\FetchAllSourcesHandler;
 use App\Domains\ReadingDigest\Application\Handlers\RunDailyDigestHandler;
-use App\Domains\ReadingDigest\Application\Handlers\SendDigestHandler;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,7 +17,6 @@ class RunDailyDigestJob implements ShouldQueue
     public function handle(
         FetchAllSourcesHandler $fetchAllSources,
         RunDailyDigestHandler $digestHandler,
-        SendDigestHandler $sendDigest,
     ): void {
         $fetchStats = $fetchAllSources->handle();
 
@@ -35,6 +33,6 @@ class RunDailyDigestJob implements ShouldQueue
             ]),
         ]);
 
-        $sendDigest->handle($run->id);
+        SendDigestTelegramJob::dispatch($run->id);
     }
 }
