@@ -1,11 +1,13 @@
 import usePostPreview from "@/ts/hooks/usePostPreview";
 import type { Locale } from "@/ts/i18n";
 import type { Post, PostPayload } from "@/ts/types/post";
-import { Link } from "@inertiajs/react";
+import type { PostAgentEdits } from "@/ts/types/postAgent";
+import { Link, usePage } from "@inertiajs/react";
 import { format } from "date-fns";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRoute } from "ziggy-js";
+import PostAgentChat from "./PostAgentChat";
 import { Button } from "../ui/button";
 import { Calendar } from "../ui/calendar";
 import { Label } from "../ui/label";
@@ -36,6 +38,12 @@ const localeLabels: Record<Locale, string> = {
   vi: "Tiếng Việt",
 };
 
+type SharedPageProps = {
+  postAgent?: {
+    configured: boolean;
+  } | null;
+};
+
 const PostForm = ({
   initialPost,
   onSave,
@@ -43,6 +51,7 @@ const PostForm = ({
   selectedSeriesIds = [],
 }: Props) => {
   const route = useRoute();
+  const { postAgent } = usePage<SharedPageProps>().props;
   const postDetailRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -150,6 +159,38 @@ const PostForm = ({
     });
   };
 
+  const handleApplyEdits = useCallback(
+    (edits: PostAgentEdits) => {
+      setDocs((current) => {
+        const next = { ...current };
+
+        for (const locale of Object.keys(edits.locales) as Locale[]) {
+          const markdown = edits.locales[locale];
+
+          if (markdown) {
+            next[locale] = markdown;
+          }
+        }
+
+        const activeMarkdown = next[activeLocale];
+        const parsed = parseMarkdownToPostFields(activeMarkdown);
+        setPost(buildPreviewPost(parsed, { ...basePost, ...meta }));
+
+        return next;
+      });
+
+      if (edits.source_urls && Object.keys(edits.source_urls).length > 0) {
+        setSourceUrls((current) => ({
+          ...current,
+          ...edits.source_urls,
+        }));
+      }
+
+      setFormErrors([]);
+    },
+    [activeLocale, basePost, meta, setPost]
+  );
+
   const handleDocChange = (value: string) => {
     setDocs((current) => ({
       ...current,
@@ -210,38 +251,51 @@ const PostForm = ({
         </p>
       </div>
 
-      <div className="flex gap-4">
-        <div className="flex w-1/2 flex-col gap-2">
-          <div className="space-y-2 rounded-md border border-gray-700 bg-zinc-900 p-3">
-            <Label htmlFor={`source-url-${activeLocale}`}>
-              Source URL ({localeLabels[activeLocale]})
-            </Label>
-            <Input
-              id={`source-url-${activeLocale}`}
-              type="url"
-              placeholder="https://example.com/original-post"
-              value={sourceUrls[activeLocale]}
-              onChange={(e) =>
-                setSourceUrls((current) => ({
-                  ...current,
-                  [activeLocale]: e.target.value,
-                }))
-              }
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row">
+          <div className="flex w-full flex-col gap-2 lg:w-1/2">
+            <div className="space-y-2 rounded-md border border-gray-700 bg-zinc-900 p-3">
+              <Label htmlFor={`source-url-${activeLocale}`}>
+                Source URL ({localeLabels[activeLocale]})
+              </Label>
+              <Input
+                id={`source-url-${activeLocale}`}
+                type="url"
+                placeholder="https://example.com/original-post"
+                value={sourceUrls[activeLocale]}
+                onChange={(e) =>
+                  setSourceUrls((current) => ({
+                    ...current,
+                    [activeLocale]: e.target.value,
+                  }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect.
+              </p>
+            </div>
+            <Textarea
+              ref={textareaRef}
+              placeholder={`# Title (${localeLabels[activeLocale]})`}
+              className="min-h-[200px] resize-none overflow-y-auto border-gray-700"
+              value={docs[activeLocale]}
+              onChange={(e) => handleDocChange(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect.
-            </p>
           </div>
-          <Textarea
-            ref={textareaRef}
-            placeholder={`# Title (${localeLabels[activeLocale]})`}
-            className="min-h-[200px] resize-none overflow-y-auto border-gray-700"
-            value={docs[activeLocale]}
-            onChange={(e) => handleDocChange(e.target.value)}
-          />
+          <div className="flex w-full flex-col gap-2 px-0 lg:w-1/2 lg:px-4">
+            <div ref={postDetailRef}>{post && <PostDetail post={post} />}</div>
+          </div>
         </div>
-        <div className="flex w-1/2 flex-col gap-2 px-4">
-          <div ref={postDetailRef}>{post && <PostDetail post={post} />}</div>
+
+        <div className="w-full shrink-0 xl:sticky xl:top-20 xl:z-20 xl:w-96 xl:self-start">
+          <PostAgentChat
+            postId={initialPost?.id || undefined}
+            docs={docs}
+            sourceUrls={sourceUrls}
+            activeLocale={activeLocale}
+            configured={postAgent?.configured ?? false}
+            onApplyEdits={handleApplyEdits}
+          />
         </div>
       </div>
 

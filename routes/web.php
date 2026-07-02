@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Admin\PostAgentController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
@@ -123,6 +124,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminPostController::class, 'index'])->name('index');
 
     Route::resource('posts', AdminPostController::class)->except(['index', 'show']);
+
+    Route::prefix('post-agent')->name('post-agent.')->group(function () {
+        Route::get('/status', [PostAgentController::class, 'status'])->name('status');
+        Route::get('/session', [PostAgentController::class, 'session'])->name('session');
+        Route::post('/chat', [PostAgentController::class, 'chat'])->name('chat');
+        Route::post('/cancel', [PostAgentController::class, 'cancel'])->name('cancel');
+    });
 
     Route::resource('tags', AdminTagController::class)->except(['show', 'create', 'store']);
 

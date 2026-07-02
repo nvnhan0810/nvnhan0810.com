@@ -56,6 +56,9 @@ class HandleInertiaRequests extends Middleware
                 'defaultOgImage' => url(config('seo.default_og_image')),
                 'twitterSite' => config('seo.twitter_site'),
             ],
+            'postAgent' => fn () => $request->user() && $request->is('admin', 'admin/*')
+                ? ['configured' => filled(config('post-agent.cursor_api_key'))]
+                : null,
         ];
     }
 }
