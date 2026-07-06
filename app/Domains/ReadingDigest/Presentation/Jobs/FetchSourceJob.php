@@ -14,6 +14,10 @@ class FetchSourceJob implements ShouldQueue
 
     public function handle(FetchSourceHandler $handler): void
     {
-        $handler->handle($this->sourceId);
+        $result = $handler->handle($this->sourceId);
+
+        if ($result['article_ids'] !== []) {
+            BatchEnrichArticleMetadataJob::dispatch($result['article_ids']);
+        }
     }
 }

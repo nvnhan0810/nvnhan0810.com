@@ -5,6 +5,7 @@ namespace App\Domains\ReadingDigest\Application\Handlers;
 use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceModel;
+use App\Domains\ReadingDigest\Presentation\Jobs\BatchEnrichArticleMetadataJob;
 use Illuminate\Support\Facades\Log;
 
 class FetchAllSourcesHandler
@@ -14,7 +15,7 @@ class FetchAllSourcesHandler
     ) {}
 
     /**
-     * @return array{sources: int, stored: int, purged: int, errors: array<string, string>}
+     * @return array{sources: int, stored: int, purged: int, enriched_queued: int, errors: array<string, string>}
      */
     public function handle(?int $limitPerSource = null, ?\DateTimeInterface $since = null): array
     {
@@ -29,11 +30,14 @@ class FetchAllSourcesHandler
             ->get();
 
         $stored = 0;
+        $allNewArticleIds = [];
         $errors = [];
 
         foreach ($sources as $source) {
             try {
-                $stored += $this->fetchSourceHandler->handle($source->id, $limitPerSource, $since);
+                $result = $this->fetchSourceHandler->handle($source->id, $limitPerSource, $since);
+                $stored += $result['stored'];
+                array_push($allNewArticleIds, ...$result['article_ids']);
             } catch (\Throwable $e) {
                 $errors[$source->id] = $e->getMessage();
                 Log::warning('Reading digest source fetch failed', [
@@ -44,10 +48,15 @@ class FetchAllSourcesHandler
             }
         }
 
+        if ($allNewArticleIds !== []) {
+            BatchEnrichArticleMetadataJob::dispatch($allNewArticleIds);
+        }
+
         return [
             'sources' => $sources->count(),
             'stored' => $stored,
             'purged' => $purged,
+            'enriched_queued' => count($allNewArticleIds),
             'errors' => $errors,
         ];
     }
