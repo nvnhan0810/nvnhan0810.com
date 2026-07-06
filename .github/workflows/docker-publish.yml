@@ -7,6 +7,15 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: 'Skip build, only trigger deploy webhook'
+        type: boolean
+        default: false
+      image_tag:
+        description: 'Image tag (7-char SHA) when deploy_only=true. Empty = current commit SHA.'
+        required: false
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -16,6 +25,7 @@ env:
 
 jobs:
   build-and-push:
+    if: github.event_name != 'workflow_dispatch' || inputs.deploy_only != true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -60,6 +70,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  deploy:
+    needs: build-and-push
+    if: always() && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve image tag
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.image_tag }}" ]; then
+            TAG="${{ inputs.image_tag }}"
+          else
+            TAG="${GITHUB_SHA:0:7}"
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploying image tag: ${TAG}"
+
       - name: Trigger deploy webhook
         env:
           DEPLOY_HOOK_TOKEN: ${{ secrets.DEPLOY_HOOK_TOKEN }}
@@ -72,7 +100,7 @@ jobs:
           fi
 
           IMAGE="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
-          IMAGE_TAG="${GITHUB_SHA::7}"
+          IMAGE_TAG="${{ steps.image.outputs.tag }}"
 
           curl -fsS --max-time 30 -X POST 'https://deploy.nvnhan0810.com/deploy' \
             -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
