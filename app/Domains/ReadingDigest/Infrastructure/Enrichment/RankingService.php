@@ -2,14 +2,14 @@
 
 namespace App\Domains\ReadingDigest\Infrastructure\Enrichment;
 
-use App\Domains\ReadingDigest\Infrastructure\Llm\CursorApiClient;
+use App\Domains\ReadingDigest\Infrastructure\Llm\GeminiApiClient;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 use Illuminate\Support\Str;
 
 class RankingService
 {
     public function __construct(
-        private readonly CursorApiClient $cursorApi,
+        private readonly GeminiApiClient $gemini,
     ) {}
 
     /**
@@ -22,7 +22,7 @@ class RankingService
             return $this->retrievalFallback($candidates, $limit, 'Recent articles from your sources');
         }
 
-        if (! $this->cursorApi->isConfigured()) {
+        if (! $this->gemini->isConfigured()) {
             return $this->retrievalFallback($candidates, $limit, 'Retrieval ranking (LLM disabled)');
         }
 
@@ -40,8 +40,8 @@ class RankingService
         })->values()->all();
 
         try {
-            $response = $this->cursorApi->chatCompletions([
-                'model' => config('reading-digest.ranking_model', 'composer-2.5'),
+            $response = $this->gemini->chatCompletions([
+                'model' => config('reading-digest.ranking_model', 'gemini-2.5-flash'),
                 'response_format' => ['type' => 'json_object'],
                 'messages' => [
                     [

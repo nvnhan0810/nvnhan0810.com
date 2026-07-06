@@ -6,7 +6,6 @@ use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceModel;
 use App\Domains\ReadingDigest\Infrastructure\Sources\SourceFetcherRegistry;
-use App\Domains\ReadingDigest\Presentation\Jobs\EnrichArticleMetadataJob;
 use Illuminate\Support\Str;
 
 class FetchSourceHandler
@@ -15,14 +14,17 @@ class FetchSourceHandler
         private readonly SourceFetcherRegistry $fetcherRegistry,
     ) {}
 
-    public function handle(string $sourceId, int $limit = 50, ?\DateTimeInterface $since = null): int
+    /**
+     * @return array{stored: int, article_ids: array<int, string>}
+     */
+    public function handle(string $sourceId, int $limit = 50, ?\DateTimeInterface $since = null): array
     {
         $source = SourceModel::query()->findOrFail($sourceId);
+        $newArticleIds = [];
 
         try {
             $fetcher = $this->fetcherRegistry->for($source);
             $items = $fetcher->fetch($source, $limit);
-            $stored = 0;
 
             foreach ($items as $item) {
                 if ($since !== null && $item->publishedAt !== null && $item->publishedAt < $since) {
@@ -70,8 +72,7 @@ class FetchSourceHandler
                     'fetched_at' => now(),
                 ]);
 
-                EnrichArticleMetadataJob::dispatch($article->id);
-                $stored++;
+                $newArticleIds[] = $article->id;
             }
 
             $source->update([
@@ -80,7 +81,10 @@ class FetchSourceHandler
                 'last_fetch_error' => null,
             ]);
 
-            return $stored;
+            return [
+                'stored' => count($newArticleIds),
+                'article_ids' => $newArticleIds,
+            ];
         } catch (\Throwable $e) {
             $source->update([
                 'last_fetch_status' => 'failed',

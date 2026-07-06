@@ -6,13 +6,18 @@ return [
     'articles_per_subject' => (int) env('DIGEST_ARTICLES_PER_SUBJECT', 5),
     'retrieval_candidates' => 30,
     'interest_decay_factor' => 0.98,
-    'embedding_model' => env('DIGEST_EMBEDDING_MODEL', 'text-embedding-3-small'),
-    'embedding_dimensions' => (int) env('DIGEST_EMBEDDING_DIMENSIONS', 1536),
-    'ranking_model' => env('DIGEST_RANKING_MODEL', 'composer-2.5'),
-    /** cloud_agents = Cursor Cloud Agents API; proxy = local OpenAI-compatible proxy (e.g. cursor-brain). */
-    'llm_driver' => env('DIGEST_LLM_DRIVER', 'cloud_agents'),
-    'cursor_api_key' => env('CURSOR_API_KEY'),
-    'cursor_api_base_url' => env('CURSOR_API_BASE_URL', 'http://127.0.0.1:3001/v1'),
+    'enrichment_model' => env('DIGEST_ENRICHMENT_MODEL', 'gemini-2.5-flash'),
+    'ranking_model' => env('DIGEST_RANKING_MODEL', 'gemini-2.5-flash'),
+    'embedding_model' => env('DIGEST_EMBEDDING_MODEL', 'text-embedding-004'),
+    'embedding_dimensions' => (int) env('DIGEST_EMBEDDING_DIMENSIONS', 768),
+    /** Only queue LLM enrichment for articles fetched today (digest timezone). */
+    'enrich_only_fetched_today' => filter_var(env('DIGEST_ENRICH_ONLY_FETCHED_TODAY', true), FILTER_VALIDATE_BOOL),
+    /** Articles per Gemini enrichment request. */
+    'enrich_batch_size' => max(1, (int) env('DIGEST_ENRICH_BATCH_SIZE', 10)),
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'base_url' => rtrim((string) env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/openai'), '/'),
+    ],
     /** Public site URL for Telegram button links (must be HTTPS in production, not localhost). */
     'public_url' => env('DIGEST_PUBLIC_URL', env('APP_URL', 'http://localhost')),
     'table_prefix' => 'rd_',
