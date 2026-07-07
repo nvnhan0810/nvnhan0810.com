@@ -2,6 +2,7 @@
 
 namespace App\Domains\ReadingDigest\Application\Handlers;
 
+use App\Domains\ReadingDigest\Domain\Services\ArticleFreshnessPolicy;
 use App\Domains\ReadingDigest\Infrastructure\Embeddings\PgVectorEmbeddingStore;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 
@@ -20,7 +21,10 @@ class BatchEmbedArticlesHandler
             return;
         }
 
-        $articles = DigestArticleModel::query()->whereIn('id', $articleIds)->get();
+        $articles = DigestArticleModel::query()
+            ->whereIn('id', $articleIds)
+            ->get()
+            ->filter(fn (DigestArticleModel $article) => ArticleFreshnessPolicy::isEligible($article));
 
         if ($articles->isEmpty()) {
             return;

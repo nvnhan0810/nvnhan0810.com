@@ -3,7 +3,6 @@
 namespace App\Domains\ReadingDigest\Domain\Services;
 
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
-use Carbon\Carbon;
 
 class ArticleEnrichmentPolicy
 {
@@ -13,17 +12,7 @@ class ArticleEnrichmentPolicy
             return false;
         }
 
-        if (! config('reading-digest.enrich_only_fetched_today', true)) {
-            return true;
-        }
-
-        if ($article->fetched_at === null) {
-            return false;
-        }
-
-        $timezone = (string) config('reading-digest.timezone', 'Asia/Ho_Chi_Minh');
-
-        return Carbon::parse($article->fetched_at)->timezone($timezone)->isToday();
+        return ArticleFreshnessPolicy::isEligible($article);
     }
 
     /**

@@ -10,8 +10,11 @@ return [
     'ranking_model' => env('DIGEST_RANKING_MODEL', 'gemini-2.5-flash'),
     'embedding_model' => env('DIGEST_EMBEDDING_MODEL', 'text-embedding-004'),
     'embedding_dimensions' => (int) env('DIGEST_EMBEDDING_DIMENSIONS', 768),
-    /** Only queue LLM enrichment for articles fetched today (digest timezone). */
-    'enrich_only_fetched_today' => filter_var(env('DIGEST_ENRICH_ONLY_FETCHED_TODAY', true), FILTER_VALIDATE_BOOL),
+    /** Only fetch-enrich-embed-digest articles fetched today (digest timezone). */
+    'only_fetched_today' => filter_var(
+        env('DIGEST_ONLY_FETCHED_TODAY', env('DIGEST_ENRICH_ONLY_FETCHED_TODAY', true)),
+        FILTER_VALIDATE_BOOL
+    ),
     /** Articles per Gemini enrichment request. */
     'enrich_batch_size' => max(1, (int) env('DIGEST_ENRICH_BATCH_SIZE', 10)),
     'gemini' => [

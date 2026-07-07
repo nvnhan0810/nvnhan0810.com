@@ -2,6 +2,7 @@
 
 namespace App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories;
 
+use App\Domains\ReadingDigest\Domain\Services\ArticleFreshnessPolicy;
 use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
 use App\Domains\ReadingDigest\Domain\Services\RetrievalScoringService;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\ArticleInteractionModel;
@@ -47,29 +48,42 @@ class RetrievalService
             ->pluck('score', 'taxonomy_node_id')
             ->all();
 
-        $sourceIds = $subject->sources()->pluck('rd_sources.id');
-        $maxAgeDays = $subject->max_age_days ?? 7;
-        $cutoff = now()->subDays($maxAgeDays);
+        $sourceIds = $subject->sources()->where('enabled', true)->pluck('rd_sources.id');
 
-        $recentlySentArticleIds = DigestRunItemModel::query()
-            ->whereHas('digestRun', fn ($q) => $q->where('user_id', $userId)->where('run_date', '>=', now()->subDays(7)))
-            ->pluck('article_id');
+        if ($sourceIds->isEmpty()) {
+            return [];
+        }
 
         $dismissedArticleIds = ArticleInteractionModel::query()
             ->where('user_id', $userId)
             ->whereIn('event', ['dismissed', 'disliked'])
             ->pluck('article_id');
 
-        $articles = DigestArticleModel::query()
+        $articlesQuery = DigestArticleModel::query()
             ->with(['source', 'taxonomyNodes', 'embedding'])
             ->whereIn('source_id', $sourceIds)
             ->where('force_exclude', false)
-            ->where(function ($q) use ($cutoff) {
-                $q->where('published_at', '>=', $cutoff)->orWhereNull('published_at');
-            })
             ->whereIn('language', $preferredLanguages)
-            ->whereNotIn('id', $recentlySentArticleIds)
-            ->whereNotIn('id', $dismissedArticleIds)
+            ->whereNotIn('id', $dismissedArticleIds);
+
+        ArticleFreshnessPolicy::applyScope($articlesQuery);
+
+        if (! ArticleFreshnessPolicy::onlyFetchedToday()) {
+            $maxAgeDays = $subject->max_age_days ?? 7;
+            $cutoff = now()->subDays($maxAgeDays);
+
+            $recentlySentArticleIds = DigestRunItemModel::query()
+                ->whereHas('digestRun', fn ($q) => $q->where('user_id', $userId)->where('run_date', '>=', now()->subDays(7)))
+                ->pluck('article_id');
+
+            $articlesQuery
+                ->where(function ($q) use ($cutoff) {
+                    $q->where('published_at', '>=', $cutoff)->orWhereNull('published_at');
+                })
+                ->whereNotIn('id', $recentlySentArticleIds);
+        }
+
+        $articles = $articlesQuery
             ->orderByDesc('published_at')
             ->limit(500)
             ->get();
