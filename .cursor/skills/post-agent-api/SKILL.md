@@ -106,27 +106,68 @@ Payload `translations` — mỗi locale:
 
 Ít nhất một locale (en hoặc vi) phải có đủ `title` + `content`.
 
-Markdown gợi ý khi soạn:
+### Title / description / tags — KHÔNG nhét vào `content`
+
+Frontend blog **đã render** `title`, `description`, và `tags` từ field API (H1 + dòng Tags + blockquote mô tả). Nếu agent viết lại trong markdown thì bị **duplicate**.
+
+| Field | Đặt ở đâu |
+|-------|-----------|
+| Tiêu đề | `translations.*.title` only |
+| Mô tả ngắn | `translations.*.description` only |
+| Tags | top-level `tags: [...]` only |
+| Thân bài | `translations.*.content` only |
+
+**`content` chỉ là thân bài:**
+
+- **Không** mở đầu bằng `# Title` (trùng H1 trang).
+- **Không** dòng `Tags: ...`.
+- **Không** blockquote `> Description` ở đầu.
+- Bắt đầu bằng đoạn mở hoặc `##` section đầu tiên.
+- Trong thân bài dùng `##` / `###` — tránh thêm `#` (H1) trừ khi thực sự cần heading trang riêng (hiếm).
+
+Đúng:
 
 ```md
-# Title
+Sorting shows up everywhere…
 
-Tags: tag1, tag2
+## Big-O refresher
 
-> Description
-
-Body...
+…
 ```
 
-`Tags:` chỉ cần trên locale `en`.
+Sai (gây trùng trên trang):
+
+```md
+# Sorting Algorithms: …
+
+Tags: algorithms, sorting
+
+> A practical cheat sheet…
+
+Sorting shows up everywhere…
+```
 
 ## Quy trình
 
 1. Thu thập context từ session (file đổi, commit, ghi chú user).
 2. Soạn EN + VI (trừ khi user chỉ yêu cầu một locale).
-3. `POST .../draft` với `is_published: false`.
+3. `POST .../draft` với `is_published: false` — **một lần**. Nếu draft lỗi / slug xấu: `PUT` cập nhật **cùng `id`**, không tạo draft thứ hai.
 4. Trả `id`, `edit_url`, tóm tắt nội dung.
 5. **Không** publish trừ khi user nói rõ "publish / đăng bài".
+6. Muốn unpublish: `PUT` với `is_published: false` + đủ `translations` + `published_at` (field bắt buộc). API **không** có DELETE — bảo user xóa trong admin nếu cần.
+
+### Header khi gọi API
+
+Luôn gửi:
+
+```text
+Content-Type: application/json
+Authorization: Bearer {BLOG_API_TOKEN}
+Accept: application/json
+User-Agent: cursor-post-agent/1.0
+```
+
+Thiếu `User-Agent` có thể bị WAF/proxy trả **403** trên body lớn.
 
 ## Ví dụ tạo draft
 
@@ -143,14 +184,15 @@ payload = {
             "locale": "en",
             "title": "Example title",
             "description": "Short description",
-            "content": "Body in English",
+            # Body only — no leading # Title / Tags: / > description
+            "content": "Opening paragraph…\n\n## Section\n\n…",
             "source_url": None,
         },
         "vi": {
             "locale": "vi",
             "title": "Tiêu đề ví dụ",
             "description": "Mô tả ngắn",
-            "content": "Nội dung tiếng Việt",
+            "content": "Đoạn mở…\n\n## Mục\n\n…",
             "source_url": None,
         },
     },
@@ -166,6 +208,8 @@ req = urllib.request.Request(
     headers={
         "Content-Type": "application/json",
         "Authorization": f"Bearer {BLOG_API_TOKEN}",
+        "Accept": "application/json",
+        "User-Agent": "cursor-post-agent/1.0",
     },
     method="POST",
 )
