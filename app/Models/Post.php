@@ -29,7 +29,7 @@ class Post extends Model
         return $this->hasMany(PostTranslation::class);
     }
 
-    public function translate(?string $locale = null): PostTranslation
+    public function translate(?string $locale = null): ?PostTranslation
     {
         $locale = $locale ?? app()->getLocale();
 
@@ -37,24 +37,24 @@ class Post extends Model
             $locale = self::DEFAULT_LOCALE;
         }
 
-        $translation = $this->translations->firstWhere('locale', $locale);
+        $candidates = array_values(array_unique([
+            $locale,
+            self::DEFAULT_LOCALE,
+            ...self::SUPPORTED_LOCALES,
+        ]));
 
-        if (! $translation) {
-            $translation = $this->translations->firstWhere('locale', self::DEFAULT_LOCALE);
+        foreach ($candidates as $candidate) {
+            $translation = $this->translations->firstWhere('locale', $candidate);
+
+            if ($translation) {
+                return $translation;
+            }
         }
 
-        if (! $translation) {
-            $translation = $this->translations->first();
-        }
-
-        if (! $translation) {
-            abort(404, 'Post translation not found');
-        }
-
-        return $translation;
+        return $this->translations->first();
     }
 
-    public function toLocalizedArray(?string $locale = null): array
+    public function toLocalizedArray(?string $locale = null): ?array
     {
         $locale = $locale ?? app()->getLocale();
 
@@ -63,6 +63,10 @@ class Post extends Model
         }
 
         $translation = $this->translate($locale);
+
+        if (! $translation) {
+            return null;
+        }
 
         $data = [
             'id' => $this->id,
@@ -111,6 +115,7 @@ class Post extends Model
     {
         return $posts
             ->map(fn (Post $post) => $post->toLocalizedArray($locale))
+            ->filter()
             ->values()
             ->all();
     }

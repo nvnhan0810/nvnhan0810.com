@@ -98,8 +98,14 @@ class PostController extends Controller
         $series = Series::all();
         $selectedSeriesIds = $post->series->pluck('id')->toArray();
 
+        $localized = $post->toLocalizedArray(Post::DEFAULT_LOCALE);
+
+        if (! $localized) {
+            abort(404);
+        }
+
         return Inertia::render('private/posts/EditPage', [
-            'post' => $post->toLocalizedArray(Post::DEFAULT_LOCALE),
+            'post' => $localized,
             'series' => $series,
             'selectedSeriesIds' => $selectedSeriesIds,
         ]);
