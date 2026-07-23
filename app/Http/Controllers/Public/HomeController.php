@@ -21,6 +21,7 @@ class HomeController extends Controller
             ->with(['publicTags', 'translations'])
             ->where('is_published', true)
             ->whereDate('published_at', '<=', now())
+            ->whereHas('translations')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->limit(self::LATEST_POSTS_LIMIT)

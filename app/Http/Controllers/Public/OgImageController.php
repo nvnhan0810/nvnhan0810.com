@@ -77,13 +77,10 @@ class OgImageController extends Controller
             || File::lastModified($cachePath) < $post->updated_at->getTimestamp();
 
         if ($needsRegenerate) {
-            $translation = $post->translations
-                ->firstWhere('locale', $locale)
-                ?? $post->translations->firstWhere('locale', Post::DEFAULT_LOCALE)
-                ?? $post->translations->first();
+            $translation = $post->translate($locale);
 
             if (! $translation) {
-                abort(404, 'Post translation not found');
+                abort(404);
             }
 
             try {

@@ -22,18 +22,23 @@ trait LocalizesPosts
         $locale = $locale ?? $this->currentLocale();
 
         $paginator->setCollection(
-            $paginator->getCollection()->map(
-                fn (Post $post) => $this->localizedPostModel($post, $locale)
-            )
+            $paginator->getCollection()
+                ->map(fn (Post $post) => $this->localizedPostModel($post, $locale))
+                ->filter()
+                ->values()
         );
 
         return $paginator;
     }
 
-    protected function localizedPostModel(Post $post, ?string $locale = null): Post
+    protected function localizedPostModel(Post $post, ?string $locale = null): ?Post
     {
         $locale = $locale ?? $this->currentLocale();
         $localized = $post->toLocalizedArray($locale);
+
+        if (! $localized) {
+            return null;
+        }
 
         return $post->forceFill([
             'title' => $localized['title'],
@@ -50,7 +55,10 @@ trait LocalizesPosts
             if ($item->relationLoaded('posts')) {
                 $item->setRelation(
                     'posts',
-                    $item->posts->map(fn (Post $post) => $this->localizedPostModel($post, $locale))
+                    $item->posts
+                        ->map(fn (Post $post) => $this->localizedPostModel($post, $locale))
+                        ->filter()
+                        ->values()
                 );
             }
 

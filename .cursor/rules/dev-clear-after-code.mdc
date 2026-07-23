@@ -1,0 +1,23 @@
+---
+description: Sau khi sửa code trên dev.nvnhan0810.com, phải clear cache/OPcache
+alwaysApply: true
+---
+
+# Dev clear sau khi code xong
+
+Site `dev.nvnhan0810.com` mount source qua hostPath nhưng giữ **OPcache production** (`validate_timestamps=0`). PHP-FPM **không** tự nhận file PHP mới.
+
+## Bắt buộc
+
+Sau khi sửa PHP / config / route / view (hoặc khi trang vẫn hiện hành vi cũ), chạy:
+
+```bash
+./scripts/dev-clear.sh
+```
+
+Script sẽ `artisan optimize:clear` rồi rollout restart pod để flush OPcache.
+
+## Không làm
+
+- Không tắt OPcache / không mount `opcache.dev.ini` chỉ vì tiện edit live.
+- Không giả định “save file là đủ” — phải clear.

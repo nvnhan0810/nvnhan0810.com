@@ -23,10 +23,15 @@ class PostController extends Controller
         $data = Post::with(['publicTags', 'translations'])
             ->where('is_published', true)
             ->whereDate('published_at', '<=', now())
+            ->whereHas('translations')
             ->when($search, function ($searchQuery) use ($search, $locale) {
                 $searchQuery->whereHas('translations', function ($translationQuery) use ($search, $locale) {
                     $translationQuery
-                        ->where('locale', $locale)
+                        ->where(function ($localeQuery) use ($locale) {
+                            $localeQuery
+                                ->where('locale', $locale)
+                                ->orWhere('locale', Post::DEFAULT_LOCALE);
+                        })
                         ->where('title', 'LIKE', "%{$search}%");
                 });
             })
@@ -57,6 +62,7 @@ class PostController extends Controller
             ->where('is_published', true)
             ->whereDate('published_at', '<=', now())
             ->where('slug', $slug)
+            ->whereHas('translations')
             ->firstOrFail();
 
         $series = Series::with(['posts.translations'])->whereHas('posts', function ($query) use ($post) {
@@ -65,8 +71,14 @@ class PostController extends Controller
 
         $this->localizeSeriesPosts($series, $locale);
 
+        $localized = $post->toLocalizedArray($locale);
+
+        if (! $localized) {
+            abort(404);
+        }
+
         return Inertia::render('public/posts/ShowPage', [
-            'post' => $post->toLocalizedArray($locale),
+            'post' => $localized,
             'series' => $series,
         ]);
     }
