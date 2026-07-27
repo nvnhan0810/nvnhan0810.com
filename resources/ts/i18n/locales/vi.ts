@@ -9,6 +9,7 @@ const vi: Messages = {
     contact: "Liên hệ",
     admin: "Quản trị",
     apps: "Ứng dụng",
+    news: "Tin tức",
   },
   home: {
     portfolioLabel: "Portfolio",

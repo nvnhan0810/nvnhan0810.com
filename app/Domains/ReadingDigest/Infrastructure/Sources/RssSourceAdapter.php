@@ -66,6 +66,7 @@ class RssSourceAdapter implements SourceFetcherInterface
                 publishedAt: $published,
                 rawTags: $categories,
                 language: $language,
+                imageUrl: $this->extractImageUrl($item),
             );
 
             $count++;
@@ -163,5 +164,37 @@ class RssSourceAdapter implements SourceFetcherInterface
         }
 
         return trim((string) ($item->guid ?? ''));
+    }
+
+    private function extractImageUrl(SimpleXMLElement $item): ?string
+    {
+        if (isset($item->enclosure['url'])) {
+            $type = strtolower((string) ($item->enclosure['type'] ?? ''));
+            $url = trim((string) $item->enclosure['url']);
+            if ($url !== '' && ($type === '' || str_starts_with($type, 'image/'))) {
+                return $url;
+            }
+        }
+
+        $media = $item->children('http://search.yahoo.com/mrss/');
+        if (isset($media->content)) {
+            foreach ($media->content as $content) {
+                $url = trim((string) ($content['url'] ?? ''));
+                $medium = strtolower((string) ($content['medium'] ?? ''));
+                $type = strtolower((string) ($content['type'] ?? ''));
+                if ($url !== '' && ($medium === 'image' || str_starts_with($type, 'image/') || $medium === '')) {
+                    return $url;
+                }
+            }
+        }
+
+        if (isset($media->thumbnail['url'])) {
+            $url = trim((string) $media->thumbnail['url']);
+            if ($url !== '') {
+                return $url;
+            }
+        }
+
+        return null;
     }
 }
