@@ -3,6 +3,7 @@
 namespace App\Domains\ReadingDigest\Application\Handlers;
 
 use App\Domains\ReadingDigest\Domain\Services\ArticleLanguageService;
+use App\Domains\ReadingDigest\Domain\Services\SourceFetchLimitCalculator;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\DigestArticleModel;
 use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceModel;
 use App\Domains\ReadingDigest\Presentation\Jobs\BatchEnrichArticleMetadataJob;
@@ -19,12 +20,12 @@ class FetchAllSourcesHandler
      */
     public function handle(?int $limitPerSource = null, ?\DateTimeInterface $since = null): array
     {
-        $limitPerSource ??= (int) config('reading-digest.fetch_limit_per_source', 50);
         $since ??= now()->subHours((int) config('reading-digest.fetch_since_hours', 24));
 
         $purged = $this->purgeDisallowedArticles();
 
         $sources = SourceModel::query()
+            ->with('subjects')
             ->where('enabled', true)
             ->orderBy('name')
             ->get();
@@ -34,8 +35,17 @@ class FetchAllSourcesHandler
         $errors = [];
 
         foreach ($sources as $source) {
+            $limit = $limitPerSource ?? SourceFetchLimitCalculator::forSource($source);
+
             try {
-                $result = $this->fetchSourceHandler->handle($source->id, $limitPerSource, $since);
+                Log::info('Reading digest source fetch limit', [
+                    'source_id' => $source->id,
+                    'source_name' => $source->name,
+                    'limit' => $limit,
+                    'enabled_subjects' => $source->subjects->where('enabled', true)->pluck('name')->values()->all(),
+                ]);
+
+                $result = $this->fetchSourceHandler->handle($source->id, $limit, $since);
                 $stored += $result['stored'];
                 array_push($allNewArticleIds, ...$result['article_ids']);
             } catch (\Throwable $e) {

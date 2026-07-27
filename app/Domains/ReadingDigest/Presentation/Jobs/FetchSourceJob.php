@@ -3,8 +3,11 @@
 namespace App\Domains\ReadingDigest\Presentation\Jobs;
 
 use App\Domains\ReadingDigest\Application\Handlers\FetchSourceHandler;
+use App\Domains\ReadingDigest\Domain\Services\SourceFetchLimitCalculator;
+use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\SourceModel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
 class FetchSourceJob implements ShouldQueue
 {
@@ -14,8 +17,16 @@ class FetchSourceJob implements ShouldQueue
 
     public function handle(FetchSourceHandler $handler): void
     {
-        $limit = (int) config('reading-digest.fetch_limit_per_source', 50);
+        $source = SourceModel::query()->with('subjects')->findOrFail($this->sourceId);
+        $limit = SourceFetchLimitCalculator::forSource($source);
         $since = now()->subHours((int) config('reading-digest.fetch_since_hours', 24));
+
+        Log::info('Reading digest source fetch limit', [
+            'source_id' => $source->id,
+            'source_name' => $source->name,
+            'limit' => $limit,
+            'enabled_subjects' => $source->subjects->where('enabled', true)->pluck('name')->values()->all(),
+        ]);
 
         $result = $handler->handle($this->sourceId, $limit, $since);
 

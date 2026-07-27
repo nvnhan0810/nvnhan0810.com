@@ -46,7 +46,12 @@ return [
         'rated_negative' => -6,
     ],
     'content_retention_days' => (int) env('DIGEST_CONTENT_RETENTION_DAYS', 90),
-    'fetch_limit_per_source' => (int) env('DIGEST_FETCH_LIMIT_PER_SOURCE', 50),
+    /** Ceiling for per-source fetch limit (demand-based). */
+    'fetch_limit_per_source' => (int) env('DIGEST_FETCH_LIMIT_PER_SOURCE', 15),
+    /** Floor for per-source fetch limit (also used when source has no enabled subjects). */
+    'fetch_limit_min' => (int) env('DIGEST_FETCH_LIMIT_MIN', 5),
+    /** limit = clamp(sum(articles_per_digest) * multiplier, min, max). */
+    'fetch_demand_multiplier' => (int) env('DIGEST_FETCH_DEMAND_MULTIPLIER', 3),
     /** Only store articles published/fetched within this window during daily fetch. */
     'fetch_since_hours' => (int) env('DIGEST_FETCH_SINCE_HOURS', 24),
     /** ISO 639-1 codes kept in the digest pipeline (fetch, inbox, ranking). */

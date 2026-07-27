@@ -17,7 +17,7 @@ class FetchSourceHandler
     /**
      * @return array{stored: int, article_ids: array<int, string>}
      */
-    public function handle(string $sourceId, int $limit = 50, ?\DateTimeInterface $since = null): array
+    public function handle(string $sourceId, int $limit = 15, ?\DateTimeInterface $since = null): array
     {
         $source = SourceModel::query()->findOrFail($sourceId);
         $newArticleIds = [];
