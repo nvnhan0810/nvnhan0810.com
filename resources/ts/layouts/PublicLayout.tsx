@@ -10,7 +10,7 @@ export type RootProps = {
 
 type PublicLayoutProps = RootProps & {
   children: React.ReactNode;
-  active?: "home" | "blog" | "apps";
+  active?: "home" | "blog" | "apps" | "news";
 };
 
 const PublicLayout = ({ children, auth, active = "blog" }: PublicLayoutProps) => {

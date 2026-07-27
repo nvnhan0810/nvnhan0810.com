@@ -14,5 +14,6 @@ class FetchedArticleDTO
         public readonly ?\DateTimeInterface $publishedAt,
         public readonly array $rawTags = [],
         public readonly ?string $language = 'en',
+        public readonly ?string $imageUrl = null,
     ) {}
 }

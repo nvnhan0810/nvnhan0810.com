@@ -9,6 +9,7 @@ const en: Messages = {
     contact: "Contact",
     admin: "Admin",
     apps: "Apps",
+    news: "News",
   },
   home: {
     portfolioLabel: "Portfolio",

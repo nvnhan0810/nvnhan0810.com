@@ -63,6 +63,7 @@ class FetchSourceHandler
                     'title' => $item->title,
                     'url' => $item->url,
                     'summary' => $item->summary,
+                    'image_url' => $item->imageUrl,
                     'content_text' => $item->contentText,
                     'content_html' => $item->contentHtml,
                     'language' => $language,

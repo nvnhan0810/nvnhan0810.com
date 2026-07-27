@@ -2,8 +2,7 @@
 
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleInboxController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleRedirectController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleVoteController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\InteractionController;
+use App\Domains\ReadingDigest\Presentation\Http\Controllers\PublicNewsController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SettingsController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SourceController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SubjectController;
@@ -14,15 +13,15 @@ use Illuminate\Support\Facades\Route;
 Route::get('/reading-digest/a/{token}', [ArticleRedirectController::class, 'show'])
     ->name('reading-digest.article.redirect');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/reading-digest/v/{token}', [ArticleVoteController::class, 'show'])
-        ->name('reading-digest.article.vote');
-    Route::post('/reading-digest/v/{token}', [ArticleVoteController::class, 'store'])
-        ->name('reading-digest.article.vote.store');
+Route::get('/news', [PublicNewsController::class, 'index'])->name('news.index');
 
-    Route::post('/reading-digest/interactions', [InteractionController::class, 'store'])
+Route::middleware('auth')->group(function () {
+    Route::get('/news/today', [PublicNewsController::class, 'today'])->name('news.today');
+    Route::post('/news/vote/{token}', [PublicNewsController::class, 'vote'])
         ->middleware('throttle:60,1')
-        ->name('reading-digest.interactions.store');
+        ->name('news.vote');
+    Route::get('/news/open/{token}', [PublicNewsController::class, 'open'])
+        ->name('news.open');
 
     Route::prefix('admin/reading-digest')->name('admin.reading-digest.')->group(function () {
         Route::redirect('/', '/admin/reading-digest/today')->name('index');

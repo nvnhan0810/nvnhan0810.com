@@ -44,6 +44,7 @@ export type RdArticle = {
   title: string;
   url: string;
   summary?: string | null;
+  image_url?: string | null;
   language: string;
   estimated_read_time_minutes?: number | null;
   metadata?: Record<string, unknown> | null;

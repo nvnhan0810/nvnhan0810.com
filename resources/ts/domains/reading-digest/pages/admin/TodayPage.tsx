@@ -16,7 +16,12 @@ const TodayPage = ({ auth, run }: Props) => {
       <ReadingDigestNav />
       <h1 className="text-2xl font-bold text-gray-100 mb-2">Today&apos;s Digest</h1>
       <p className="text-sm text-muted-foreground mb-4">
-        Ranked picks from your subjects. Read on the original site; vote on the feedback page to train future digests.
+        Ranked picks from your subjects. Open the digest page to read and vote.
+      </p>
+      <p className="mb-4">
+        <Link href={route("news.today")} className="text-sm text-blue-400 hover:underline">
+          Open /news/today →
+        </Link>
       </p>
       {!run && (
         <p className="text-gray-400">
@@ -35,20 +40,12 @@ const TodayPage = ({ auth, run }: Props) => {
           )}
           <div className="flex flex-wrap gap-4 mt-3 text-sm">
             {item.tracking_token && (
-              <>
-                <a
-                  href={route("reading-digest.article.redirect", item.tracking_token)}
-                  className="text-blue-400 hover:underline"
-                >
-                  📖 Read (tracked)
-                </a>
-                <Link
-                  href={route("reading-digest.article.vote", item.tracking_token)}
-                  className="text-blue-400 hover:underline"
-                >
-                  👍 Vote / tag
-                </Link>
-              </>
+              <a
+                href={route("news.open", item.tracking_token)}
+                className="text-blue-400 hover:underline"
+              >
+                Xem bài gốc
+              </a>
             )}
           </div>
         </div>

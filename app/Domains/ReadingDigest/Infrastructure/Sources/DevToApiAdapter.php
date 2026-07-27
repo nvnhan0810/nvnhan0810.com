@@ -79,6 +79,8 @@ class DevToApiAdapter implements SourceFetcherInterface
                 $title.' '.$summary,
             );
 
+            $imageUrl = trim((string) ($item['cover_image'] ?? $item['social_image'] ?? ''));
+
             $articles[] = new FetchedArticleDTO(
                 externalId: $externalId,
                 title: $title,
@@ -89,6 +91,7 @@ class DevToApiAdapter implements SourceFetcherInterface
                 publishedAt: $published,
                 rawTags: $rawTags,
                 language: $language,
+                imageUrl: $imageUrl !== '' ? $imageUrl : null,
             );
 
             $count++;
