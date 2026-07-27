@@ -72,13 +72,22 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
         </p>
       </header>
 
-      {!run && (
-        <p className="text-muted-foreground">
-          Nothing selected yet. Add sources to a subject, then use Admin → Settings → Fetch &amp; send.
-        </p>
-      )}
-
-      {sourceNames.map((sourceName) => (
+      {!run || total === 0 ? (
+        <div className="rounded-lg border border-border bg-muted/30 px-6 py-10 text-center">
+          <p className="text-muted-foreground">
+            {!run
+              ? "Chưa có digest hôm nay. Thêm source vào subject rồi Fetch & send trong Admin."
+              : "Digest hôm nay chưa chọn được bài nào."}
+          </p>
+          <Link
+            href={route("news.index")}
+            className="mt-5 inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Xem tất cả tin tức
+          </Link>
+        </div>
+      ) : (
+        sourceNames.map((sourceName) => (
         <section key={sourceName} className="mb-12">
           <h2 className="mb-6 border-b border-border pb-2 text-lg font-semibold tracking-tight text-foreground">
             {sourceName}
@@ -155,7 +164,8 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
             })}
           </div>
         </section>
-      ))}
+      ))
+      )}
     </PublicLayout>
   );
 };
