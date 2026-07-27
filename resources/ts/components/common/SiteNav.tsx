@@ -10,13 +10,14 @@ import {
   Home,
   Linkedin,
   Mail,
+  Newspaper,
   Settings,
 } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
 type SiteNavProps = {
   auth: AuthUser | null;
-  active?: "home" | "blog" | "apps";
+  active?: "home" | "blog" | "apps" | "news";
 };
 
 const linkClass = (isActive: boolean) =>
@@ -49,6 +50,13 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
           >
             <BookOpen className="h-4 w-4" />
             {t("nav.blog")}
+          </Link>
+          <Link
+            href={route("news.index")}
+            className={`inline-flex items-center gap-1.5 ${linkClass(active === "news")}`}
+          >
+            <Newspaper className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("nav.news")}</span>
           </Link>
           <Link
             href={route("apps.index")}

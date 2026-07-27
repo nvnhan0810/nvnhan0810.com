@@ -21,6 +21,7 @@ class DigestArticleModel extends Model
         'title',
         'url',
         'summary',
+        'image_url',
         'content_text',
         'content_html',
         'language',
