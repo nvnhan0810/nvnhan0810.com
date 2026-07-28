@@ -5,6 +5,21 @@ namespace App\Domains\ReadingDigest\Domain\Services;
 class ArticleLanguageService
 {
     /**
+     * Vietnamese-only letters / tone stacks not shared with PT/ES/FR.
+     * Generic accents (á, é, ã, ç, …) alone must NOT imply Vietnamese —
+     * Portuguese "trás" was previously mislabeled as vi and allowed through.
+     */
+    private const VIETNAMESE_UNIQUE = '/[ăằắẳẵặầấẩẫậềếểễệồốổỗộơờớởỡợưừứửữựảạẻẽẹỉĩịỏọủũụỳỷỹỵđĐ]/u';
+
+    /** Latin diacritics common in Romance/Germanic languages (not English ASCII). */
+    private const NON_ENGLISH_LATIN_DIACRITICS = '/[àáâãäåæçèéêëìíîïñòóôõöùúûüýÿœ]/iu';
+
+    /**
+     * Strong Portuguese / Spanish function-word signals (ASCII-friendly titles).
+     */
+    private const IBERIAN_WORD_PATTERN = '/\b(?:o\s+que|pra|não|voce|você|também|tambem|estão|são|introdução|introducao|código|codigo|função|funcao|através|atraves|também|también|españa|español|qué\s+es|construindo|plataforma)\b/iu';
+
+    /**
      * @return list<string>
      */
     public static function allowed(): array
@@ -37,8 +52,17 @@ class ArticleLanguageService
             return 'zh';
         }
 
-        if (preg_match('/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/ui', $text)) {
+        if (preg_match(self::VIETNAMESE_UNIQUE, $text)) {
             return 'vi';
+        }
+
+        if (preg_match(self::IBERIAN_WORD_PATTERN, $text)) {
+            return 'pt';
+        }
+
+        // Dense non-English diacritics (PT/ES/FR body text), not a lone "El Niño".
+        if (self::hasDenseNonEnglishDiacritics($text)) {
+            return 'und';
         }
 
         if (preg_match('/[\p{Latin}]/u', $text)) {
@@ -46,6 +70,19 @@ class ArticleLanguageService
         }
 
         return null;
+    }
+
+    private static function hasDenseNonEnglishDiacritics(string $text): bool
+    {
+        $letters = preg_match_all('/\p{L}/u', $text);
+        if ($letters < 40) {
+            // Short titles: any Romance diacritic without Vietnamese-unique → reject.
+            return (bool) preg_match(self::NON_ENGLISH_LATIN_DIACRITICS, $text);
+        }
+
+        $diacritics = preg_match_all(self::NON_ENGLISH_LATIN_DIACRITICS, $text);
+
+        return $diacritics >= 3 && ($diacritics / $letters) >= 0.015;
     }
 
     public static function resolve(?string $declared, string $text): ?string
