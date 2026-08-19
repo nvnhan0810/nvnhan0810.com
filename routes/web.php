@@ -136,3 +136,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
     Route::resource('series', AdminSeriesController::class)->except(['show']);
 });
+
+Route::get('/test', function () {
+    echo 'test';
+});
