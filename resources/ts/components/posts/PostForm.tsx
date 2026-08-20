@@ -1,5 +1,4 @@
 import usePostPreview from "@/ts/hooks/usePostPreview";
-import type { Locale } from "@/ts/i18n";
 import type { Post, PostPayload } from "@/ts/types/post";
 import type { PostAgentEdits } from "@/ts/types/postAgent";
 import { Link, usePage } from "@inertiajs/react";
@@ -16,13 +15,11 @@ import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { Input } from "../ui/input";
 import PostDetail from "./PostDetail";
-import { cn } from "@/ts/utils";
 import type { Series } from "@/ts/types/series";
 import { Checkbox } from "../ui/checkbox";
 import {
-  buildDocsFromPost,
+  buildDocFromPost,
   buildPreviewPost,
-  buildTranslationsFromDocs,
   parseMarkdownToPostFields,
 } from "@/ts/utils/postMarkdown";
 
@@ -31,11 +28,6 @@ type Props = {
   onSave: (payload: PostPayload) => void;
   series: Series[];
   selectedSeriesIds?: number[];
-};
-
-const localeLabels: Record<Locale, string> = {
-  en: "English",
-  vi: "Tiếng Việt",
 };
 
 type SharedPageProps = {
@@ -56,12 +48,8 @@ const PostForm = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [seriesIds, setSeriesIds] = useState<number[]>(selectedSeriesIds);
-  const [activeLocale, setActiveLocale] = useState<Locale>("en");
-  const [docs, setDocs] = useState<Record<Locale, string>>({ en: "", vi: "" });
-  const [sourceUrls, setSourceUrls] = useState<Record<Locale, string>>({
-    en: "",
-    vi: "",
-  });
+  const [doc, setDoc] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [formErrors, setFormErrors] = useState<string[]>([]);
 
@@ -89,11 +77,8 @@ const PostForm = ({
 
   useEffect(() => {
     if (initialPost) {
-      setDocs(buildDocsFromPost(initialPost));
-      setSourceUrls({
-        en: initialPost.translations?.en?.source_url ?? "",
-        vi: initialPost.translations?.vi?.source_url ?? "",
-      });
+      setDoc(buildDocFromPost(initialPost));
+      setSourceUrl(initialPost.source_url ?? "");
       setMeta({
         published_at: initialPost.published_at,
         is_published: initialPost.is_published,
@@ -102,8 +87,8 @@ const PostForm = ({
   }, [initialPost]);
 
   useEffect(() => {
-    parseContentToPost(docs[activeLocale], { requireContent: false });
-  }, [docs, activeLocale, parseContentToPost]);
+    parseContentToPost(doc, { requireContent: false });
+  }, [doc, parseContentToPost]);
 
   useEffect(() => {
     const syncHeight = () => {
@@ -129,91 +114,59 @@ const PostForm = ({
   }, []);
 
   const handleSave = () => {
-    const enParsed = parseMarkdownToPostFields(docs.en);
-    const viParsed = parseMarkdownToPostFields(docs.vi);
-    const hasEnContent =
-      enParsed.title.trim() !== "" && enParsed.content.trim() !== "";
-    const hasViContent =
-      viParsed.title.trim() !== "" && viParsed.content.trim() !== "";
+    const parsed = parseMarkdownToPostFields(doc);
+    const hasContent =
+      parsed.title.trim() !== "" && parsed.content.trim() !== "";
     const validationErrors: string[] = [];
 
-    if (!hasEnContent && !hasViContent) {
-      validationErrors.push("Cần ít nhất một locale (EN hoặc VI) có đủ Title và Body.");
+    if (!hasContent) {
+      validationErrors.push("Cần đủ Title và Body.");
     }
 
     if (validationErrors.length > 0) {
       setFormErrors(validationErrors);
-      setActiveLocale(hasEnContent ? "vi" : "en");
       return;
     }
 
-    const translations = buildTranslationsFromDocs(docs, sourceUrls);
-    const enTags = enParsed.tags;
+    const trimmedSourceUrl = sourceUrl.trim();
 
     onSave({
-      translations,
+      title: parsed.title,
+      description: parsed.description ?? null,
+      content: parsed.content,
+      source_url: trimmedSourceUrl !== "" ? trimmedSourceUrl : null,
       published_at: meta.published_at,
       is_published: meta.is_published,
-      tags: enTags,
+      tags: parsed.tags,
       series_ids: seriesIds,
     });
   };
 
   const handleApplyEdits = useCallback(
     (edits: PostAgentEdits) => {
-      setDocs((current) => {
-        const next = { ...current };
-
-        for (const locale of Object.keys(edits.locales) as Locale[]) {
-          const markdown = edits.locales[locale];
-
-          if (markdown) {
-            next[locale] = markdown;
-          }
-        }
-
-        const activeMarkdown = next[activeLocale];
-        const parsed = parseMarkdownToPostFields(activeMarkdown);
+      if (edits.markdown) {
+        setDoc(edits.markdown);
+        const parsed = parseMarkdownToPostFields(edits.markdown);
         setPost(buildPreviewPost(parsed, { ...basePost, ...meta }));
+      }
 
-        return next;
-      });
-
-      if (edits.source_urls && Object.keys(edits.source_urls).length > 0) {
-        setSourceUrls((current) => ({
-          ...current,
-          ...edits.source_urls,
-        }));
+      if (edits.source_url !== undefined && edits.source_url !== null) {
+        setSourceUrl(edits.source_url);
       }
 
       setFormErrors([]);
     },
-    [activeLocale, basePost, meta, setPost]
+    [basePost, meta, setPost]
   );
 
   const handleDocChange = (value: string) => {
-    setDocs((current) => ({
-      ...current,
-      [activeLocale]: value,
-    }));
+    setDoc(value);
     const parsed = parseMarkdownToPostFields(value);
     setPost(buildPreviewPost(parsed, { ...basePost, ...meta }));
-    const enParsed = parseMarkdownToPostFields(
-      activeLocale === "en" ? value : docs.en
-    );
-    const viParsed = parseMarkdownToPostFields(
-      activeLocale === "vi" ? value : docs.vi
-    );
-    const hasEnContent =
-      enParsed.title.trim() !== "" && enParsed.content.trim() !== "";
-    const hasViContent =
-      viParsed.title.trim() !== "" && viParsed.content.trim() !== "";
+    const hasContent =
+      parsed.title.trim() !== "" && parsed.content.trim() !== "";
 
-    setFormErrors(
-      !hasEnContent && !hasViContent
-        ? ["Cần ít nhất một locale (EN hoặc VI) có đủ Title và Body."]
-        : []
-    );
+    setFormErrors(hasContent ? [] : ["Cần đủ Title và Body."]);
   };
 
   const displayErrors = [...new Set(formErrors)];
@@ -228,47 +181,17 @@ const PostForm = ({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-md border border-border p-0.5">
-          {(["en", "vi"] as Locale[]).map((locale) => (
-            <button
-              key={locale}
-              type="button"
-              onClick={() => setActiveLocale(locale)}
-              className={cn(
-                "rounded px-3 py-1.5 text-sm transition-colors",
-                activeLocale === locale
-                  ? "bg-emerald-600 text-white"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {localeLabels[locale]}
-            </button>
-          ))}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Đang chỉnh sửa: <span className="text-emerald-500">{localeLabels[activeLocale]}</span>
-        </p>
-      </div>
-
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row">
           <div className="flex w-full flex-col gap-2 lg:w-1/2">
             <div className="space-y-2 rounded-md border border-gray-700 bg-zinc-900 p-3">
-              <Label htmlFor={`source-url-${activeLocale}`}>
-                Source URL ({localeLabels[activeLocale]})
-              </Label>
+              <Label htmlFor="source-url">Source URL</Label>
               <Input
-                id={`source-url-${activeLocale}`}
+                id="source-url"
                 type="url"
                 placeholder="https://example.com/original-post"
-                value={sourceUrls[activeLocale]}
-                onChange={(e) =>
-                  setSourceUrls((current) => ({
-                    ...current,
-                    [activeLocale]: e.target.value,
-                  }))
-                }
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
                 Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect.
@@ -276,9 +199,9 @@ const PostForm = ({
             </div>
             <Textarea
               ref={textareaRef}
-              placeholder={`# Title (${localeLabels[activeLocale]})`}
+              placeholder="# Tiêu đề bài viết"
               className="min-h-[200px] resize-none overflow-y-auto border-gray-700"
-              value={docs[activeLocale]}
+              value={doc}
               onChange={(e) => handleDocChange(e.target.value)}
             />
           </div>
@@ -290,9 +213,8 @@ const PostForm = ({
         <div className="w-full shrink-0 xl:sticky xl:top-20 xl:z-20 xl:w-96 xl:self-start">
           <PostAgentChat
             postId={initialPost?.id || undefined}
-            docs={docs}
-            sourceUrls={sourceUrls}
-            activeLocale={activeLocale}
+            doc={doc}
+            sourceUrl={sourceUrl}
             configured={postAgent?.configured ?? false}
             onApplyEdits={handleApplyEdits}
           />

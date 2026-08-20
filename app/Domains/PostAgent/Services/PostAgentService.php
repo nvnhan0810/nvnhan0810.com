@@ -26,7 +26,7 @@ class PostAgentService
 
     /**
      * @param  array{message: string, session_id?: string|null, post_id?: int|null, context: array<string, mixed>}  $input
-     * @return array{session_id: string, reply: string, edits: array{locales: array<string, string>, source_urls: array<string, string>}, messages: array<int, array<string, mixed>>}
+     * @return array{session_id: string, reply: string, edits: array{markdown: ?string, source_url: ?string}, messages: array<int, array<string, mixed>>}
      */
     public function chat(int $userId, array $input): array
     {

@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Helpers\SlugHelpers;
-use App\Http\Controllers\Concerns\LocalizesPosts;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreatePostRequest;
 use App\Http\Requests\Admin\UpdatePostRequest;
 use App\Models\Post;
-use App\Models\PostTranslation;
 use App\Models\Series;
 use App\Models\Tag;
 use Illuminate\Http\Request;
@@ -20,25 +18,16 @@ use Throwable;
 
 class PostController extends Controller
 {
-    use LocalizesPosts;
-
     public function index(Request $request)
     {
         $search = $request->search;
-        $locale = Post::DEFAULT_LOCALE;
 
-        $posts = Post::with(['tags', 'translations'])
-            ->when($search, function ($searchQuery) use ($search, $locale) {
-                $searchQuery->whereHas('translations', function ($translationQuery) use ($search, $locale) {
-                    $translationQuery
-                        ->where('locale', $locale)
-                        ->where('title', 'LIKE', "%{$search}%");
-                });
+        $posts = Post::with(['tags'])
+            ->when($search, function ($searchQuery) use ($search) {
+                $searchQuery->where('title', 'LIKE', "%{$search}%");
             })
             ->orderBy('created_at', 'DESC')
             ->paginate(50);
-
-        $this->localizePaginator($posts, $locale);
 
         return Inertia::render('private/posts/ListPage', [
             'posts' => $posts,
@@ -56,19 +45,21 @@ class PostController extends Controller
 
     public function store(CreatePostRequest $request)
     {
-        $translations = $request->validated('translations');
-        $slug = $this->generateSlugForPost($translations['en']['title']);
+        $validated = $request->validated();
+        $slug = $this->generateSlugForPost($validated['title']);
 
         try {
             DB::beginTransaction();
 
             $post = Post::create([
                 'slug' => $slug,
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'content' => $validated['content'],
+                'source_url' => $validated['source_url'] ?? null,
                 'is_published' => $request->boolean('is_published'),
                 'published_at' => $request->published_at,
             ]);
-
-            $this->syncTranslations($post, $translations);
 
             if ($request->tags) {
                 $tagIds = $this->getTagsInfo($request->tags);
@@ -94,18 +85,12 @@ class PostController extends Controller
 
     public function edit(int $id)
     {
-        $post = Post::with(['tags', 'translations'])->findOrFail($id);
+        $post = Post::with(['tags'])->findOrFail($id);
         $series = Series::all();
         $selectedSeriesIds = $post->series->pluck('id')->toArray();
 
-        $localized = $post->toLocalizedArray(Post::DEFAULT_LOCALE);
-
-        if (! $localized) {
-            abort(404);
-        }
-
         return Inertia::render('private/posts/EditPage', [
-            'post' => $localized,
+            'post' => $post,
             'series' => $series,
             'selectedSeriesIds' => $selectedSeriesIds,
         ]);
@@ -117,14 +102,16 @@ class PostController extends Controller
             DB::beginTransaction();
 
             $post = Post::findOrFail($id);
-            $translations = $request->validated('translations');
+            $validated = $request->validated();
 
             $post->update([
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'content' => $validated['content'],
+                'source_url' => $validated['source_url'] ?? null,
                 'is_published' => $request->boolean('is_published'),
                 'published_at' => $request->published_at,
             ]);
-
-            $this->syncTranslations($post, $translations);
 
             if ($request->tags) {
                 $tagIds = $this->getTagsInfo($request->tags);
@@ -147,34 +134,6 @@ class PostController extends Controller
             ]);
 
             return back()->withErrors('Update post failed');
-        }
-    }
-
-    private function syncTranslations(Post $post, array $translations): void
-    {
-        foreach (Post::SUPPORTED_LOCALES as $locale) {
-            if (! isset($translations[$locale])) {
-                PostTranslation::where('post_id', $post->id)
-                    ->where('locale', $locale)
-                    ->delete();
-
-                continue;
-            }
-
-            $data = $translations[$locale];
-
-            PostTranslation::updateOrCreate(
-                [
-                    'post_id' => $post->id,
-                    'locale' => $locale,
-                ],
-                [
-                    'title' => $data['title'],
-                    'description' => $data['description'] ?? null,
-                    'content' => $data['content'] ?? null,
-                    'source_url' => $data['source_url'] ?? null,
-                ]
-            );
         }
     }
 

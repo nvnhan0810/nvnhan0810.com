@@ -133,11 +133,11 @@ class OgImageGenerator
         return $binary;
     }
 
-    public function cachePath(string $slug, string $locale): string
+    public function cachePath(string $slug): string
     {
         $safeSlug = preg_replace('/[^a-zA-Z0-9\-_]/', '-', $slug) ?: 'post';
 
-        return storage_path("app/og-cache/{$safeSlug}-{$locale}.png");
+        return storage_path("app/og-cache/{$safeSlug}.png");
     }
 
     /** @return list<string> */

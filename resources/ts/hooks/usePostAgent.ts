@@ -1,4 +1,3 @@
-import type { Locale } from "@/ts/i18n";
 import type {
   PostAgentChatContext,
   PostAgentChatResponse,
@@ -186,8 +185,7 @@ export default function usePostAgent({
         loadedPostIdRef.current = postId;
 
         const hasEdits =
-          Object.keys(data.edits?.locales ?? {}).length > 0 ||
-          Object.keys(data.edits?.source_urls ?? {}).length > 0;
+          Boolean(data.edits?.markdown) || Boolean(data.edits?.source_url);
 
         if (hasEdits) {
           onApplyEdits(data.edits);
@@ -235,5 +233,3 @@ export default function usePostAgent({
     cancelMessage,
   };
 }
-
-export type { Locale };

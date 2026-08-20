@@ -1,7 +1,7 @@
 import PostDetail from "@/ts/components/posts/PostDetail";
 import SeoHead from "@/ts/components/common/SeoHead";
+import { BLOG_COPY } from "@/ts/constants/blogCopy";
 import PublicLayout, { type RootProps } from "@/ts/layouts/PublicLayout";
-import { useTranslation } from "@/ts/providers/i18n-provider";
 import type { Post } from "@/ts/types/post";
 import type { Series } from "@/ts/types/series";
 import { cn } from "@/ts/utils";
@@ -17,12 +17,10 @@ type Props = RootProps & {
 
 const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
   const route = useRoute();
-  const { t } = useTranslation();
   const sourceUrl = post.source_url?.trim() ?? "";
   const seoDescription = post.description?.trim()
     ? post.description
-    : truncateDescription(stripMarkdown(post.content));
-  const ogLocale = locale === "vi" ? "vi_VN" : "en_US";
+    : truncateDescription(stripMarkdown(post.content ?? ""));
 
   return (
     <PublicLayout auth={auth} locale={locale}>
@@ -31,8 +29,8 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
         description={seoDescription}
         url={route("posts.show", { slug: post.slug }, true)}
         type="article"
-        locale={ogLocale}
-        publishedAt={post.published_at}
+        locale={BLOG_COPY.ogLocale}
+        publishedAt={post.published_at ?? undefined}
         imageUrl={post.og_image_url}
         imageAlt={post.title}
       />
@@ -41,7 +39,7 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
         className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-emerald-500"
       >
         <ArrowLeft className="h-4 w-4" />
-        {t("blog.backToBlog")}
+        {BLOG_COPY.backToBlog}
       </Link>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -54,13 +52,13 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
           <article className="rounded-xl border border-border bg-card p-6 md:p-10">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-sm font-medium uppercase tracking-widest text-emerald-500">
-                {t("blog.article")}
+                {BLOG_COPY.article}
               </p>
               {auth && (
                 <Link
                   href={route("admin.posts.edit", { post: post.id })}
                   className="text-muted-foreground transition-colors hover:text-emerald-500"
-                  title={t("blog.editPost")}
+                  title={BLOG_COPY.editPost}
                 >
                   <Pencil className="h-4 w-4" />
                 </Link>
@@ -68,7 +66,7 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
             </div>
             {sourceUrl !== "" && (
               <div className="mb-4 rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm text-emerald-400">
-                {t("blog.sourceOriginal")}{" "}
+                {BLOG_COPY.sourceOriginal}{" "}
                 <a
                   href={sourceUrl}
                   target="_blank"
@@ -87,7 +85,7 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
           <aside className="col-span-1 space-y-6 lg:col-span-4">
             <div className="sticky top-20">
               <h2 className="mb-4 border-b border-border pb-2 text-lg font-bold">
-                {t("blog.series")}
+                {BLOG_COPY.series}
               </h2>
               <div className="flex flex-col gap-5">
                 {series.map((item) => (

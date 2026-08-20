@@ -19,7 +19,10 @@ const EditPage = ({ auth, post, series, selectedSeriesIds = [] }: Props) => {
     router.patch(
       route("admin.posts.update", { id: post.id }),
       {
-        translations: payload.translations,
+        title: payload.title,
+        description: payload.description,
+        content: payload.content,
+        source_url: payload.source_url,
         published_at: payload.published_at
           ? format(payload.published_at, "yyyy-MM-dd")
           : null,

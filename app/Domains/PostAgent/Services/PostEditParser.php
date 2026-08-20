@@ -2,12 +2,10 @@
 
 namespace App\Domains\PostAgent\Services;
 
-use App\Models\Post;
-
 class PostEditParser
 {
     /**
-     * @return array{reply: string, edits: array{locales: array<string, string>, source_urls: array<string, string>}}
+     * @return array{reply: string, edits: array{markdown: ?string, source_url: ?string}}
      */
     public function parse(string $raw): array
     {
@@ -17,8 +15,8 @@ class PostEditParser
             return [
                 'reply' => trim($raw),
                 'edits' => [
-                    'locales' => [],
-                    'source_urls' => [],
+                    'markdown' => null,
+                    'source_url' => null,
                 ],
             ];
         }
@@ -34,47 +32,52 @@ class PostEditParser
 
     /**
      * @param  array<string, mixed>  $edits
-     * @return array{locales: array<string, string>, source_urls: array<string, string>}
+     * @return array{markdown: ?string, source_url: ?string}
      */
     private function normalizeEdits(array $edits): array
     {
-        $locales = [];
-        $rawLocales = $edits['locales'] ?? [];
+        $markdown = null;
 
-        if (is_array($rawLocales)) {
-            foreach (Post::SUPPORTED_LOCALES as $locale) {
-                if (! isset($rawLocales[$locale])) {
+        if (isset($edits['markdown'])) {
+            $value = trim((string) $edits['markdown']);
+            $markdown = $value !== '' ? $value : null;
+        } elseif (isset($edits['locales']) && is_array($edits['locales'])) {
+            // Backward-compatible with older dual-locale agent replies.
+            foreach (['vi', 'en'] as $locale) {
+                if (! isset($edits['locales'][$locale])) {
                     continue;
                 }
 
-                $markdown = trim((string) $rawLocales[$locale]);
-
-                if ($markdown !== '') {
-                    $locales[$locale] = $markdown;
+                $value = trim((string) $edits['locales'][$locale]);
+                if ($value !== '') {
+                    $markdown = $value;
+                    break;
                 }
             }
         }
 
-        $sourceUrls = [];
-        $rawUrls = $edits['source_urls'] ?? [];
+        $sourceUrl = null;
 
-        if (is_array($rawUrls)) {
-            foreach (Post::SUPPORTED_LOCALES as $locale) {
-                if (! isset($rawUrls[$locale])) {
+        if (array_key_exists('source_url', $edits)) {
+            $url = trim((string) $edits['source_url']);
+            $sourceUrl = $url !== '' ? $url : null;
+        } elseif (isset($edits['source_urls']) && is_array($edits['source_urls'])) {
+            foreach (['vi', 'en'] as $locale) {
+                if (! isset($edits['source_urls'][$locale])) {
                     continue;
                 }
 
-                $url = trim((string) $rawUrls[$locale]);
-
+                $url = trim((string) $edits['source_urls'][$locale]);
                 if ($url !== '') {
-                    $sourceUrls[$locale] = $url;
+                    $sourceUrl = $url;
+                    break;
                 }
             }
         }
 
         return [
-            'locales' => $locales,
-            'source_urls' => $sourceUrls,
+            'markdown' => $markdown,
+            'source_url' => $sourceUrl,
         ];
     }
 

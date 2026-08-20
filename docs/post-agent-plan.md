@@ -80,7 +80,7 @@ Tags: tag1, tag2
 Nội dung body...
 ```
 
-Hỗ trợ `en` + `vi` qua `post_translations`.
+Nội dung bài luôn tiếng Việt (cột `title` / `description` / `content` trên `posts`).
 
 **Cấu hình global (skill + env, không cần .env từng project):** xem [post-agent-global-setup.md](./post-agent-global-setup.md).
 
