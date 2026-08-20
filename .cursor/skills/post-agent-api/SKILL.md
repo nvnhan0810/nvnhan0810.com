@@ -90,21 +90,20 @@ Base: `{BLOG_API_URL}/api/agent/posts`
 
 Header: `Authorization: Bearer {BLOG_API_TOKEN}`
 
-## Nội dung EN + VI
+## Nội dung tiếng Việt
 
-Payload `translations` — mỗi locale:
+Payload flat (không còn `translations` / đa locale):
 
 ```json
 {
-  "locale": "en",
-  "title": "...",
-  "description": "...",
-  "content": "...",
+  "title": "Tiêu đề ví dụ",
+  "description": "Mô tả ngắn",
+  "content": "Đoạn mở…\n\n## Mục\n\n…",
   "source_url": null
 }
 ```
 
-Ít nhất một locale (en hoặc vi) phải có đủ `title` + `content`.
+`title` + `content` là bắt buộc.
 
 ### Title / description / tags — KHÔNG nhét vào `content`
 
@@ -112,10 +111,10 @@ Frontend blog **đã render** `title`, `description`, và `tags` từ field API 
 
 | Field | Đặt ở đâu |
 |-------|-----------|
-| Tiêu đề | `translations.*.title` only |
-| Mô tả ngắn | `translations.*.description` only |
+| Tiêu đề | `title` only |
+| Mô tả ngắn | `description` only |
 | Tags | top-level `tags: [...]` only |
-| Thân bài | `translations.*.content` only |
+| Thân bài | `content` only |
 
 **`content` chỉ là thân bài:**
 
@@ -128,9 +127,9 @@ Frontend blog **đã render** `title`, `description`, và `tags` từ field API 
 Đúng:
 
 ```md
-Sorting shows up everywhere…
+Sorting xuất hiện ở mọi nơi…
 
-## Big-O refresher
+## Ôn lại Big-O
 
 …
 ```
@@ -138,23 +137,23 @@ Sorting shows up everywhere…
 Sai (gây trùng trên trang):
 
 ```md
-# Sorting Algorithms: …
+# Thuật toán sắp xếp: …
 
 Tags: algorithms, sorting
 
-> A practical cheat sheet…
+> Cheat sheet thực tế…
 
-Sorting shows up everywhere…
+Sorting xuất hiện ở mọi nơi…
 ```
 
 ## Quy trình
 
 1. Thu thập context từ session (file đổi, commit, ghi chú user).
-2. Soạn EN + VI (trừ khi user chỉ yêu cầu một locale).
+2. Soạn nội dung tiếng Việt.
 3. `POST .../draft` với `is_published: false` — **một lần**. Nếu draft lỗi / slug xấu: `PUT` cập nhật **cùng `id`**, không tạo draft thứ hai.
 4. Trả `id`, `edit_url`, tóm tắt nội dung.
 5. **Không** publish trừ khi user nói rõ "publish / đăng bài".
-6. Muốn unpublish: `PUT` với `is_published: false` + đủ `translations` + `published_at` (field bắt buộc). API **không** có DELETE — bảo user xóa trong admin nếu cần.
+6. Muốn unpublish: `PUT` với `is_published: false` + đủ `title`/`content` + `published_at` (field bắt buộc). API **không** có DELETE — bảo user xóa trong admin nếu cần.
 
 ### Header khi gọi API
 
@@ -179,23 +178,11 @@ import urllib.request
 BLOG_API_URL, BLOG_API_TOKEN = load_blog_agent_config()
 
 payload = {
-    "translations": {
-        "en": {
-            "locale": "en",
-            "title": "Example title",
-            "description": "Short description",
-            # Body only — no leading # Title / Tags: / > description
-            "content": "Opening paragraph…\n\n## Section\n\n…",
-            "source_url": None,
-        },
-        "vi": {
-            "locale": "vi",
-            "title": "Tiêu đề ví dụ",
-            "description": "Mô tả ngắn",
-            "content": "Đoạn mở…\n\n## Mục\n\n…",
-            "source_url": None,
-        },
-    },
+    "title": "Tiêu đề ví dụ",
+    "description": "Mô tả ngắn",
+    # Body only — no leading # Title / Tags: / > description
+    "content": "Đoạn mở…\n\n## Mục\n\n…",
+    "source_url": None,
     "tags": ["example"],
     "series_ids": [],
     "published_at": datetime.date.today().isoformat(),

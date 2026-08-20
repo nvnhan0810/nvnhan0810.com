@@ -17,7 +17,10 @@ const CreatePage = ({ auth, series }: Props) => {
     router.post(
       route("admin.posts.store"),
       {
-        translations: payload.translations,
+        title: payload.title,
+        description: payload.description,
+        content: payload.content,
+        source_url: payload.source_url,
         tags: payload.tags,
         published_at: payload.published_at
           ? format(payload.published_at, "yyyy-MM-dd")

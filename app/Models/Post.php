@@ -4,17 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Collection;
 
 class Post extends Model
 {
-    public const DEFAULT_LOCALE = 'en';
-
-    public const SUPPORTED_LOCALES = ['en', 'vi'];
-
     protected $fillable = [
         'slug',
+        'title',
+        'description',
+        'content',
+        'source_url',
         'published_at',
         'is_published',
     ];
@@ -24,100 +22,13 @@ class Post extends Model
         'is_published' => 'boolean',
     ];
 
-    public function translations(): HasMany
+    protected $appends = [
+        'og_image_url',
+    ];
+
+    public function getOgImageUrlAttribute(): string
     {
-        return $this->hasMany(PostTranslation::class);
-    }
-
-    public function translate(?string $locale = null): ?PostTranslation
-    {
-        $locale = $locale ?? app()->getLocale();
-
-        if (! in_array($locale, self::SUPPORTED_LOCALES, true)) {
-            $locale = self::DEFAULT_LOCALE;
-        }
-
-        $candidates = array_values(array_unique([
-            $locale,
-            self::DEFAULT_LOCALE,
-            ...self::SUPPORTED_LOCALES,
-        ]));
-
-        foreach ($candidates as $candidate) {
-            $translation = $this->translations->firstWhere('locale', $candidate);
-
-            if ($translation) {
-                return $translation;
-            }
-        }
-
-        return $this->translations->first();
-    }
-
-    public function toLocalizedArray(?string $locale = null): ?array
-    {
-        $locale = $locale ?? app()->getLocale();
-
-        if (! in_array($locale, self::SUPPORTED_LOCALES, true)) {
-            $locale = self::DEFAULT_LOCALE;
-        }
-
-        $translation = $this->translate($locale);
-
-        if (! $translation) {
-            return null;
-        }
-
-        $data = [
-            'id' => $this->id,
-            'slug' => $this->slug,
-            'title' => $translation->title,
-            'description' => $translation->description,
-            'content' => $translation->content,
-            'source_url' => $translation->source_url,
-            'published_at' => $this->published_at,
-            'is_published' => $this->is_published,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-        ];
-
-        if ($this->relationLoaded('publicTags')) {
-            $data['public_tags'] = $this->publicTags;
-        }
-
-        if ($this->relationLoaded('tags')) {
-            $data['tags'] = $this->tags;
-        }
-
-        if ($this->relationLoaded('translations')) {
-            $data['translations'] = $this->translations
-                ->mapWithKeys(fn (PostTranslation $item) => [
-                    $item->locale => [
-                        'locale' => $item->locale,
-                        'title' => $item->title,
-                        'description' => $item->description,
-                        'content' => $item->content,
-                        'source_url' => $item->source_url,
-                    ],
-                ])
-                ->all();
-        }
-
-        $data['og_image_url'] = route('og.posts.show', [
-            'slug' => $this->slug,
-            'locale' => $locale,
-        ]);
-
-        return $data;
-    }
-
-    public static function mapLocalizedCollection(Collection $posts, ?string $locale = null): array
-    {
-        return $posts
-            ->map(fn (Post $post) => $post->toLocalizedArray($locale))
-            ->filter()
-            ->values()
-            ->all();
+        return route('og.posts.show', ['slug' => $this->slug]);
     }
 
     public function tags(): BelongsToMany

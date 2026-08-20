@@ -53,20 +53,13 @@ class OgImageController extends Controller
 
     public function post(Request $request, string $slug): Response
     {
-        $locale = $request->query('locale', Post::DEFAULT_LOCALE);
-
-        if (! in_array($locale, Post::SUPPORTED_LOCALES, true)) {
-            $locale = Post::DEFAULT_LOCALE;
-        }
-
         $post = Post::query()
-            ->with('translations')
             ->where('slug', $slug)
             ->where('is_published', true)
             ->whereDate('published_at', '<=', now())
             ->firstOrFail();
 
-        $cachePath = $this->ogImages->cachePath($slug, $locale);
+        $cachePath = $this->ogImages->cachePath($slug);
         $cacheDir = dirname($cachePath);
 
         if (! File::isDirectory($cacheDir)) {
@@ -77,15 +70,9 @@ class OgImageController extends Controller
             || File::lastModified($cachePath) < $post->updated_at->getTimestamp();
 
         if ($needsRegenerate) {
-            $translation = $post->translate($locale);
-
-            if (! $translation) {
-                abort(404);
-            }
-
             try {
                 $binary = $this->ogImages->renderBinary(
-                    $translation->title,
+                    $post->title,
                     'Blog',
                     config('seo.site_name', 'nvnhan0810.com')
                 );

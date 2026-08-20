@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreatePostRequest;
 use App\Http\Requests\Admin\UpdatePostRequest;
 use App\Models\Post;
-use App\Models\PostTranslation;
 use App\Models\Series;
 use App\Models\Tag;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +35,7 @@ class PostAgentPostsController extends Controller
             'data' => $posts->getCollection()->map(fn (Post $p) => [
                 'id' => $p->id,
                 'slug' => $p->slug,
+                'title' => $p->title,
                 'is_published' => $p->is_published,
                 'published_at' => optional($p->published_at)->toISOString(),
                 'updated_at' => optional($p->updated_at)->toISOString(),
@@ -50,7 +50,7 @@ class PostAgentPostsController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $post = Post::with(['tags', 'series', 'translations'])->find($id);
+        $post = Post::with(['tags', 'series'])->find($id);
 
         if (! $post) {
             return response()->json(['message' => 'Post not found'], 404);
@@ -59,19 +59,12 @@ class PostAgentPostsController extends Controller
         return response()->json([
             'id' => $post->id,
             'slug' => $post->slug,
+            'title' => $post->title,
+            'description' => $post->description,
+            'content' => $post->content,
+            'source_url' => $post->source_url,
             'is_published' => (bool) $post->is_published,
             'published_at' => optional($post->published_at)->toISOString(),
-            'translations' => $post->translations
-                ? $post->translations->mapWithKeys(fn (PostTranslation $t) => [
-                    $t->locale => [
-                        'locale' => $t->locale,
-                        'title' => $t->title,
-                        'description' => $t->description,
-                        'content' => $t->content,
-                        'source_url' => $t->source_url,
-                    ],
-                ])->all()
-                : [],
             'tags' => $post->tags->map(fn (Tag $t) => $t->name)->values()->all(),
             'series_ids' => $post->series->pluck('id')->values()->all(),
             'edit_url' => url("/admin/posts/{$post->id}/edit"),
@@ -80,31 +73,23 @@ class PostAgentPostsController extends Controller
 
     public function createDraft(CreatePostRequest $request): JsonResponse
     {
-        $translations = $request->validated('translations');
-
-        $slugSourceTitle = $translations['en']['title'] ?? ($translations['vi']['title'] ?? '');
-        $slugSourceTitle = is_string($slugSourceTitle) ? trim($slugSourceTitle) : '';
-
-        if ($slugSourceTitle === '') {
-            return response()->json([
-                'message' => 'Không tạo được slug: thiếu title ở locale en/vi',
-            ], 422);
-        }
-
+        $validated = $request->validated();
         $publishedAt = $request->published_at ?? now();
 
         try {
             DB::beginTransaction();
 
-            $slug = $this->generateSlugForPost($slugSourceTitle);
+            $slug = $this->generateSlugForPost($validated['title']);
 
             $post = Post::create([
                 'slug' => $slug,
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'content' => $validated['content'],
+                'source_url' => $validated['source_url'] ?? null,
                 'is_published' => false,
                 'published_at' => $publishedAt,
             ]);
-
-            $this->syncTranslations($post, $translations);
 
             if ($request->tags) {
                 $tagIds = $this->getTagsInfo($request->tags);
@@ -136,17 +121,19 @@ class PostAgentPostsController extends Controller
             return response()->json(['message' => 'Post not found'], 404);
         }
 
-        $translations = $request->validated('translations');
+        $validated = $request->validated();
 
         try {
             DB::beginTransaction();
 
             $post->update([
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'content' => $validated['content'],
+                'source_url' => $validated['source_url'] ?? null,
                 'is_published' => $request->boolean('is_published'),
                 'published_at' => $request->published_at,
             ]);
-
-            $this->syncTranslations($post, $translations);
 
             if ($request->tags) {
                 $tagIds = $this->getTagsInfo($request->tags);
@@ -212,34 +199,6 @@ class PostAgentPostsController extends Controller
             Log::info(__METHOD__, ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return response()->json(['message' => 'Publish failed'], 500);
-        }
-    }
-
-    private function syncTranslations(Post $post, array $translations): void
-    {
-        foreach (Post::SUPPORTED_LOCALES as $locale) {
-            if (! isset($translations[$locale])) {
-                PostTranslation::where('post_id', $post->id)
-                    ->where('locale', $locale)
-                    ->delete();
-
-                continue;
-            }
-
-            $data = $translations[$locale];
-
-            PostTranslation::updateOrCreate(
-                [
-                    'post_id' => $post->id,
-                    'locale' => $locale,
-                ],
-                [
-                    'title' => $data['title'],
-                    'description' => $data['description'] ?? null,
-                    'content' => $data['content'] ?? null,
-                    'source_url' => $data['source_url'] ?? null,
-                ]
-            );
         }
     }
 
@@ -319,4 +278,3 @@ class PostAgentPostsController extends Controller
         return $result;
     }
 }
-

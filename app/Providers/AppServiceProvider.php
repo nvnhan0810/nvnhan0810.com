@@ -23,12 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $appUrl = (string) config('app.url');
-        $isLocalHost = str_contains($appUrl, 'localhost')
-            || str_contains($appUrl, '127.0.0.1')
-            || str_contains($appUrl, '[::1]');
 
-        if (app()->environment('production') && ! $isLocalHost) {
+        if (app()->environment('production') || app()->environment('development')) {
             URL::forceScheme('https');
         }
         

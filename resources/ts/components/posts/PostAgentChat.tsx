@@ -1,5 +1,4 @@
 import usePostAgent from "@/ts/hooks/usePostAgent";
-import type { Locale } from "@/ts/i18n";
 import type { PostAgentEdits } from "@/ts/types/postAgent";
 import { BotIcon, Loader2Icon, SendIcon, SparklesIcon, XIcon } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -9,23 +8,16 @@ import { cn } from "@/ts/utils";
 
 type Props = {
   postId?: number;
-  docs: Record<Locale, string>;
-  sourceUrls: Record<Locale, string>;
-  activeLocale: Locale;
+  doc: string;
+  sourceUrl: string;
   configured: boolean;
   onApplyEdits: (edits: PostAgentEdits) => void;
 };
 
-const localeLabels: Record<Locale, string> = {
-  en: "EN",
-  vi: "VI",
-};
-
 const PostAgentChat = ({
   postId,
-  docs,
-  sourceUrls,
-  activeLocale,
+  doc,
+  sourceUrl,
   configured,
   onApplyEdits,
 }: Props) => {
@@ -37,9 +29,8 @@ const PostAgentChat = ({
       postId,
       configured,
       context: {
-        docs,
-        source_urls: sourceUrls,
-        active_locale: activeLocale,
+        doc,
+        source_url: sourceUrl,
       },
       onApplyEdits,
     });
@@ -79,25 +70,18 @@ const PostAgentChat = ({
       return null;
     }
 
-    const changedLocales = Object.keys(edits.locales ?? {}) as Locale[];
-    const changedUrls = Object.keys(edits.source_urls ?? {}) as Locale[];
-
-    if (changedLocales.length === 0 && changedUrls.length === 0) {
-      return null;
-    }
-
     const parts: string[] = [];
 
-    if (changedLocales.length > 0) {
-      parts.push(
-        `Đã cập nhật nội dung: ${changedLocales.map((locale) => localeLabels[locale]).join(", ")}`
-      );
+    if (edits.markdown) {
+      parts.push("Đã cập nhật nội dung");
     }
 
-    if (changedUrls.length > 0) {
-      parts.push(
-        `Đã cập nhật source URL: ${changedUrls.map((locale) => localeLabels[locale]).join(", ")}`
-      );
+    if (edits.source_url) {
+      parts.push("Đã cập nhật source URL");
+    }
+
+    if (parts.length === 0) {
+      return null;
     }
 
     return parts.join(" · ");
@@ -110,7 +94,7 @@ const PostAgentChat = ({
         <div>
           <p className="text-sm font-medium text-gray-100">Post Agent</p>
           <p className="text-xs text-muted-foreground">
-            Hỗ trợ chỉnh sửa EN + VI — bấm Lưu để ghi DB
+            Hỗ trợ chỉnh sửa tiếng Việt — bấm Lưu để ghi DB
           </p>
         </div>
       </div>
@@ -135,8 +119,8 @@ const PostAgentChat = ({
               Gợi ý lệnh
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Viết draft bài về [chủ đề] bằng tiếng Anh và tiếng Việt</li>
-              <li>Dịch phần intro sang tiếng Việt, giữ nguyên EN</li>
+              <li>Viết draft bài về [chủ đề] bằng tiếng Việt</li>
+              <li>Rút gọn phần intro, giữ ý chính</li>
               <li>Rút gọn body, thêm ví dụ code</li>
               <li>Đề xuất title và tags phù hợp SEO</li>
             </ul>
@@ -200,7 +184,7 @@ const PostAgentChat = ({
         <Textarea
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Nhờ agent viết, dịch, hoặc chỉnh sửa bài (EN + VI)..."
+          placeholder="Nhờ agent viết hoặc chỉnh sửa bài (tiếng Việt)..."
           className="min-h-[88px] resize-none border-gray-700 bg-zinc-950"
           disabled={!configured || isLoading}
           onKeyDown={(event) => {

@@ -1,8 +1,6 @@
-import type { Locale } from "@/ts/i18n";
-
 export type PostAgentEdits = {
-  locales: Partial<Record<Locale, string>>;
-  source_urls: Partial<Record<Locale, string>>;
+  markdown?: string | null;
+  source_url?: string | null;
 };
 
 export type PostAgentMessage = {
@@ -13,9 +11,8 @@ export type PostAgentMessage = {
 };
 
 export type PostAgentChatContext = {
-  docs: Record<Locale, string>;
-  source_urls: Record<Locale, string>;
-  active_locale: Locale;
+  doc: string;
+  source_url: string;
 };
 
 export type PostAgentChatResponse = {

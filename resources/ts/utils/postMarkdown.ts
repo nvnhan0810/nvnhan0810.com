@@ -1,5 +1,4 @@
-import type { Locale } from "@/ts/i18n";
-import type { Post, PostTranslationFields } from "@/ts/types/post";
+import type { Post } from "@/ts/types/post";
 
 export type ParsedPostFields = {
   title: string;
@@ -96,7 +95,7 @@ export const validateParsedPostFields = (
 
 export const postFieldsToMarkdown = (fields: {
   title: string;
-  description?: string;
+  description?: string | null;
   content: string;
   tags?: { name: string }[];
 }): string => {
@@ -115,58 +114,13 @@ export const postFieldsToMarkdown = (fields: {
   return content;
 };
 
-export const buildTranslationsFromDocs = (
-  docs: Record<Locale, string>,
-  sourceUrls?: Partial<Record<Locale, string>>
-): Record<Locale, PostTranslationFields> => {
-  const translations: Partial<Record<Locale, PostTranslationFields>> = {};
-
-  for (const locale of Object.keys(docs) as Locale[]) {
-    const parsed = parseMarkdownToPostFields(docs[locale]);
-
-    const sourceUrl = sourceUrls?.[locale]?.trim() ?? "";
-    if (parsed.title === "" || parsed.content === "") {
-      continue;
-    }
-
-    translations[locale] = {
-      locale,
-      title: parsed.title,
-      description: parsed.description,
-      content: parsed.content || null,
-      source_url: sourceUrl || null,
-    };
-  }
-
-  return translations as Record<Locale, PostTranslationFields>;
-};
-
-export const buildDocsFromPost = (post: Post): Record<Locale, string> => {
-  const docs: Record<Locale, string> = { en: "", vi: "" };
-
-  if (post.translations) {
-    for (const locale of Object.keys(post.translations) as Locale[]) {
-      const translation = post.translations[locale];
-      if (!translation) {
-        continue;
-      }
-      docs[locale] = postFieldsToMarkdown({
-        title: translation.title,
-        description: translation.description,
-        content: translation.content ?? "",
-        tags: post.tags,
-      });
-    }
-  } else {
-    docs.en = postFieldsToMarkdown({
-      title: post.title,
-      description: post.description,
-      content: post.content ?? "",
-      tags: post.tags,
-    });
-  }
-
-  return docs;
+export const buildDocFromPost = (post: Post): string => {
+  return postFieldsToMarkdown({
+    title: post.title,
+    description: post.description,
+    content: post.content ?? "",
+    tags: post.tags,
+  });
 };
 
 export const buildPreviewPost = (
