@@ -1,0 +1,79 @@
+---
+description: Frontend — Clean Architecture, TypeScript strict, TDD-first
+globs:
+  - resources/ts/**/*.ts
+  - resources/ts/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend standards (Clean Architecture)
+
+JS/TS UI is **TypeScript only**. Do **not** reshuffle existing `pages/`, `components/`, `hooks/` unless the user asks.
+
+## TDD first (required)
+
+1. Write a failing unit or component test.
+2. Implement the minimum code to pass.
+3. Refactor while tests stay green.
+
+New UI, hook, or use case ships with tests in the same change.
+
+## Architecture — Clean Architecture (inward only)
+
+Apply to **new** modules under `resources/ts/`:
+
+```
+Presentation → Application → Domain
+Infrastructure → Domain
+```
+
+```text
+resources/ts/domain/           # entities, ports — no React, no fetch
+resources/ts/application/      # use cases — orchestrate ports only
+resources/ts/infrastructure/   # HTTP, storage, env, DI
+resources/ts/presentation/     # views, stores, providers
+```
+
+- Depend inward. Infrastructure implements domain ports.
+- Wire in a composition root (`resources/ts/infrastructure/di/container.ts`).
+- Pages only gate + compose features — no fetch/SSE/business state.
+- Split UI: shell / list / item / composer / view. Avoid god components (~200 lines/file).
+
+Existing Inertia pages live in `resources/ts/pages/` — keep using them; put new domain logic in the layers above, not inside the page file.
+
+## TypeScript (strict)
+
+- `"strict": true` — do not disable. Prefer `allowJs: false`, `noUncheckedIndexedAccess`.
+- **No `any`**. JSON boundary: `unknown` → parse to typed entities.
+- Explicit return types on exported functions, hooks, and use-case `execute`.
+- No non-null `!` unless proven. Handle `T | undefined` from index access.
+
+```ts
+// ❌ const id = (data as any).id;
+// ✅ parse unknown → string / entity; throw on invalid shape
+```
+
+## Lint / format
+
+- Fix ESLint violations; do not disable rules without reason.
+- Follow this repo’s formatter/config; do not add a new formatter stack unless asked.
+
+## Testing
+
+| Target | Test type | Location |
+|-----|-----|----|
+| Components, pages | Component tests | `tests/Frontend/presentation/...` |
+| Use cases, hooks with logic | Unit tests | `tests/Frontend/application/...` |
+| Domain pure logic | Unit tests | `tests/Frontend/domain/...` |
+| User flows | Integration / E2E when applicable | `tests/Frontend/integration/...` |
+
+- Mirror `resources/ts/` under `tests/Frontend/` — no `*.test.ts` beside source.
+- Test user-visible behavior. Mock Infrastructure at boundaries — not Domain.
+
+## Forbidden
+
+- Business logic or `fetch` / SSE parse inside components
+- `any`, `as any`, or disabling strict checks
+- Domain importing React or HTTP clients
+- Skipping component tests for new UI
+- Migrating old folders “to match the rule” without an explicit request
