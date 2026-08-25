@@ -1,0 +1,58 @@
+---
+description: Frontend UI — no magic status strings, stores, hooks placement
+globs:
+  - resources/ts/**/*.ts
+  - resources/ts/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend UI state (no magic values)
+
+Apply on presentation/UI (`resources/ts/**/*.{ts,tsx}`). Do **not** rewrite existing pages into stores unless the user asks.
+
+## Where logic lives
+
+| Concern | Place |
+|---|---|
+| Auth session | Provider / context — login/logout/refresh only |
+| Messages, lists, streaming | Store (Zustand or equivalent) — **no JSX, no fetch** |
+| HTTP / SSE | Infrastructure + use cases — not in components |
+| View composition | `*-view` wires store + presentational children |
+| Pure UI | shell / list / item / composer — props in, callbacks out |
+
+- Custom hooks: reusable **view** glue only (auto-scroll). Do not hide API calls in hooks.
+- Do not add `useMemo` / `useCallback` by default.
+
+Inertia pages may keep using `usePage()` / `router` for first-party form visits. New client API/SSE still goes through infrastructure + use cases.
+
+## No magic status strings in JSX
+
+- Status = const map / enum (`Status.Idle | Streaming | Error`), never a free `string`.
+- Export **named selectors** (`selectIsStreaming`, `selectCanSend`).
+- Views pass **boolean props**. Presentational components must not compare raw status.
+
+```tsx
+// ❌ disabled={status === "streaming"}
+// ✅ <Composer canSend={canSend} isStreaming={isStreaming} />
+```
+
+## Store rules
+
+- Store = state + behavior. No React components, no JSX, no `fetch`.
+- Actions call use cases from the DI container (inject deps in tests).
+- Select narrowly. Do not duplicate high-frequency state in Context.
+- Always generic the store (`create<State>()`). Export a named `*State` type.
+- `catch (error: unknown)` then narrow. No `any`.
+
+## Components
+
+- Presentational: data + named booleans + callbacks.
+- Lists: stable `id` keys. Streaming hint via `isStreaming` prop, not a status literal.
+- Abort in-flight streams on unmount via store `abort` or effect cleanup.
+
+## Forbidden
+
+- Inline `status === "…"` (or other magic strings) in JSX / presentational props
+- One file owning layout + stream + markdown + sidebar
+- Context for high-frequency message updates
+- Coupling UI to backend tool names beyond displaying events

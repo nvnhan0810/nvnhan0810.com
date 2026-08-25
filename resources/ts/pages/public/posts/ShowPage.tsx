@@ -71,7 +71,7 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
                   href={sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium underline"
+                  className="font-medium underline break-all"
                 >
                   {sourceUrl}
                 </a>

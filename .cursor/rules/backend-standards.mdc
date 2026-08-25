@@ -1,0 +1,83 @@
+---
+description: Backend — DDD, CQRS, TDD-first, no magic values (Laravel)
+globs:
+  - app/**/*.php
+  - routes/**/*.php
+  - database/**/*.php
+  - bootstrap/**/*.php
+alwaysApply: false
+---
+
+# Backend standards (DDD + CQRS + TDD)
+
+Apply on Laravel PHP (`app/`, `routes/`, jobs, commands). Do **not** migrate existing controllers/services into DDD folders unless the user asks.
+
+## TDD first (required)
+
+1. Write a failing unit or feature test.
+2. Implement the minimum code to pass.
+3. Refactor while tests stay green.
+
+Do not implement a new command, query, endpoint, or domain rule without a test in the same change.
+
+## Architecture — DDD (inward only)
+
+```
+Presentation / API → Application → Domain
+Infrastructure → Domain
+```
+
+Prefer the existing bounded-context layout for **new** work:
+
+```text
+app/Domains/<Context>/Domain/
+app/Domains/<Context>/Application/   # commands/<name>/, queries/<name>/
+app/Domains/<Context>/Infrastructure/
+app/Domains/<Context>/Presentation/
+```
+
+- **Domain**: entities, value objects, ports (interfaces), domain errors. No HTTP, Eloquent, Laravel facades, I/O.
+- **Application**: command/query handlers. Orchestration only. Depend on **ports**, never concrete adapters.
+- **Infrastructure**: Eloquent repos, HTTP clients, FS, queue. Only layer that talks to the outside.
+- **Presentation**: thin controllers. Dispatch the bus; no business logic.
+- Wire adapters in the composition root (`app/Providers/`, `bootstrap/`).
+
+One folder per use case: `commands/<name>/`, `queries/<name>/`.
+
+## CQRS
+
+- **Command** = mutate. Data-only DTO (no deps in the constructor).
+- **Query** = read. Must not load aggregates for writes or mutate domain state.
+- Handler constructor = ports; `handle(Command $command)`.
+- Controllers call the bus (`dispatch`), not handlers directly.
+
+```text
+✅ Command { tool_name, arguments } + Handler(mcp: Port)
+❌ Command holding HttpClient / Eloquent, or controller new-ing adapters
+```
+
+## No magic values
+
+- Named constants / enums / value objects for statuses, roles, paths, error codes.
+- No scattered string literals (`"running"`, `"prod"`) in domain or handlers.
+- Reject path traversal (`..`); keep allowlists in one place.
+
+## Testing
+
+| Layer | Test type | Location |
+|----|-----|----|
+| Domain, handlers | Unit tests with **Fake** ports | `tests/Unit/Domains/<Context>/...` |
+| HTTP, jobs, CLI | Feature / integration tests | `tests/Feature/...` |
+
+- Mirror `app/` under `tests/Unit/` — never colocate tests with source.
+- Do not require a live cluster / GitHub / production DB for unit tests.
+- Every new endpoint, command, query, or invariant needs tests.
+
+## Forbidden
+
+- Business logic in controllers or route closures
+- Domain / application importing Laravel HTTP, Eloquent, or `shell_exec` for git/kubectl/HTTP
+- Swallowing infra errors into fake “success”
+- Query handlers mutating state
+- Skipping tests for “simple” changes
+- Mass-moving current `app/Http/Controllers` into Domains without an explicit request

@@ -1,0 +1,59 @@
+---
+description: Luôn có test — PHPUnit (PHP) và tests/Frontend (TS)
+alwaysApply: true
+---
+
+# Testing standards
+
+Testing is mandatory for every change. Do not ship features or bug fixes without tests.
+Do **not** refactor production code only to make old files match this layout.
+
+## General
+
+- **TDD first**: write a failing test, then implement, then refactor.
+- Every new feature, bug fix, or refactor must include or update tests.
+- Run the relevant test suite before finishing (`php artisan test --filter=...`).
+- Prefer meaningful tests over coverage theater — assert behavior, not implementation details.
+- Named constants / enums over magic strings in assertions and production code.
+
+## Test layout (required)
+
+**Never colocate test files next to production source.** Top-level `tests/` mirrors source.
+
+```text
+app/Domains/PostAgent/Services/X.php
+  → tests/Unit/Domains/PostAgent/Services/XTest.php
+
+app/Http/Controllers/Public/PostController.php
+  → tests/Feature/Public/PostControllerTest.php
+
+resources/ts/utils/postMarkdown.ts
+  → tests/Frontend/utils/postMarkdown.test.ts
+
+resources/ts/pages/public/posts/ListPage.tsx
+  → tests/Frontend/pages/public/posts/ListPage.test.tsx
+```
+
+- PHP: `*Test.php` under `tests/Unit/` or `tests/Feature/` (PHPUnit).
+- TS: `*.test.ts` / `*.test.tsx` under `tests/Frontend/` only.
+- Do not put `*.test.*` inside `app/`, `resources/ts/`, or other production folders.
+
+## Backend
+
+- **Unit**: domain logic, handlers, value objects, services — Fake ports, no live DB.
+- **Feature**: HTTP endpoints, jobs, CLI, DB flows.
+- Name tests: `test_it_should_<expected>_when_<condition>` (PHPUnit) or `should_<expected>_when_<condition>`.
+
+## Frontend
+
+- **Component tests**: UI behavior, user interactions, conditional rendering.
+- **Integration** (when applicable): page flows, form submit, routing, API mocking.
+- Test accessibility-critical paths where relevant (labels, roles, keyboard).
+
+If the first TS test lands and Vitest is missing, add the minimum runner in that same change — do not skip the test.
+
+## When adding code
+
+1. Identify the correct test layer (unit vs feature vs component).
+2. Add or update tests in the same change.
+3. If tests cannot be added, explain why — do not silently skip.
