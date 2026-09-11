@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - 'v*'
+    paths:
+      - 'index/*'
+      - '.github/workflows/nvnhan0810.com.yml'
   workflow_dispatch:
     inputs:
       deploy_only:
