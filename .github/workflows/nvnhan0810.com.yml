@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*'
     paths:
-      - 'index/*'
+      - 'index/**'
       - '.github/workflows/nvnhan0810.com.yml'
   workflow_dispatch:
     inputs:
