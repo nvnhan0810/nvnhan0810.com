@@ -21,11 +21,14 @@ Do **not** refactor production code only to make old files match this layout.
 **Never colocate test files next to production source.** Top-level `tests/` mirrors source.
 
 ```text
+modules/ReadingDigest/Application/Handler/GetArticleListHandler.php
+  → tests/Unit/Modules/ReadingDigest/Application/Handler/GetArticleListHandlerTest.php
+
+modules/ReadingDigest/Presentation/Http/Controllers/PublicNewsController.php
+  → tests/Feature/Modules/ReadingDigest/PublicNewsControllerTest.php
+
 app/Domains/PostAgent/Services/X.php
   → tests/Unit/Domains/PostAgent/Services/XTest.php
-
-app/Http/Controllers/Public/PostController.php
-  → tests/Feature/Public/PostControllerTest.php
 
 resources/ts/utils/postMarkdown.ts
   → tests/Frontend/utils/postMarkdown.test.ts
@@ -34,13 +37,16 @@ resources/ts/pages/public/posts/ListPage.tsx
   → tests/Frontend/pages/public/posts/ListPage.test.tsx
 ```
 
+Paths above are under `index/` (Laravel root).
+
 - PHP: `*Test.php` under `tests/Unit/` or `tests/Feature/` (PHPUnit).
 - TS: `*.test.ts` / `*.test.tsx` under `tests/Frontend/` only.
-- Do not put `*.test.*` inside `app/`, `resources/ts/`, or other production folders.
+- Do not put `*.test.*` inside `modules/`, `app/`, `resources/ts/`, or other production folders.
 
 ## Backend
 
-- **Unit**: domain logic, handlers, value objects, services — Fake ports, no live DB.
+- Prefer new PHP under `modules/<Module>/` (see `backend-standards.mdc`).
+- **Unit**: domain logic, handlers, value objects — Fake ports, no live DB.
 - **Feature**: HTTP endpoints, jobs, CLI, DB flows.
 - Name tests: `test_it_should_<expected>_when_<condition>` (PHPUnit) or `should_<expected>_when_<condition>`.
 

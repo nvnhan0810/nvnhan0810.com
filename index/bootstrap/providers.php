@@ -2,5 +2,6 @@
 
 return [
     App\Providers\AppServiceProvider::class,
-    App\Domains\ReadingDigest\ReadingDigestServiceProvider::class,
+    Modules\Shared\SharedServiceProvider::class,
+    Modules\ReadingDigest\ReadingDigestServiceProvider::class,
 ];

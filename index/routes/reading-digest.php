@@ -2,7 +2,7 @@
 
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleInboxController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleRedirectController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\PublicNewsController;
+use Modules\ReadingDigest\Presentation\Http\Controllers\PublicNewsController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SettingsController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SourceController;
 use App\Domains\ReadingDigest\Presentation\Http\Controllers\SubjectController;
