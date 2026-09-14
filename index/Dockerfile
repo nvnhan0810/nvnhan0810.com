@@ -45,7 +45,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY --from=vendor /app /app
-RUN npm run build
+# Ziggy already generated in the vendor (PHP) stage; prebuild would call `php` again.
+RUN npm run build --ignore-scripts
 
 # -----------------------------------------------------------------------------
 # Production runtime (nginx + php-fpm + inertia SSR + queue)
