@@ -1,6 +1,6 @@
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import { Link } from "@inertiajs/react";
-import { BookOpen, Boxes } from "lucide-react";
+import { BookOpen, Boxes, Newspaper } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
 const BottomMenuList = () => {
@@ -23,6 +23,13 @@ const BottomMenuList = () => {
 			>
 				<Boxes className="h-6 w-6" />
 				<span className="">{t("nav.apps")}</span>
+			</Link>
+			<Link
+				href={route("news.index")}
+				className="group relative inline-flex flex-col items-center gap-1.5 text-sm text-emerald-500 p-2 hover:bg-primary/10"
+			>
+				<Newspaper className="h-6 w-6" />
+				<span className="">{t("nav.news")}</span>
 			</Link>
 		</div>
 	);

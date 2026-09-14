@@ -16,7 +16,7 @@ final class GetArticleListHandler implements QueryHandler {
             ->where('force_exclude', false)
             ->orderByDesc('published_at')
             ->orderByDesc('fetched_at')
-            ->paginate(20)
+            ->paginate($query->perPage)
             ->withPath(route('news.index', absolute: false))
             ->withQueryString();
     }
