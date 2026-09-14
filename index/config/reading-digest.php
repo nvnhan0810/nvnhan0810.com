@@ -6,17 +6,25 @@ return [
     'articles_per_subject' => (int) env('DIGEST_ARTICLES_PER_SUBJECT', 5),
     'retrieval_candidates' => 30,
     'interest_decay_factor' => 0.98,
-    'enrichment_model' => env('DIGEST_ENRICHMENT_MODEL', 'gemini-2.5-flash'),
+    /** Ranking still uses Gemini when configured. */
     'ranking_model' => env('DIGEST_RANKING_MODEL', 'gemini-2.5-flash'),
-    'embedding_model' => env('DIGEST_EMBEDDING_MODEL', 'text-embedding-004'),
-    'embedding_dimensions' => (int) env('DIGEST_EMBEDDING_DIMENSIONS', 768),
     /** Only fetch-enrich-embed-digest articles fetched today (digest timezone). */
     'only_fetched_today' => filter_var(
         env('DIGEST_ONLY_FETCHED_TODAY', env('DIGEST_ENRICH_ONLY_FETCHED_TODAY', true)),
         FILTER_VALIDATE_BOOL
     ),
-    /** Articles per Gemini enrichment request. */
+    /** Articles per enrichment batch (each article = one AI enrich call). */
     'enrich_batch_size' => max(1, (int) env('DIGEST_ENRICH_BATCH_SIZE', 10)),
+    /**
+     * Self-hosted AI API (ai-embedding-enrichment): POST /api/embed, POST /api/enrich.
+     * Header: X-Api-Key
+     */
+    'ai' => [
+        'base_url' => rtrim((string) env('DIGEST_AI_BASE_URL', 'https://ai.nvnhan0810.com'), '/'),
+        'api_key' => env('DIGEST_AI_API_KEY'),
+        'timeout' => max(5, (int) env('DIGEST_AI_TIMEOUT', 60)),
+    ],
+    /** Gemini is only used for digest ranking (optional). */
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
         'base_url' => rtrim((string) env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/openai'), '/'),
@@ -29,8 +37,6 @@ return [
         'enabled' => filter_var(env('DIGEST_TELEGRAM_ENABLED', false), FILTER_VALIDATE_BOOL),
         'bot_token' => env('DIGEST_TELEGRAM_BOT_TOKEN'),
         'chat_id' => env('DIGEST_TELEGRAM_CHAT_ID'),
-        /** Shared secret validated on incoming Telegram webhook calls (vote callbacks). */
-        'webhook_secret' => env('DIGEST_TELEGRAM_WEBHOOK_SECRET'),
     ],
     'interaction_weights' => [
         'impression' => -0.5,

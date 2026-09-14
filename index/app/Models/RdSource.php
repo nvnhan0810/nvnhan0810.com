@@ -37,7 +37,7 @@ class RdSource extends Model
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(
-            SubjectModel::class,
+            RdSubject::class,
             'rd_subject_source',
             'source_id',
             'subject_id'
@@ -46,11 +46,11 @@ class RdSource extends Model
 
     public function articles(): HasMany
     {
-        return $this->hasMany(DigestArticleModel::class, 'source_id');
+        return $this->hasMany(RdArticle::class, 'source_id');
     }
 
     public function tagMappings(): HasMany
     {
-        return $this->hasMany(SourceTagMappingModel::class, 'source_id');
+        return $this->hasMany(RdSourceTagMapping::class, 'source_id');
     }
 }

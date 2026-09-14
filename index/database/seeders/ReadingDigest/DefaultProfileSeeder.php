@@ -2,10 +2,10 @@
 
 namespace Database\Seeders\ReadingDigest;
 
-use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\UserReadingProfileModel;
-use App\Domains\ReadingDigest\Infrastructure\Persistence\Repositories\DefaultPreferences;
+use App\Models\RdUserReadingProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Modules\ReadingDigest\Infrastructure\Persistence\Repositories\DefaultPreferences;
 
 class DefaultProfileSeeder extends Seeder
 {
@@ -16,7 +16,7 @@ class DefaultProfileSeeder extends Seeder
             return;
         }
 
-        UserReadingProfileModel::query()->firstOrCreate(
+        RdUserReadingProfile::query()->firstOrCreate(
             ['user_id' => $user->id],
             ['preferences' => DefaultPreferences::make()]
         );
