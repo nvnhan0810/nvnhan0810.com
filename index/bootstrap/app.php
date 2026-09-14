@@ -2,6 +2,9 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
+use App\Jobs\ReadingDigest\DecayInterestScoresJob;
+use App\Jobs\ReadingDigest\PurgeStaleArticlesJob;
+use App\Jobs\ReadingDigest\RebuildUserEmbeddingJob;
 use App\Jobs\ReadingDigest\RunDailyDigestJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -32,6 +35,24 @@ return Application::configure(basePath: dirname(__DIR__))
             ->timezone($timezone)
             ->name('reading-digest:daily')
             ->withoutOverlapping(30);
+
+        $schedule->job(new PurgeStaleArticlesJob)
+            ->dailyAt('03:00')
+            ->timezone($timezone)
+            ->name('reading-digest:purge-stale')
+            ->withoutOverlapping();
+
+        $schedule->job(new DecayInterestScoresJob)
+            ->weeklyOn(1, '04:00')
+            ->timezone($timezone)
+            ->name('reading-digest:decay-interest')
+            ->withoutOverlapping();
+
+        $schedule->job(new RebuildUserEmbeddingJob)
+            ->dailyAt('04:30')
+            ->timezone($timezone)
+            ->name('reading-digest:rebuild-embeddings')
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

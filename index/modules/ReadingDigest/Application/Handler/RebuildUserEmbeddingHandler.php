@@ -71,4 +71,36 @@ class RebuildUserEmbeddingHandler
             ]
         );
     }
+
+    public function handleAll(): int
+    {
+        $userIds = $this->uniqueUserIds(
+            RdUserReadingProfile::query()->pluck('user_id'),
+            RdArticleInteraction::query()->distinct()->pluck('user_id'),
+        );
+
+        foreach ($userIds as $userId) {
+            $this->handle($userId);
+        }
+
+        return count($userIds);
+    }
+
+    /**
+     * @param  iterable<int|string>  $profileIds
+     * @param  iterable<int|string>  $interactionIds
+     * @return list<int>
+     */
+    protected function uniqueUserIds(iterable $profileIds, iterable $interactionIds): array
+    {
+        $ids = [];
+
+        foreach ([$profileIds, $interactionIds] as $group) {
+            foreach ($group as $id) {
+                $ids[(int) $id] = (int) $id;
+            }
+        }
+
+        return array_values($ids);
+    }
 }
