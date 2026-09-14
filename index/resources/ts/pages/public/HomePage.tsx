@@ -20,6 +20,7 @@ import {
 import { useMemo } from "react";
 import { useRoute } from "ziggy-js";
 import FloatMenuList from "@/ts/components/portfolio/FloatMenuList";
+import BottomMenuList from "@/ts/components/portfolio/BottomMenuList";
 
 type Props = {
 	posts: Post[];
@@ -87,11 +88,9 @@ const HomePage = ({ posts }: Props) => {
 				</div>
 			</nav>
 
-			<FloatMenuList />
-
 			<main
 				id="top"
-				className="mx-auto max-w-5xl px-4 pb-16 pt-12 sm:px-6 sm:pt-16"
+				className="mx-auto max-w-5xl px-4 pb-8 pt-12 sm:px-6 sm:pt-16 mb-8 md:mb-0"
 			>
 				<section id="about" className="mb-20 text-center sm:text-left">
 					<p className="mb-3 text-sm font-medium uppercase tracking-widest text-emerald-500">
@@ -285,6 +284,9 @@ const HomePage = ({ posts }: Props) => {
 					© {new Date().getFullYear()} {cv.name}
 				</footer>
 			</main>
+
+			<FloatMenuList />
+			<BottomMenuList />
 		</PortfolioLayout>
 	);
 };
