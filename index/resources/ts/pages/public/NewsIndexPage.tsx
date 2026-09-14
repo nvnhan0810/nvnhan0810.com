@@ -60,13 +60,16 @@ const NewsIndexPage = ({ auth, locale, articles }: Props) => {
         )}
       </header>
 
-      <div className="grid gap-8">
+      <div className="grid min-w-0 gap-8">
         {articles.data.length === 0 && (
           <p className="text-muted-foreground">No articles yet.</p>
         )}
 
         {articles.data.map((article) => (
-          <article key={article.id} className="border-b border-border/60 pb-8 last:border-0">
+          <article
+            key={article.id}
+            className="min-w-0 overflow-hidden border-b border-border/60 pb-8 last:border-0"
+          >
             {article.image_url && (
               <a
                 href={article.url}
@@ -82,13 +85,13 @@ const NewsIndexPage = ({ auth, locale, articles }: Props) => {
                 />
               </a>
             )}
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-1 break-words text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {article.source?.name ?? "Source"}
               {article.published_at
                 ? ` · ${new Date(article.published_at).toLocaleDateString()}`
                 : ""}
             </p>
-            <h2 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
+            <h2 className="break-words text-xl font-bold tracking-tight text-foreground md:text-2xl">
               <a
                 href={article.url}
                 target="_blank"
@@ -99,7 +102,9 @@ const NewsIndexPage = ({ auth, locale, articles }: Props) => {
               </a>
             </h2>
             {article.summary && (
-              <p className="mt-2 line-clamp-3 text-muted-foreground">{article.summary}</p>
+              <p className="mt-2 line-clamp-3 break-words text-muted-foreground">
+                {article.summary}
+              </p>
             )}
             <a
               href={article.url}

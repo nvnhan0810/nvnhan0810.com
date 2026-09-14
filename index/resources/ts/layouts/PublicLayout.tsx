@@ -19,7 +19,7 @@ const PublicLayout = ({ children, auth, active = "blog" }: PublicLayoutProps) =>
   return (
     <div className="min-h-screen bg-background font-sans antialiased text-foreground">
       <SiteNav auth={auth} active={active} />
-      <main className="mx-auto max-w-5xl flex-grow px-4 py-10 sm:px-6 sm:py-12">
+      <main className="mx-auto w-full min-w-0 max-w-5xl flex-grow overflow-x-hidden px-4 py-10 sm:px-6 sm:py-12">
         {children}
       </main>
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">

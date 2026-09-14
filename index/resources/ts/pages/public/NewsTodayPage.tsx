@@ -96,7 +96,10 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
             {groups[sourceName].map((item) => {
               const article = item.article;
               return (
-                <article key={item.id} className="grid gap-4 sm:grid-cols-[180px_1fr] sm:gap-6">
+                <article
+                  key={item.id}
+                  className="grid min-w-0 gap-4 overflow-hidden sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6"
+                >
                   {article.image_url ? (
                     <a
                       href={route("news.open", item.tracking_token)}
@@ -113,13 +116,13 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
                     <div className="hidden max-w-[180px] rounded-lg bg-muted/40 sm:block" />
                   )}
 
-                  <div>
+                  <div className="min-w-0 overflow-hidden">
                     {item.subject?.name && (
-                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <p className="mb-1 break-words text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {item.subject.name}
                       </p>
                     )}
-                    <h3 className="text-xl font-bold tracking-tight text-foreground">
+                    <h3 className="break-words text-xl font-bold tracking-tight text-foreground">
                       <a
                         href={route("news.open", item.tracking_token)}
                         className="hover:text-emerald-500"
@@ -128,7 +131,7 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
                       </a>
                     </h3>
                     {article.summary && (
-                      <p className="mt-2 line-clamp-4 text-sm text-muted-foreground">
+                      <p className="mt-2 line-clamp-4 break-words text-sm text-muted-foreground">
                         {article.summary}
                       </p>
                     )}
