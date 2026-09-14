@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'notification_time' => env('DIGEST_NOTIFICATION_TIME', '08:00'),
-    'timezone' => env('DIGEST_TIMEZONE', config('app.timezone')),
+    'notification_time' => env('DIGEST_NOTIFICATION_TIME', '07:00'),
+    'timezone' => env('DIGEST_TIMEZONE', 'Asia/Ho_Chi_Minh'),
     'articles_per_subject' => (int) env('DIGEST_ARTICLES_PER_SUBJECT', 5),
     'retrieval_candidates' => 30,
     'interest_decay_factor' => 0.98,
