@@ -5,6 +5,7 @@ namespace Modules\ReadingDigest\Application\Handler;
 use App\Models\RdArticle;
 use App\Models\RdSource;
 use Illuminate\Support\Str;
+use Modules\ReadingDigest\Domain\Services\ArticleFreshnessPolicy;
 use Modules\ReadingDigest\Domain\Services\ArticleLanguageService;
 use Modules\ReadingDigest\Infrastructure\Sources\SourceFetcherRegistry;
 
@@ -28,6 +29,10 @@ class FetchSourceHandler
 
             foreach ($items as $item) {
                 if ($since !== null && $item->publishedAt !== null && $item->publishedAt < $since) {
+                    continue;
+                }
+
+                if (ArticleFreshnessPolicy::isPublishedInTheFuture($item->publishedAt)) {
                     continue;
                 }
 

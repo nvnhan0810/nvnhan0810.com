@@ -100,17 +100,17 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
                   {article.image_url ? (
                     <a
                       href={route("news.open", item.tracking_token)}
-                      className="block overflow-hidden rounded-lg bg-muted"
+                      className="block max-w-[180px] overflow-hidden rounded-lg bg-muted"
                     >
                       <img
                         src={article.image_url}
                         alt=""
-                        className="aspect-[4/3] h-full w-full object-cover"
+                        className="aspect-[4/3] h-full w-full max-w-[180px] object-cover"
                         loading="lazy"
                       />
                     </a>
                   ) : (
-                    <div className="hidden rounded-lg bg-muted/40 sm:block" />
+                    <div className="hidden max-w-[180px] rounded-lg bg-muted/40 sm:block" />
                   )}
 
                   <div>

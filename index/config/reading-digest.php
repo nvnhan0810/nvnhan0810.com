@@ -51,7 +51,7 @@ return [
         'rated_positive' => 4,
         'rated_negative' => -6,
     ],
-    'content_retention_days' => (int) env('DIGEST_CONTENT_RETENTION_DAYS', 90),
+    'content_retention_days' => (int) env('DIGEST_CONTENT_RETENTION_DAYS', 30),
     /** Ceiling for per-source fetch limit (demand-based). */
     'fetch_limit_per_source' => (int) env('DIGEST_FETCH_LIMIT_PER_SOURCE', 15),
     /** Floor for per-source fetch limit (also used when source has no enabled subjects). */

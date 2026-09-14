@@ -68,11 +68,16 @@ const NewsIndexPage = ({ auth, locale, articles }: Props) => {
         {articles.data.map((article) => (
           <article key={article.id} className="border-b border-border/60 pb-8 last:border-0">
             {article.image_url && (
-              <a href={article.url} target="_blank" rel="noopener noreferrer" className="mb-4 block overflow-hidden rounded-lg">
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-4 block max-w-md overflow-hidden rounded-lg"
+              >
                 <img
                   src={article.image_url}
                   alt=""
-                  className="aspect-[2/1] w-full object-cover"
+                  className="aspect-[2/1] w-full max-w-md object-cover"
                   loading="lazy"
                 />
               </a>

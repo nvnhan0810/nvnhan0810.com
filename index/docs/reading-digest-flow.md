@@ -54,15 +54,17 @@ Reading Digest mỗi ngày (hoặc khi bấm **Fetch & send**):
 | Job | Tần suất | Timezone |
 |-----|----------|----------|
 | `RunDailyDigestJob` | `dailyAt(DIGEST_NOTIFICATION_TIME)` — mặc định **07:00** | `DIGEST_TIMEZONE` — mặc định **Asia/Ho_Chi_Minh** |
+| `PurgeStaleArticlesJob` | `dailyAt(03:00)` | cùng timezone |
+| `DecayInterestScoresJob` | `weeklyOn(1, 04:00)` — mỗi **Thứ Hai** | cùng timezone |
+| `RebuildUserEmbeddingJob` (không `userId` → tất cả user) | `dailyAt(04:30)` | cùng timezone |
 
 Config:
 
 - `DIGEST_NOTIFICATION_TIME=07:00`
 - `DIGEST_TIMEZONE=Asia/Ho_Chi_Minh`
+- `DIGEST_CONTENT_RETENTION_DAYS=30` — xoá bài **không có tương tác/view** sau N ngày
 
 Production Docker đã chạy `schedule:work` qua Supervisor (xem secret.env.example k3s). Local: `php artisan schedule:work` hoặc cron `* * * * * php artisan schedule:run`.
-
-Job phụ (decay / rebuild user embedding) **chưa** đăng ký lại — chỉ pipeline daily chính.
 
 ### 2.3. Fetch một source riêng
 
@@ -87,6 +89,7 @@ Tất cả nằm trong `app/Jobs/ReadingDigest/`.
 | **`EmbedArticleJob`** | `EmbedArticleHandler` | Embed **1** bài (wrapper gọi batch handler) |
 | **`DecayInterestScoresJob`** | `DecayInterestScoresHandler` | Nhân hệ số decay lên interest scores |
 | **`RebuildUserEmbeddingJob`** | `RebuildUserEmbeddingHandler` | Tính lại `user_embedding` từ bài liked/saved/… |
+| **`PurgeStaleArticlesJob`** | `PurgeStaleArticlesHandler` | Xoá bài không tương tác sau `DIGEST_CONTENT_RETENTION_DAYS` (mặc định 30) |
 
 Queue: `config('reading-digest.queue')` / env `DIGEST_QUEUE` (mặc định `default`).  
 Worker cần chạy: `php artisan queue:work` (hoặc supervisor trong k8s).
@@ -249,8 +252,8 @@ Thứ tự **không đảm bảo**:
 
 | Job | Khi nào | Việc |
 |-----|---------|------|
-| `DecayInterestScoresJob` | Schedule weekly (nếu bật) | `score *= interest_decay_factor` (0.98) |
-| `RebuildUserEmbeddingJob($userId)` | Schedule daily (nếu bật) | Trung bình vector bài positive (liked/saved/finished) − negative |
+| `DecayInterestScoresJob` | Schedule weekly (Thứ Hai 04:00) | `score *= interest_decay_factor` (0.98) |
+| `RebuildUserEmbeddingJob` | Schedule daily 04:30 (không `userId` = tất cả); hoặc dispatch với `$userId` | Trung bình vector bài positive (liked/saved/finished) − negative |
 | `FetchSourceJob` | Admin fetch 1 source | Fetch → enrich batch |
 | `EnrichArticleMetadataJob` / `EmbedArticleJob` | Ít dùng / tiện ích 1 bài | Wrapper single-id |
 

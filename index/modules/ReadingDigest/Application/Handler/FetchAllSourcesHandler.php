@@ -73,7 +73,9 @@ class FetchAllSourcesHandler
 
     private function purgeDisallowedArticles(): int
     {
-        $purged = 0;
+        $purged = RdArticle::query()
+            ->where('published_at', '>', now())
+            ->delete();
 
         RdArticle::query()
             ->select(['id', 'language', 'title', 'summary'])

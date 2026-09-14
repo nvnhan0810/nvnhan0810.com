@@ -27,8 +27,21 @@ class ArticleFreshnessPolicy
         return Carbon::parse($fetchedAt)->timezone(self::timezone())->isToday();
     }
 
+    public static function isPublishedInTheFuture(?\DateTimeInterface $publishedAt): bool
+    {
+        if ($publishedAt === null) {
+            return false;
+        }
+
+        return Carbon::parse($publishedAt)->isFuture();
+    }
+
     public static function isEligible(RdArticle $article): bool
     {
+        if (self::isPublishedInTheFuture($article->published_at)) {
+            return false;
+        }
+
         if (! self::onlyFetchedToday()) {
             return true;
         }
@@ -40,8 +53,22 @@ class ArticleFreshnessPolicy
      * @param  Builder<RdArticle>  $query
      * @return Builder<RdArticle>
      */
+    public static function excludeFuturePublished(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
+            $q->whereNull('published_at')
+                ->orWhere('published_at', '<=', now());
+        });
+    }
+
+    /**
+     * @param  Builder<RdArticle>  $query
+     * @return Builder<RdArticle>
+     */
     public static function applyScope(Builder $query): Builder
     {
+        self::excludeFuturePublished($query);
+
         if (! self::onlyFetchedToday()) {
             return $query;
         }
