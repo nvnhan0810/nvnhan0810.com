@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SetLocale;
+use App\Jobs\ReadingDigest\RunDailyDigestJob;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\SetLocale;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,6 +22,16 @@ return Application::configure(basePath: dirname(__DIR__))
             SetLocale::class,
             HandleInertiaRequests::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $time = (string) config('reading-digest.notification_time', '07:00');
+        $timezone = (string) config('reading-digest.timezone', 'Asia/Ho_Chi_Minh');
+
+        $schedule->job(new RunDailyDigestJob)
+            ->dailyAt($time)
+            ->timezone($timezone)
+            ->name('reading-digest:daily')
+            ->withoutOverlapping(30);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
