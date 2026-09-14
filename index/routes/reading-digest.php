@@ -1,17 +1,13 @@
 <?php
 
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleInboxController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\ArticleRedirectController;
-use Modules\ReadingDigest\Presentation\Http\Controllers\PublicNewsController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\SettingsController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\SourceController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\SubjectController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\TaxonomyController;
-use App\Domains\ReadingDigest\Presentation\Http\Controllers\TodayDigestController;
+use App\Http\Controllers\Admin\ReadingDigest\ArticleInboxController;
+use App\Http\Controllers\Admin\ReadingDigest\SettingsController;
+use App\Http\Controllers\Admin\ReadingDigest\SourceController;
+use App\Http\Controllers\Admin\ReadingDigest\SubjectController;
+use App\Http\Controllers\Admin\ReadingDigest\TaxonomyController;
+use App\Http\Controllers\Admin\ReadingDigest\TodayDigestController;
+use App\Http\Controllers\Public\PublicNewsController;
 use Illuminate\Support\Facades\Route;
-
-Route::get('/reading-digest/a/{token}', [ArticleRedirectController::class, 'show'])
-    ->name('reading-digest.article.redirect');
 
 Route::get('/news', [PublicNewsController::class, 'index'])->name('news.index');
 

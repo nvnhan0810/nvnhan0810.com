@@ -2,7 +2,7 @@
 
 namespace Database\Seeders\ReadingDigest;
 
-use App\Domains\ReadingDigest\Infrastructure\Persistence\Eloquent\TaxonomyNodeModel;
+use App\Models\RdTaxonomyNode;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -10,7 +10,7 @@ class TaxonomySeeder extends Seeder
 {
     public function run(): void
     {
-        if (TaxonomyNodeModel::query()->exists()) {
+        if (RdTaxonomyNode::query()->exists()) {
             return;
         }
 
@@ -52,9 +52,9 @@ class TaxonomySeeder extends Seeder
         }
     }
 
-    private function createNode(string $label, string $slug, ?string $parentId, string $path): TaxonomyNodeModel
+    private function createNode(string $label, string $slug, ?string $parentId, string $path): RdTaxonomyNode
     {
-        return TaxonomyNodeModel::create([
+        return RdTaxonomyNode::create([
             'label' => $label,
             'slug' => $slug,
             'parent_id' => $parentId,
