@@ -18,8 +18,8 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
     && chown -R appuser:appuser $HF_HOME
 
 # 5. Copy mã nguồn
-COPY main.py .
-RUN chown appuser:appuser main.py
+COPY auth.py main.py ./
+RUN chown appuser:appuser auth.py main.py
 
 # 6. Chuyển sang chạy bằng user non-root
 USER appuser
