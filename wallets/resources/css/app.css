@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.vue';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-primary-50: var(--color-indigo-50);
+    --color-primary-100: var(--color-indigo-100);
+    --color-primary-200: var(--color-indigo-200);
+    --color-primary-300: var(--color-indigo-300);
+    --color-primary-400: var(--color-indigo-400);
+    --color-primary-500: var(--color-indigo-500);
+    --color-primary-600: var(--color-indigo-600);
+    --color-primary-700: var(--color-indigo-700);
+    --color-primary-800: var(--color-indigo-800);
+    --color-primary-900: var(--color-indigo-900);
+    --color-primary-950: var(--color-indigo-950);
+
+    /* Semantic Colors */
+    --color-app: var(--color-app-bg);
+    --color-surface: var(--color-surface-bg);
+    --color-surface-hover: var(--color-surface-hover-bg);
+    --color-muted: var(--color-muted-bg);
+
+    --color-content: var(--color-content-text);
+    --color-content-secondary: var(--color-content-secondary-text);
+    --color-content-muted: var(--color-content-muted-text);
+
+    --color-border-subtle: var(--color-border-subtle-color);
+    --color-border-default: var(--color-border-default-color);
+    --color-border-strong: var(--color-border-strong-color);
+}
+
+@layer base {
+    :root {
+        --color-app-bg: #f4f4f5; /* gray-100 - softer for app background */
+        --color-surface-bg: #ffffff;
+        --color-surface-hover-bg: #f9fafb;
+        --color-muted-bg: #f3f4f6;
+
+        --color-content-text: #111827; /* gray-900 */
+        --color-content-secondary-text: #374151; /* gray-700 */
+        --color-content-muted-text: #6b7280; /* gray-500 */
+
+        --color-border-subtle-color: #f3f4f6;
+        --color-border-default-color: #e5e7eb;
+        --color-border-strong-color: #d1d5db;
+    }
+
+    .dark {
+        --color-app-bg: #0f172a; /* slate-950 - deeper dark */
+        --color-surface-bg: #1e293b; /* slate-800 */
+        --color-surface-hover-bg: #334155; /* slate-700 */
+        --color-muted-bg: #1e293b;
+
+        --color-content-text: #f8fafc;
+        --color-content-secondary-text: #cbd5e1;
+        --color-content-muted-text: #94a3b8;
+
+        --color-border-subtle-color: #334155;
+        --color-border-default-color: #475569;
+        --color-border-strong-color: #64748b;
+
+        /* Change primary color for dark theme here (currently using Sky/Blue) */
+        --color-primary-50: var(--color-sky-950);
+        --color-primary-100: var(--color-sky-900);
+        --color-primary-200: var(--color-sky-800);
+        --color-primary-300: var(--color-sky-700);
+        --color-primary-400: var(--color-sky-400);
+        --color-primary-500: var(--color-sky-500);
+        --color-primary-600: var(--color-sky-600);
+        --color-primary-700: var(--color-sky-700);
+        --color-primary-800: var(--color-sky-800);
+        --color-primary-900: var(--color-sky-900);
+        --color-primary-950: var(--color-sky-950);
+    }
+}
+
+@layer utilities {
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .field-money .money-input,
+    .field-date .datepicker {
+        margin-top: 0.25rem;
+        display: block;
+        width: 100%;
+        border-radius: 0.375rem;
+        border-width: 1px;
+        border-color: var(--color-border-strong-color);
+        background-color: var(--color-surface-bg);
+        color: var(--color-content-text);
+        padding: 0.5rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .field-money-sm .money-input {
+        width: 6rem;
+        border-radius: 0.25rem;
+        padding: 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+}
