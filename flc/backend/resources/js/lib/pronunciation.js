@@ -1,3 +1,4 @@
+import { appPath } from '@/path';
 /**
  * Pronunciation playback with audio URL → optional fetch → speechSynthesis fallback.
  * Browser APIs are injectable for unit tests.
@@ -65,7 +66,7 @@ export async function fetchDictionaryPronounceUrl(word) {
         return null;
     }
 
-    const res = await fetch(`/home/dictionary/${encodeURIComponent(normalized)}/pronounce`, {
+    const res = await fetch(appPath(`/home/dictionary/${encodeURIComponent(normalized)}/pronounce`), {
         headers: { Accept: 'application/json' },
         credentials: 'same-origin',
     });

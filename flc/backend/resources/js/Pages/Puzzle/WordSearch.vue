@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -124,12 +125,12 @@ function isFoundWord(word) {
 }
 
 function next() {
-    useForm({}).post('/home/puzzle/word-search/next');
+    useForm({}).post(appPath('/home/puzzle/word-search/next'));
 }
 
 function askHint() {
     if (!canHelp.value) return;
-    useForm({}).post('/home/puzzle/word-search/hint');
+    useForm({}).post(appPath('/home/puzzle/word-search/hint'));
 }
 
 function startHelpTicker() {
@@ -151,7 +152,7 @@ watch(
 
 function confirmExit() {
     exitOpen.value = false;
-    router.visit('/home/puzzle');
+    router.visit(appPath('/home/puzzle'));
 }
 
 function measureGrid() {
@@ -335,7 +336,7 @@ function endSelect(event) {
     const path = draftPath.value;
     draftPath.value = [];
     if (path.length < 3 || answered.value) return;
-    useForm({ cells: path }).post('/home/puzzle/word-search/find', {
+    useForm({ cells: path }).post(appPath('/home/puzzle/word-search/find'), {
         preserveScroll: true,
     });
 }

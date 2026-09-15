@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\WebviewSessionController;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Flc\Identity\Application\Query\IsEmailAllowed;
+use Flc\Identity\Infrastructure\Sso\IndexSsoClient;
 use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,11 +16,15 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Laravel\Socialite\Facades\Socialite;
 
 class UserAuthController extends Controller
 {
-    public function __construct(private readonly QueryBus $queries) {}
+    private const CLIENT_ID = 'flc-web';
+
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly IndexSsoClient $sso,
+    ) {}
 
     public function showLogin(): Response|RedirectResponse
     {
@@ -28,29 +33,39 @@ class UserAuthController extends Controller
         }
 
         return Inertia::render('Auth/Login', [
-            'googleUrl' => route('user.auth.google'),
+            'googleUrl' => route('user.auth.sso'),
         ]);
     }
 
-    public function redirectGoogle(): RedirectResponse
+    public function redirectSso(): RedirectResponse
     {
-        return Socialite::driver('google')
-            ->redirectUrl(route('user.auth.google.callback'))
-            ->redirect();
+        return redirect()->away(
+            $this->sso->authorizeUrl(self::CLIENT_ID, route('user.auth.sso.callback'))
+        );
     }
 
-    public function callbackGoogle(): RedirectResponse
+    public function callbackSso(Request $request): RedirectResponse
     {
-        try {
-            $googleUser = Socialite::driver('google')
-                ->redirectUrl(route('user.auth.google.callback'))
-                ->user();
-        } catch (\Throwable) {
+        $state = (string) $request->query('state', '');
+        $code = (string) $request->query('code', '');
+
+        if ($code === '' || ! $this->sso->validateState($state)) {
             return redirect()->route('user.login')
-                ->with('error', 'Google sign-in failed.');
+                ->with('error', 'SSO session invalid or expired.');
         }
 
-        $email = strtolower(trim((string) $googleUser->getEmail()));
+        try {
+            $claims = $this->sso->exchangeAuthorizationCode(
+                self::CLIENT_ID,
+                route('user.auth.sso.callback'),
+                $code,
+            );
+        } catch (\Throwable) {
+            return redirect()->route('user.login')
+                ->with('error', 'SSO sign-in failed.');
+        }
+
+        $email = $claims['email'];
 
         if ($email === '') {
             return redirect()->route('user.login')
@@ -65,17 +80,11 @@ class UserAuthController extends Controller
         $user = User::query()->updateOrCreate(
             ['email' => $email],
             [
-                'name' => $googleUser->getName() ?: Str::before($email, '@'),
-                'google_id' => $googleUser->getId(),
+                'name' => $claims['name'] ?: Str::before($email, '@'),
                 'email_verified_at' => now(),
                 'password' => Hash::make(Str::random(64)),
             ]
         );
-
-        if ($googleUser->getId()) {
-            $user->google_id = $googleUser->getId();
-            $user->save();
-        }
 
         Auth::login($user, remember: true);
 
@@ -101,38 +110,8 @@ class UserAuthController extends Controller
             ->with('success', 'Signed out.');
     }
 
-    /**
-     * One-time handoff: Sanctum Bearer → Laravel web session for in-app WebView.
-     * Google OAuth must NOT run inside the WebView.
-     */
     public function webviewHandoff(Request $request): RedirectResponse
     {
-        $code = (string) $request->query('code', '');
-        if ($code === '') {
-            return redirect()->route('user.login')
-                ->with('error', 'Missing handoff code.');
-        }
-
-        $payload = Cache::pull(WebviewSessionController::cacheKey($code));
-        if (! is_array($payload) || empty($payload['user_id'])) {
-            return redirect()->route('user.login')
-                ->with('error', 'Handoff expired or already used. Sign in again.');
-        }
-
-        $user = User::query()->find($payload['user_id']);
-        if ($user === null) {
-            return redirect()->route('user.login')
-                ->with('error', 'User not found.');
-        }
-
-        Auth::login($user, remember: true);
-        $request->session()->regenerate();
-
-        $next = $payload['next'] ?? null;
-        if (is_string($next) && str_starts_with($next, '/') && ! str_starts_with($next, '//')) {
-            return redirect()->to($next);
-        }
-
-        return redirect()->route('user.home.lookup');
+        return app(WebviewSessionController::class)->handoff($request);
     }
 }

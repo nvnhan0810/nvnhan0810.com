@@ -7,6 +7,7 @@ use App\Http\Controllers\Agent\PostAgentPostsController;
 use App\Http\Middleware\OpenIdMiddleware;
 use App\Http\Middleware\AgentApiTokenMiddleware;
 use Illuminate\Support\Facades\Route;
+use Modules\Sso\Presentation\Http\Controllers\SsoTokenController;
 use App\Http\Requests\Admin\CreatePostRequest;
 use App\Http\Requests\Admin\UpdatePostRequest;
 
@@ -20,6 +21,8 @@ use App\Http\Requests\Admin\UpdatePostRequest;
 // Route::middleware([OpenIdMiddleware::class])->prefix('admin')->group(function() {
 //     Route::apiResource('/posts', AdminPostController::class);
 // });
+
+Route::post('/auth/sso/token', [SsoTokenController::class, 'token'])->name('sso.token');
 
 Route::middleware([AgentApiTokenMiddleware::class])->prefix('agent')->group(function () {
     Route::get('/posts', [PostAgentPostsController::class, 'index']);

@@ -30,8 +30,8 @@ Route::get('/', function () {
 
 Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)->group(function () {
     Route::get('login', [UserAuthController::class, 'showLogin'])->name('login');
-    Route::get('auth/google', [UserAuthController::class, 'redirectGoogle'])->name('auth.google');
-    Route::get('auth/google/callback', [UserAuthController::class, 'callbackGoogle'])->name('auth.google.callback');
+    Route::get('auth/sso', [UserAuthController::class, 'redirectSso'])->name('auth.sso');
+    Route::get('auth/sso/callback', [UserAuthController::class, 'callbackSso'])->name('auth.sso.callback');
     Route::get('auth/webview-handoff', [UserAuthController::class, 'webviewHandoff'])->name('auth.webview.handoff');
 
     Route::middleware('auth')->group(function () {
@@ -97,8 +97,8 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [AdminAuthController::class, 'showLogin'])->name('login');
-    Route::get('auth/google', [AdminAuthController::class, 'redirectGoogle'])->name('auth.google');
-    Route::get('auth/google/callback', [AdminAuthController::class, 'callbackGoogle'])->name('auth.google.callback');
+    Route::get('auth/sso', [AdminAuthController::class, 'redirectSso'])->name('auth.sso');
+    Route::get('auth/sso/callback', [AdminAuthController::class, 'callbackSso'])->name('auth.sso.callback');
 
     Route::middleware('admin')->group(function () {
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('logout');
@@ -109,8 +109,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 
         Route::resource('users', UserController::class)->only(['index', 'show', 'destroy']);
-        Route::redirect('vocabularies', '/admin/dictionary');
-        Route::any('vocabularies/{any}', fn () => redirect('/admin/dictionary'))
+        Route::redirect('vocabularies', '/'.trim((string) config('app.path_prefix', 'flc'), '/').'/admin/dictionary');
+        Route::any('vocabularies/{any}', function () {
+            return redirect('/'.trim((string) config('app.path_prefix', 'flc'), '/').'/admin/dictionary');
+        })
             ->where('any', '.*');
         Route::resource('dictionary', DictionaryController::class)->except(['show']);
 

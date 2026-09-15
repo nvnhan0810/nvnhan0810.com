@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -105,7 +106,7 @@ onUnmounted(() => {
 
 <template>
     <Head :title="item.title" />
-    <AppLayout :title="item.title" :heading="item.title" back-href="/home/media" :hide-nav="chatOpen && !isDesktop">
+    <AppLayout :title="item.title" :heading="item.title" :back-href="appPath('/home/media')" :hide-nav="chatOpen && !isDesktop">
         <div class="media-show-page" :class="{ 'is-chat-open': chatOpen }">
             <div class="media-show-main">
                 <div class="media-show-toolbar">

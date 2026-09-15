@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 

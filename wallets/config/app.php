@@ -55,6 +55,18 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     /*
+    | Public URL path prefix when reverse-proxied on a shared host
+    | (e.g. https://nvnhan0810.com/wallets → APP_PATH_PREFIX=wallets).
+    | Empty string keeps routes at the domain root (local/dev without proxy).
+    */
+    'path_prefix' => trim((string) env('APP_PATH_PREFIX', 'wallets'), '/'),
+
+    /*
+    | API path prefix (https://nvnhan0810.com/wallets/api) when routes/api.php is used.
+    */
+    'api_path_prefix' => trim((string) env('API_PATH_PREFIX', 'wallets/api'), '/'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

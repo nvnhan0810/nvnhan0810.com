@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flc_mobile/config/app_config.dart';
 import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/api/flc_api.dart';
@@ -28,7 +29,7 @@ class AuthService {
   /// user cancels so the UI can retry without showing a PlatformException.
   Future<bool> loginWithGoogle() async {
     final startUrl =
-        '$apiBaseUrl/auth/google/redirect?redirect_uri=${Uri.encodeComponent(oauthRedirectUri)}';
+        '$apiBaseUrl/auth/sso/redirect?redirect_uri=${Uri.encodeComponent(oauthRedirectUri)}';
 
     final String result;
     try {
@@ -37,7 +38,6 @@ class AuthService {
         callbackUrlScheme: 'flc',
       );
     } on PlatformException catch (e) {
-      // Android Custom Tabs / iOS ASWebAuthenticationSession cancel.
       if (e.code == 'CANCELED') {
         throw const AuthCanceledException();
       }
@@ -50,15 +50,32 @@ class AuthService {
       throw Exception(error);
     }
 
-    final token = parsed.queryParameters['token'];
+    final code = parsed.queryParameters['code'];
+    final state = parsed.queryParameters['state'];
+    if (code == null || code.isEmpty || state == null || state.isEmpty) {
+      throw Exception('No authorization code received from SSO.');
+    }
+
+    final dio = Dio(BaseOptions(baseUrl: apiBaseUrl));
+    final exchange = await dio.post<Map<String, dynamic>>(
+      '/auth/sso/exchange',
+      data: {
+        'code': code,
+        'state': state,
+        'redirect_uri': oauthRedirectUri,
+      },
+    );
+
+    final body = exchange.data;
+    final token = body?['token'] as String?;
     if (token == null || token.isEmpty) {
       throw Exception('No token received from server.');
     }
 
     await _tokenStorage.save(
       token: token,
-      email: parsed.queryParameters['email'],
-      name: parsed.queryParameters['name'],
+      email: body?['email'] as String?,
+      name: body?['name'] as String?,
     );
     return true;
   }

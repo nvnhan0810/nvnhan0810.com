@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Flc\Identity\Infrastructure\Sso\IndexSsoClient;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Laravel\Socialite\Facades\Socialite;
 
 class AdminAuthController extends Controller
 {
+    private const CLIENT_ID = 'flc-admin';
+
+    public function __construct(private readonly IndexSsoClient $sso) {}
+
     public function showLogin(): View|RedirectResponse
     {
         $email = session('admin_email');
@@ -19,25 +24,35 @@ class AdminAuthController extends Controller
         return view('admin.login');
     }
 
-    public function redirectGoogle(): RedirectResponse
+    public function redirectSso(): RedirectResponse
     {
-        return Socialite::driver('google')
-            ->redirectUrl(route('admin.auth.google.callback'))
-            ->redirect();
+        return redirect()->away(
+            $this->sso->authorizeUrl(self::CLIENT_ID, route('admin.auth.sso.callback'))
+        );
     }
 
-    public function callbackGoogle(): RedirectResponse
+    public function callbackSso(Request $request): RedirectResponse
     {
-        try {
-            $googleUser = Socialite::driver('google')
-                ->redirectUrl(route('admin.auth.google.callback'))
-                ->user();
-        } catch (\Throwable) {
+        $state = (string) $request->query('state', '');
+        $code = (string) $request->query('code', '');
+
+        if ($code === '' || ! $this->sso->validateState($state)) {
             return redirect()->route('admin.login')
-                ->with('error', 'Đăng nhập Google thất bại.');
+                ->with('error', 'Phiên SSO không hợp lệ.');
         }
 
-        $email = strtolower(trim((string) $googleUser->getEmail()));
+        try {
+            $claims = $this->sso->exchangeAuthorizationCode(
+                self::CLIENT_ID,
+                route('admin.auth.sso.callback'),
+                $code,
+            );
+        } catch (\Throwable) {
+            return redirect()->route('admin.login')
+                ->with('error', 'Đăng nhập SSO thất bại.');
+        }
+
+        $email = strtolower(trim($claims['email']));
         $admins = config('flc.admin_emails', []);
 
         if ($email === '' || ! in_array($email, $admins, true)) {
@@ -47,7 +62,7 @@ class AdminAuthController extends Controller
 
         session([
             'admin_email' => $email,
-            'admin_name' => $googleUser->getName() ?: $email,
+            'admin_name' => $claims['name'] ?: $email,
         ]);
 
         return redirect()->route('admin.dashboard');

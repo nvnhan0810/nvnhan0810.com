@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';

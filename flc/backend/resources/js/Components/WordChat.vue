@@ -1,4 +1,5 @@
 <script setup>
+import { appPath, apiPath } from '@/path';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { fetchDictionaryPronounceUrl, playPronunciation } from '@/lib/pronunciation';
@@ -26,7 +27,7 @@ async function ensureAgent() {
     agentLoading.value = true;
     agentLoadingText.value = 'Starting your word tutor session.';
     try {
-        const res = await fetch('/api/word-chat/agent/ensure', {
+        const res = await fetch(apiPath('/api/word-chat/agent/ensure'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -49,7 +50,7 @@ async function ensureAgent() {
 
 async function loadHistory() {
     try {
-        const res = await fetch('/api/word-chat/messages', {
+        const res = await fetch(apiPath('/api/word-chat/messages'), {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
@@ -92,7 +93,7 @@ async function sendMessage() {
     const assistantIndex = messages.value.length - 1;
 
     try {
-        const res = await fetch('/api/word-chat/messages', {
+        const res = await fetch(apiPath('/api/word-chat/messages'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -211,7 +212,7 @@ function stripJsonFence(text) {
 }
 
 async function saveWord(word) {
-    const res = await fetch('/api/vocabularies', {
+    const res = await fetch(apiPath('/api/vocabularies'), {
         method: 'POST',
         headers: {
             Accept: 'application/json',
