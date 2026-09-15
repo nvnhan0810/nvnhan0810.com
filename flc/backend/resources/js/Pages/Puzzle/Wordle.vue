@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -95,7 +96,7 @@ function press(key) {
     if (answered.value) return;
     if (key === 'enter') {
         if (draft.value.length !== wordLength.value) return;
-        useForm({ guess: draft.value }).post('/home/puzzle/wordle/guess', {
+        useForm({ guess: draft.value }).post(appPath('/home/puzzle/wordle/guess'), {
             onFinish: () => {
                 draft.value = '';
             },
@@ -119,19 +120,19 @@ function keyDisabled(letter) {
 }
 
 function next() {
-    useForm({}).post('/home/puzzle/wordle/next');
+    useForm({}).post(appPath('/home/puzzle/wordle/next'));
 }
 
 function askHint() {
     if (!canHelp.value) return;
-    useForm({}).post('/home/puzzle/wordle/hint');
+    useForm({}).post(appPath('/home/puzzle/wordle/hint'));
 }
 
 const exitOpen = ref(false);
 
 function confirmExit() {
     exitOpen.value = false;
-    router.visit('/home/puzzle');
+    router.visit(appPath('/home/puzzle'));
 }
 
 function onKeydown(event) {

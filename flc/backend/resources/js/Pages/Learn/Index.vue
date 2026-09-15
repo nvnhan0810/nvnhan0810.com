@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { computed, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -62,7 +63,7 @@ function cleanWords(list) {
 }
 
 function submitSearch() {
-    searchForm.post('/home/lookup');
+    searchForm.post(appPath('/home/lookup'));
 }
 
 function clearWord() {
@@ -83,7 +84,7 @@ function submitSave() {
     saveForm.word = props.result.word || '';
     saveForm.phonetic = props.result.phonetic || '';
     saveForm.meanings = saveMeanings.value;
-    saveForm.post('/home/lookup/save');
+    saveForm.post(appPath('/home/lookup/save'));
 }
 </script>
 

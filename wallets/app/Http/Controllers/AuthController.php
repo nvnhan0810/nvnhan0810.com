@@ -4,18 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Laravel\Socialite\Facades\Socialite;
 use Wallets\Identity\Application\Query\IsEmailAllowed;
+use Wallets\Identity\Infrastructure\Sso\IndexSsoClient;
 use Wallets\Shared\Application\QueryBus;
 
 class AuthController extends Controller
 {
-    public function __construct(private readonly QueryBus $queries) {}
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly IndexSsoClient $sso,
+    ) {}
 
     public function showLogin(): Response|RedirectResponse
     {
@@ -26,30 +30,29 @@ class AuthController extends Controller
         return Inertia::render('Auth/Login');
     }
 
-    public function redirectGoogle(): RedirectResponse
+    public function redirectSso(): RedirectResponse
     {
-        return Socialite::driver('google')
-            ->redirectUrl($this->googleRedirectUrl())
-            ->redirect();
+        return redirect()->away($this->sso->authorizeUrl());
     }
 
-    public function callbackGoogle(): RedirectResponse
+    public function callbackSso(Request $request): RedirectResponse
     {
+        $state = (string) $request->query('state', '');
+        $code = (string) $request->query('code', '');
+
+        if ($code === '' || ! $this->sso->validateState($state)) {
+            return redirect()->route('login')
+                ->with('error', 'Phiên đăng nhập SSO không hợp lệ.');
+        }
+
         try {
-            $googleUser = Socialite::driver('google')
-                ->redirectUrl($this->googleRedirectUrl())
-                ->user();
+            $claims = $this->sso->exchangeAuthorizationCode($code);
         } catch (\Throwable) {
             return redirect()->route('login')
-                ->with('error', 'Đăng nhập Google thất bại.');
+                ->with('error', 'Đăng nhập SSO thất bại.');
         }
 
-        $email = strtolower(trim((string) $googleUser->getEmail()));
-
-        if ($email === '') {
-            return redirect()->route('login')
-                ->with('error', 'Tài khoản Google không có email.');
-        }
+        $email = $claims['email'];
 
         if (! $this->queries->ask(new IsEmailAllowed($email))) {
             return redirect()->route('login')
@@ -59,17 +62,11 @@ class AuthController extends Controller
         $user = User::query()->updateOrCreate(
             ['email' => $email],
             [
-                'name' => $googleUser->getName() ?: Str::before($email, '@'),
-                'google_id' => $googleUser->getId(),
+                'name' => $claims['name'] ?: Str::before($email, '@'),
                 'email_verified_at' => now(),
                 'password' => Hash::make(Str::random(64)),
             ]
         );
-
-        if ($googleUser->getId()) {
-            $user->google_id = $googleUser->getId();
-            $user->save();
-        }
 
         Auth::login($user, remember: true);
 
@@ -83,10 +80,5 @@ class AuthController extends Controller
         request()->session()->regenerateToken();
 
         return redirect()->route('login')->with('success', 'Đã đăng xuất.');
-    }
-
-    private function googleRedirectUrl(): string
-    {
-        return (string) config('services.google.redirect');
     }
 }

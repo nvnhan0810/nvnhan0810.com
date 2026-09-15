@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -77,18 +78,18 @@ function clearAll() {
 
 function submit() {
     if (!complete.value || answered.value) return;
-    useForm({ answer: builtAnswer() }).post('/home/puzzle/scramble/answer');
+    useForm({ answer: builtAnswer() }).post(appPath('/home/puzzle/scramble/answer'));
 }
 
 function next() {
-    useForm({}).post('/home/puzzle/scramble/next');
+    useForm({}).post(appPath('/home/puzzle/scramble/next'));
 }
 
 const exitOpen = ref(false);
 
 function confirmExit() {
     exitOpen.value = false;
-    router.visit('/home/puzzle');
+    router.visit(appPath('/home/puzzle'));
 }
 
 function startTimers() {

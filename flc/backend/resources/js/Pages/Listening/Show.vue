@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
@@ -9,7 +10,7 @@ const props = defineProps({
     result: { type: Object, default: null },
 });
 
-const backHref = props.mediaItem ? `/home/media/${props.mediaItem.id}` : '/home/media';
+const backHref = props.mediaItem ? `/home/media/${props.mediaItem.id}` : appPath('/home/media');
 
 const form = useForm({
     answers: Object.fromEntries((props.questions || []).map((q) => [q.id, ''])),

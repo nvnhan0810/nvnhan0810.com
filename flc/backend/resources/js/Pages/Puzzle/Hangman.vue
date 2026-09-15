@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -45,18 +46,18 @@ function keyClass(letter) {
 
 function guess(letter) {
     if (answered.value || guessed.value.has(letter)) return;
-    useForm({ letter }).post('/home/puzzle/hangman/guess');
+    useForm({ letter }).post(appPath('/home/puzzle/hangman/guess'));
 }
 
 function next() {
-    useForm({}).post('/home/puzzle/hangman/next');
+    useForm({}).post(appPath('/home/puzzle/hangman/next'));
 }
 
 const exitOpen = ref(false);
 
 function confirmExit() {
     exitOpen.value = false;
-    router.visit('/home/puzzle');
+    router.visit(appPath('/home/puzzle'));
 }
 
 function onKeydown(event) {

@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { computed, onMounted, onUnmounted, useSlots, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
@@ -22,11 +23,11 @@ const url = computed(() => page.url.split('?')[0]);
 const hasCustomHeader = computed(() => !!slots.header);
 
 const nav = [
-    { href: '/home/lookup', label: 'Lookup', icon: '📖', match: (u) => u.startsWith('/home/lookup') },
-    { href: '/home/vocab', label: 'Vocabulary', icon: '🔖', match: (u) => u.startsWith('/home/vocab') },
-    { href: '/home/media', label: 'Listen', icon: '🎧', match: (u) => u.startsWith('/home/media') },
-    { href: '/home/quiz', label: 'Games', icon: '🎮', match: (u) => u.startsWith('/home/quiz') || u.startsWith('/home/puzzle') },
-    { href: '/home/profile', label: 'Profile', icon: '👤', match: (u) => u.startsWith('/home/profile') },
+    { href: appPath('/home/lookup'), label: 'Lookup', icon: '📖', match: (u) => u.startsWith(appPath('/home/lookup')) },
+    { href: appPath('/home/vocab'), label: 'Vocabulary', icon: '🔖', match: (u) => u.startsWith(appPath('/home/vocab')) },
+    { href: appPath('/home/media'), label: 'Listen', icon: '🎧', match: (u) => u.startsWith(appPath('/home/media')) },
+    { href: appPath('/home/quiz'), label: 'Games', icon: '🎮', match: (u) => u.startsWith(appPath('/home/quiz')) || u.startsWith(appPath('/home/puzzle')) },
+    { href: appPath('/home/profile'), label: 'Profile', icon: '👤', match: (u) => u.startsWith(appPath('/home/profile')) },
 ];
 
 function syncBodyClass() {

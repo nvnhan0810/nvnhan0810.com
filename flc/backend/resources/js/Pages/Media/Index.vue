@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -43,7 +44,7 @@ async function fetchPreview() {
 
     try {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        const res = await fetch('/home/media/youtube/preview', {
+        const res = await fetch(appPath('/home/media/youtube/preview'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -72,7 +73,7 @@ async function fetchPreview() {
 }
 
 function submit() {
-    form.post('/home/media/youtube', {
+    form.post(appPath('/home/media/youtube'), {
         onSuccess: () => {
             preview.value = null;
             url.value = '';

@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
-ARG APP_URL=https://flc.nvnhan0810.com
+ARG APP_URL=https://nvnhan0810.com
+ARG APP_PATH_PREFIX=flc
+ARG API_PATH_PREFIX=flc/api
 
 # -----------------------------------------------------------------------------
 # PHP dependencies
@@ -17,11 +19,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ARG APP_URL
+ARG APP_PATH_PREFIX=flc
+ARG API_PATH_PREFIX=flc/api
 WORKDIR /app
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
-    APP_URL=${APP_URL}
+    APP_URL=${APP_URL} \
+    APP_PATH_PREFIX=${APP_PATH_PREFIX} \
+    API_PATH_PREFIX=${API_PATH_PREFIX}
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
@@ -44,6 +50,13 @@ RUN npm ci
 COPY vite.config.js jsconfig.json ./
 COPY resources ./resources
 COPY public/css ./public/css
+
+ARG APP_PATH_PREFIX=flc
+ARG API_PATH_PREFIX=flc/api
+ENV APP_PATH_PREFIX=${APP_PATH_PREFIX} \
+    API_PATH_PREFIX=${API_PATH_PREFIX} \
+    VITE_APP_PATH_PREFIX=${APP_PATH_PREFIX} \
+    VITE_API_PATH_PREFIX=${API_PATH_PREFIX}
 
 RUN npm run build
 

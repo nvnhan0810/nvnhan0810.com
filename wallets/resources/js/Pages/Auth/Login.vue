@@ -8,7 +8,7 @@ const success = computed(() => page.props.flash?.success);
 const error = computed(() => page.props.flash?.error);
 
 /** Full-page navigation required: Inertia XHR cannot follow Google OAuth redirects (CORS). */
-const googleAuthUrl = route('auth.google');
+const ssoAuthUrl = route('auth.sso');
 </script>
 
 <template>
@@ -27,8 +27,8 @@ const googleAuthUrl = route('auth.google');
             </div>
 
             <a
-                :href="googleAuthUrl"
-                data-testid="google-login"
+                :href="ssoAuthUrl"
+                data-testid="sso-login"
                 class="mt-6 flex items-center justify-center gap-2 w-full rounded-lg bg-primary-600 dark:bg-primary-500 hover:bg-primary-700 dark:hover:bg-primary-600 text-white font-medium px-4 py-3 transition-colors"
             >
                 <svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">

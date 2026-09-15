@@ -26,7 +26,7 @@
             <div class="mt-4 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm px-3 py-2">{{ session('success') }}</div>
         @endif
 
-        <a href="{{ route('auth.google') }}"
+        <a href="{{ route('auth.sso') }}"
            class="mt-6 flex items-center justify-center gap-2 w-full rounded-lg bg-primary-600 dark:bg-primary-500 hover:bg-primary-700 dark:hover:bg-primary-600 text-white font-medium px-4 py-3">
             Đăng nhập bằng Google
         </a>

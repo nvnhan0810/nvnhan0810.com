@@ -19,7 +19,7 @@
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
 
-        <a href="{{ route('admin.auth.google') }}" class="btn" style="width:100%;margin-top:16px">
+        <a href="{{ route('admin.auth.sso') }}" class="btn" style="width:100%;margin-top:16px">
             Đăng nhập bằng Google
         </a>
 

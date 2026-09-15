@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, useForm } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -36,7 +37,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick));
 
 <template>
     <Head :title="vocab.word" />
-    <AppLayout :title="vocab.word" :heading="vocab.word" back-href="/home/vocab">
+    <AppLayout :title="vocab.word" :heading="vocab.word" :back-href="appPath('/home/vocab')">
         <div class="card">
             <div class="vocab-detail-header">
                 <div class="vocab-detail-title">

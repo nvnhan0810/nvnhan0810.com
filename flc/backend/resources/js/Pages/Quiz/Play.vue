@@ -1,4 +1,5 @@
 <script setup>
+import { appPath } from '@/path';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -34,7 +35,7 @@ const screenClass = computed(() => ({
 }));
 
 function start() {
-    useForm({}).post('/home/quiz/next');
+    useForm({}).post(appPath('/home/quiz/next'));
 }
 
 function answer(choice) {
@@ -46,7 +47,7 @@ function answer(choice) {
         correct_answer: props.question.correct_answer,
         choice,
         insight_id: props.question.insight_id || null,
-    }).post('/home/quiz/answer');
+    }).post(appPath('/home/quiz/answer'));
 }
 
 function isCorrectOption(option) {
@@ -55,7 +56,7 @@ function isCorrectOption(option) {
 
 function confirmExit() {
     exitOpen.value = false;
-    router.visit('/home/quiz');
+    router.visit(appPath('/home/quiz'));
 }
 
 onMounted(() => {
