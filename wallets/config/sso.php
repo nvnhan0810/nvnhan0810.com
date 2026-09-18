@@ -1,14 +1,10 @@
 <?php
 
-$base = rtrim((string) env('APP_URL', 'http://localhost'), '/');
-$prefix = trim((string) env('APP_PATH_PREFIX', 'wallets'), '/');
+$base = rtrim((string) env('APP_URL', 'https://wallets.nvnhan0810.com'), '/');
 
 return [
-    'idp_url' => rtrim((string) env('SSO_IDP_URL', $base !== '' ? $base : 'https://nvnhan0810.com'), '/'),
-    /** Same as APP_PATH_PREFIX (wallets). */
-    'client_id' => $prefix !== '' ? $prefix : 'wallets',
+    'idp_url' => rtrim((string) env('SSO_IDP_URL', 'https://nvnhan0810.com'), '/'),
+    'client_id' => env('SSO_CLIENT_ID', 'wallets'),
     'secret' => env('SSO_SECRET'),
-    'redirect_uri' => $prefix === ''
-        ? $base.'/auth/sso/callback'
-        : $base.'/'.$prefix.'/auth/sso/callback',
+    'redirect_uri' => env('SSO_REDIRECT_URI', $base.'/auth/sso/callback'),
 ];

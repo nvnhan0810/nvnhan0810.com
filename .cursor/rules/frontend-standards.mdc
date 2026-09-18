@@ -1,5 +1,5 @@
 ---
-description: Frontend — Clean Architecture, TypeScript strict, TDD-first
+description: Frontend — Clean Architecture, TypeScript strict
 globs:
   - resources/ts/**/*.ts
   - resources/ts/**/*.tsx
@@ -9,14 +9,6 @@ alwaysApply: false
 # Frontend standards (Clean Architecture)
 
 JS/TS UI is **TypeScript only**. Do **not** reshuffle existing `pages/`, `components/`, `hooks/` unless the user asks.
-
-## TDD first (required)
-
-1. Write a failing unit or component test.
-2. Implement the minimum code to pass.
-3. Refactor while tests stay green.
-
-New UI, hook, or use case ships with tests in the same change.
 
 ## Architecture — Clean Architecture (inward only)
 
@@ -58,22 +50,9 @@ Existing Inertia pages live in `resources/ts/pages/` — keep using them; put ne
 - Fix ESLint violations; do not disable rules without reason.
 - Follow this repo’s formatter/config; do not add a new formatter stack unless asked.
 
-## Testing
-
-| Target | Test type | Location |
-|-----|-----|----|
-| Components, pages | Component tests | `tests/Frontend/presentation/...` |
-| Use cases, hooks with logic | Unit tests | `tests/Frontend/application/...` |
-| Domain pure logic | Unit tests | `tests/Frontend/domain/...` |
-| User flows | Integration / E2E when applicable | `tests/Frontend/integration/...` |
-
-- Mirror `resources/ts/` under `tests/Frontend/` — no `*.test.ts` beside source.
-- Test user-visible behavior. Mock Infrastructure at boundaries — not Domain.
-
 ## Forbidden
 
 - Business logic or `fetch` / SSE parse inside components
 - `any`, `as any`, or disabling strict checks
 - Domain importing React or HTTP clients
-- Skipping component tests for new UI
 - Migrating old folders “to match the rule” without an explicit request

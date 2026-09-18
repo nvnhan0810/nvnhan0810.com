@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG APP_URL=https://nvnhan0810.com
-ARG APP_PATH_PREFIX=wallets
+ARG APP_URL=https://wallets.nvnhan0810.com
 
 # -----------------------------------------------------------------------------
 # PHP dependencies
@@ -22,13 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ARG APP_URL
-ARG APP_PATH_PREFIX=wallets
 WORKDIR /app
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
-    APP_URL=${APP_URL} \
-    APP_PATH_PREFIX=${APP_PATH_PREFIX}
+    APP_URL=${APP_URL}
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
@@ -56,9 +53,7 @@ RUN rm -rf /tmp/app/node_modules \
     && cp -a /tmp/app/. ./ \
     && rm -rf /tmp/app
 
-ARG APP_PATH_PREFIX=wallets
-ENV NODE_ENV=production \
-    APP_PATH_PREFIX=${APP_PATH_PREFIX}
+ENV NODE_ENV=production
 RUN npm run build \
     && test -f public/build/manifest.json
 
