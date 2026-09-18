@@ -1,6 +1,7 @@
 # Central SSO (index)
 
-Google OAuth chạy **chỉ** trên `index`. App con redirect tới IdP rồi đổi `code` lấy profile.
+Google OAuth chạy **chỉ** trên `index` (`nvnhan0810.com` / `dev.nvnhan0810.com`).
+App con (`wallets.*`, `flc.*`) redirect tới IdP rồi đổi `code` lấy profile.
 
 ## Endpoints (index)
 
@@ -19,29 +20,45 @@ Allowlist: `config/auth.php` → `valid_emails`.
 
 ```env
 SSO_SECRET=<random-long-string>
-APP_URL=https://nvnhan0810.com   # index: whitelist redirect = APP_URL + /wallets|flc/...
+SSO_WALLETS_URL=https://wallets.nvnhan0810.com
+SSO_FLC_URL=https://flc.nvnhan0810.com
 ```
 
-Không cần `SSO_CLIENT_ID` / `SSO_REDIRECT_URI` / `SSO_CLIENT_*_REDIRECT_URIS`.
-
-| App | `client_id` (auto) | `redirect_uri` (auto) |
-|-----|--------------------|------------------------|
-| wallets | `APP_PATH_PREFIX` → `wallets` | `{APP_URL}/wallets/auth/sso/callback` |
-| flc web | `flc-web` (code) | `{APP_URL}/flc/auth/sso/callback` |
-| flc admin | `flc-admin` | `{APP_URL}/flc/admin/auth/sso/callback` |
-| flc mobile | `flc-mobile` | `flc://oauth-callback` (pattern) |
-
-Wallets chỉ cần:
+Dev:
 
 ```env
-SSO_IDP_URL=https://nvnhan0810.com   # optional; default = APP_URL
+SSO_WALLETS_URL=https://wallets-dev.nvnhan0810.com
+SSO_FLC_URL=https://flc-dev.nvnhan0810.com
+```
+
+Không cần `SSO_CLIENT_ID` / `SSO_REDIRECT_URI` / `SSO_CLIENT_*_REDIRECT_URIS` trên index
+(whitelist nằm trong `config/sso.php`).
+
+| App | `client_id` | `redirect_uri` |
+|-----|-------------|----------------|
+| wallets | `wallets` | `{SSO_WALLETS_URL}/auth/sso/callback` |
+| flc web | `flc-web` | `{SSO_FLC_URL}/auth/sso/callback` |
+| flc admin | `flc-admin` | `{SSO_FLC_URL}/admin/auth/sso/callback` |
+| flc mobile | `flc-mobile` | `flc://oauth-callback` (pattern) |
+
+Wallets:
+
+```env
+APP_URL=https://wallets.nvnhan0810.com
+SSO_IDP_URL=https://nvnhan0810.com
 SSO_SECRET=<same as index>
-APP_URL=https://nvnhan0810.com
-APP_PATH_PREFIX=wallets
+```
+
+FLC:
+
+```env
+APP_URL=https://flc.nvnhan0810.com
+SSO_IDP_URL=https://nvnhan0810.com
+SSO_SECRET=<same as index>
 ```
 
 ## Mobile FLC
 
-1. `GET /flc/api/auth/sso/redirect?redirect_uri=flc://oauth-callback`
+1. `GET /api/auth/sso/redirect?redirect_uri=flc://oauth-callback`
 2. Browser → index → Google → `flc://oauth-callback?code&state`
-3. App `POST /flc/api/auth/sso/exchange` → Sanctum token
+3. App `POST /api/auth/sso/exchange` → Sanctum token

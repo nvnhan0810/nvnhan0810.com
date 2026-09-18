@@ -5,7 +5,7 @@ String get webAppUrl {
   if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
   const fromDefine = String.fromEnvironment('WEBAPP_URL');
   if (fromDefine.isNotEmpty) return fromDefine;
-  return 'https://nvnhan0810.com/flc';
+  return 'https://flc.nvnhan0810.com';
 }
 
 String get apiBaseUrl {
@@ -13,7 +13,7 @@ String get apiBaseUrl {
   if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
   const fromDefine = String.fromEnvironment('API_BASE_URL');
   if (fromDefine.isNotEmpty) return fromDefine;
-  return 'https://nvnhan0810.com/flc/api';
+  return 'https://flc.nvnhan0810.com/api';
 }
 
 const String oauthRedirectUri = 'flc://oauth-callback';

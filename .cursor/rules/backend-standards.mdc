@@ -1,5 +1,5 @@
 ---
-description: Backend — DDD, CQRS, TDD-first for index/modules (Laravel)
+description: Backend — DDD, CQRS for index/modules (Laravel)
 globs:
   - index/modules/**/*.php
   - index/app/**/*.php
@@ -9,17 +9,9 @@ globs:
 alwaysApply: false
 ---
 
-# Backend standards (DDD + CQRS + TDD)
+# Backend standards (DDD + CQRS)
 
 Apply on Laravel under `index/`. Prefer **new** work in `index/modules/`. Do **not** mass-migrate `app/Domains/` or legacy controllers unless the user asks.
-
-## TDD first (required)
-
-1. Write a failing unit or feature test.
-2. Implement the minimum code to pass.
-3. Refactor while tests stay green.
-
-Do not implement a new command, query, endpoint, or domain rule without a test in the same change.
 
 ## Architecture — modules (inward only)
 
@@ -72,23 +64,10 @@ Cross-module contracts live in `Modules\Shared`, not duplicated inside a feature
 - No scattered string literals (`"running"`, `"prod"`) in domain or handlers.
 - Reject path traversal (`..`); keep allowlists in one place.
 
-## Testing
-
-| Layer | Test type | Location |
-|----|-----|----|
-| Domain, handlers | Unit + Fake ports | `index/tests/Unit/Modules/<Module>/...` |
-| HTTP, jobs, CLI | Feature / integration | `index/tests/Feature/Modules/<Module>/...` |
-
-- Mirror `modules/<Module>/` under `tests/Unit/Modules/` or `tests/Feature/Modules/`.
-- Never colocate tests next to production source.
-- No live cluster / GitHub / production DB for unit tests.
-- Every new endpoint, command, query, or invariant needs tests.
-
 ## Forbidden
 
 - Business logic in controllers or route closures
 - Domain / Application importing Laravel HTTP, Eloquent, or shell for external I/O
 - Swallowing infra errors into fake “success”
 - Query handlers mutating state
-- Skipping tests for “simple” changes
 - Mass-moving `app/Http` or `app/Domains` into `modules/` without an explicit request

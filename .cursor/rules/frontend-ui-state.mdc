@@ -39,7 +39,7 @@ Inertia pages may keep using `usePage()` / `router` for first-party form visits.
 ## Store rules
 
 - Store = state + behavior. No React components, no JSX, no `fetch`.
-- Actions call use cases from the DI container (inject deps in tests).
+- Actions call use cases from the DI container.
 - Select narrowly. Do not duplicate high-frequency state in Context.
 - Always generic the store (`create<State>()`). Export a named `*State` type.
 - `catch (error: unknown)` then narrow. No `any`.

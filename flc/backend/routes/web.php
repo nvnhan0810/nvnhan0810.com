@@ -109,10 +109,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 
         Route::resource('users', UserController::class)->only(['index', 'show', 'destroy']);
-        Route::redirect('vocabularies', '/'.trim((string) config('app.path_prefix', 'flc'), '/').'/admin/dictionary');
-        Route::any('vocabularies/{any}', function () {
-            return redirect('/'.trim((string) config('app.path_prefix', 'flc'), '/').'/admin/dictionary');
-        })
+        Route::redirect('vocabularies', '/admin/dictionary');
+        Route::any('vocabularies/{any}', fn () => redirect('/admin/dictionary'))
             ->where('any', '.*');
         Route::resource('dictionary', DictionaryController::class)->except(['show']);
 

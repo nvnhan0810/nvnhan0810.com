@@ -1,33 +1,21 @@
 /**
- * Path helpers for shared-host deployment (no Traefik strip).
- * Web: /flc/...   API: /flc/api/...
+ * Path helpers (satellite app on its own domain — no shared-host prefix).
  */
 
-function normalizePrefix(raw, fallback) {
-    return String(raw ?? fallback).replace(/^\/+|\/+$/g, '');
-}
-
-function joinPrefix(prefix, path) {
-    const normalized = path.startsWith('/') ? path : `/${path}`;
-    return prefix === '' ? normalized : `/${prefix}${normalized}`;
+function normalizePath(path) {
+    return path.startsWith('/') ? path : `/${path}`;
 }
 
 export function appPath(path) {
-    return joinPrefix(
-        normalizePrefix(import.meta.env.VITE_APP_PATH_PREFIX, 'flc'),
-        path,
-    );
+    return normalizePath(path);
 }
 
-/** Accepts `/api/...` or `/word-chat/...` → `/flc/api/...` */
+/** Accepts `/api/...` or `/word-chat/...` → `/api/...` */
 export function apiPath(path) {
-    let normalized = path.startsWith('/') ? path : `/${path}`;
+    const normalized = normalizePath(path);
     if (normalized.startsWith('/api/')) {
-        normalized = normalized.slice(4);
+        return normalized;
     }
 
-    return joinPrefix(
-        normalizePrefix(import.meta.env.VITE_API_PATH_PREFIX, 'flc/api'),
-        normalized,
-    );
+    return `/api${normalized}`;
 }

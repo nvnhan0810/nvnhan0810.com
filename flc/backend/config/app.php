@@ -55,16 +55,6 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     /*
-    | Public path prefix on shared host (https://nvnhan0810.com/flc).
-    */
-    'path_prefix' => trim((string) env('APP_PATH_PREFIX', 'flc'), '/'),
-
-    /*
-    | API path prefix (https://nvnhan0810.com/flc/api).
-    */
-    'api_path_prefix' => trim((string) env('API_PATH_PREFIX', 'flc/api'), '/'),
-
-    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
