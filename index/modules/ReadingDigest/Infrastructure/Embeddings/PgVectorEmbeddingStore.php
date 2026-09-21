@@ -38,7 +38,7 @@ class PgVectorEmbeddingStore
 
             RdArticleEmbedding::updateOrCreate(
                 ['article_id' => $article->id],
-                ['vector' => $vector]
+                ['vector' => $vector, 'model' => 'paraphrase-multilingual-MiniLM-L12-v2']
             );
 
             if (DB::getDriverName() === 'pgsql') {
