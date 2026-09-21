@@ -27,3 +27,7 @@ export type TodoItem = {
   created_at?: string;
   updated_at?: string;
 };
+
+export type MatrixQuadrantKey = "do" | "schedule" | "delegate" | "eliminate";
+
+export type MatrixQuadrants = Record<MatrixQuadrantKey, TodoItem[]>;
