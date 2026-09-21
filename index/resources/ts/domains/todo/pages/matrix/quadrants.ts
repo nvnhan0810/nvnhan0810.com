@@ -1,6 +1,6 @@
-import type { TodoItem, TodoPriority, TodoStatus } from "../../types";
+import type { MatrixQuadrantKey, TodoPriority, TodoStatus } from "../../types";
 
-export type MatrixQuadrantKey = "do" | "schedule" | "delegate" | "eliminate";
+export type { MatrixQuadrantKey, MatrixQuadrants } from "../../types";
 
 export type QuadrantMeta = {
   key: MatrixQuadrantKey;
@@ -74,5 +74,3 @@ export const statusStyles: Record<
     card: "border-l-4 border-l-orange-500 bg-orange-950/40 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.25)]",
   },
 };
-
-export type MatrixQuadrants = Record<MatrixQuadrantKey, TodoItem[]>;

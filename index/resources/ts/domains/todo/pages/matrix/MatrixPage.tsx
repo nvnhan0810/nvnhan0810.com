@@ -5,11 +5,16 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import TodoNav from "../../components/TodoNav";
+import { useMatrixSse } from "../../presentation/hooks/useMatrixSse";
 import MatrixQuadrant from "./MatrixQuadrant";
-import { QUADRANTS, type MatrixQuadrants } from "./quadrants";
+import { QUADRANTS } from "./quadrants";
+import type { MatrixQuadrants } from "../../types";
+
 
 type Props = RootProps & {
   quadrants: MatrixQuadrants;
+  stream_url: string;
+  version: number;
 };
 
 const MatrixGrid = ({ quadrants }: { quadrants: MatrixQuadrants }) => (
@@ -20,8 +25,13 @@ const MatrixGrid = ({ quadrants }: { quadrants: MatrixQuadrants }) => (
   </div>
 );
 
-const MatrixPage = ({ auth, quadrants }: Props) => {
+const MatrixPage = ({ auth, quadrants: initialQuadrants, stream_url, version: initialVersion }: Props) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { quadrants, isLive } = useMatrixSse({
+    streamUrl: stream_url,
+    initialQuadrants,
+    initialVersion,
+  });
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -52,6 +62,21 @@ const MatrixPage = ({ auth, quadrants }: Props) => {
       </span>
       <span className="inline-flex items-center gap-1.5 text-orange-300">
         <span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> In progress
+      </span>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5",
+          isLive ? "text-emerald-300" : "text-muted-foreground",
+        )}
+        title={isLive ? "SSE connected" : "SSE reconnecting…"}
+      >
+        <span
+          className={cn(
+            "h-2 w-2 rounded-full",
+            isLive ? "bg-emerald-400 animate-pulse" : "bg-slate-500",
+          )}
+        />
+        {isLive ? "Live" : "Offline"}
       </span>
       <Button
         type="button"
@@ -84,7 +109,7 @@ const MatrixPage = ({ auth, quadrants }: Props) => {
           <p className="text-sm text-muted-foreground">
             Chỉ todo <span className="text-sky-300">Todo</span> /{" "}
             <span className="text-orange-300">In progress</span> (phân biệt bằng màu
-            viền trái). Kéo thả giữa các ô để phân loại.
+            viền trái). Kéo thả giữa các ô để phân loại — cập nhật realtime qua SSE.
           </p>
         </div>
         {toolbar}
