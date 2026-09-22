@@ -30,39 +30,50 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
   const { cv, t } = useTranslation();
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href={route("home")} className="text-sm font-semibold tracking-tight">
+    <nav className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-hidden border-b border-border/60 bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+        <Link
+          href={route("home")}
+          className="min-w-0 truncate text-sm font-semibold tracking-tight"
+        >
           {cv.name}
         </Link>
 
-        <div className="flex items-center gap-3 text-sm sm:gap-4">
+        <div className="flex shrink-0 items-center gap-1.5 text-sm sm:gap-3">
           <Link
             href={route("home")}
             className={`inline-flex items-center gap-1.5 ${linkClass(active === "home")}`}
+            title={t("nav.portfolio")}
+            aria-label={t("nav.portfolio")}
           >
-            <Home className="h-4 w-4" />
+            <Home className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">{t("nav.portfolio")}</span>
           </Link>
           <Link
             href={route("posts.index")}
             className={`inline-flex items-center gap-1.5 ${linkClass(active === "blog")}`}
+            title={t("nav.blog")}
+            aria-label={t("nav.blog")}
           >
-            <BookOpen className="h-4 w-4" />
-            {t("nav.blog")}
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">{t("nav.blog")}</span>
           </Link>
           <Link
             href={route("news.index")}
             className={`inline-flex items-center gap-1.5 ${linkClass(active === "news")}`}
+            title={t("nav.news")}
+            aria-label={t("nav.news")}
           >
-            <Newspaper className="h-4 w-4" />
+            <Newspaper className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">{t("nav.news")}</span>
           </Link>
           <Link
             href={route("apps.index")}
             className={`inline-flex items-center gap-1.5 ${linkClass(active === "apps")}`}
+            title={t("nav.apps")}
+            aria-label={t("nav.apps")}
           >
-            <Boxes className="h-4 w-4" />
+            <Boxes className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">{t("nav.apps")}</span>
           </Link>
 
@@ -71,12 +82,13 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
               href={route("admin.index")}
               className="text-muted-foreground transition-colors hover:text-foreground"
               title={t("nav.admin")}
+              aria-label={t("nav.admin")}
             >
               <Settings className="h-4 w-4" />
             </Link>
           )}
 
-          <LocaleSwitcher />
+          <LocaleSwitcher className="shrink-0" />
 
           <span className="hidden h-4 w-px bg-border sm:block" />
 

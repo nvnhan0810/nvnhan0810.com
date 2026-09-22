@@ -17,7 +17,7 @@ const PublicLayout = ({ children, auth, active = "blog" }: PublicLayoutProps) =>
   const { cv } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-background font-sans antialiased text-foreground">
+    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-background font-sans antialiased text-foreground">
       <SiteNav auth={auth} active={active} />
       <main className="mx-auto w-full min-w-0 max-w-5xl flex-grow overflow-x-hidden px-4 py-10 sm:px-6 sm:py-12">
         {children}
