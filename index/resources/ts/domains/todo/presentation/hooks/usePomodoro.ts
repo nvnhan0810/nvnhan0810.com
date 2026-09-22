@@ -14,10 +14,21 @@ import {
   type PomodoroRuntimeSnapshot,
 } from "../../infrastructure/pomodoroStorage";
 import {
+  playPomodoroCountdownTick,
   playPomodoroPauseSound,
   playPomodoroPhaseEndSound,
   playPomodoroStartSound,
+  POMODORO_COUNTDOWN_WARN_SECONDS,
+  unlockPomodoroAudio,
 } from "../../infrastructure/pomodoroAudio";
+import {
+  ensurePomodoroNotificationPermission,
+  notifyPomodoroPhaseEnd,
+} from "../../infrastructure/pomodoroNotifications";
+import {
+  clearPomodoroTabPresence,
+  syncPomodoroTabPresence,
+} from "../../infrastructure/pomodoroTabPresence";
 
 export type UsePomodoroResult = {
   settings: PomodoroSettings;
@@ -93,6 +104,8 @@ export const usePomodoro = (): UsePomodoroResult => {
   const pendingSettingsRef = useRef<PomodoroSettings | null>(null);
   const settingsRef = useRef(settings);
   const runtimeRef = useRef(runtime);
+  /** Last whole-second that already played a countdown tick (avoids double beeps) */
+  const lastCountdownSecondRef = useRef<number | null>(null);
 
   settingsRef.current = settings;
   runtimeRef.current = runtime;
@@ -117,6 +130,10 @@ export const usePomodoro = (): UsePomodoroResult => {
       setRuntime(cursor);
       savePomodoroRuntime(cursor);
       playPomodoroPhaseEndSound();
+      notifyPomodoroPhaseEnd({
+        fromPhase: loadedRuntime.phase,
+        toPhase: cursor.phase,
+      });
     } else {
       setRuntime({
         ...loadedRuntime,
@@ -142,12 +159,14 @@ export const usePomodoro = (): UsePomodoroResult => {
 
   useEffect(() => {
     if (!runtime.isRunning) {
+      lastCountdownSecondRef.current = null;
       return;
     }
     const id = window.setInterval(() => {
       const current = runtimeRef.current;
       const remaining = resolveRemaining(current, Date.now());
       if (remaining <= 0) {
+        lastCountdownSecondRef.current = null;
         const activeSettings = pendingSettingsRef.current ?? settingsRef.current;
         if (pendingSettingsRef.current) {
           setSettings(pendingSettingsRef.current);
@@ -157,14 +176,55 @@ export const usePomodoro = (): UsePomodoroResult => {
         runtimeRef.current = advanced;
         setRuntime(advanced);
         playPomodoroPhaseEndSound();
+        notifyPomodoroPhaseEnd({
+          fromPhase: current.phase,
+          toPhase: advanced.phase,
+        });
         return;
       }
+
+      const secondsLeft = Math.ceil(remaining / 1000);
+      if (
+        secondsLeft >= 1 &&
+        secondsLeft <= POMODORO_COUNTDOWN_WARN_SECONDS &&
+        lastCountdownSecondRef.current !== secondsLeft
+      ) {
+        lastCountdownSecondRef.current = secondsLeft;
+        playPomodoroCountdownTick(secondsLeft);
+      }
+
       setNowTick(Date.now());
     }, 250);
     return () => window.clearInterval(id);
   }, [runtime.isRunning, runtime.phase, runtime.endsAt]);
 
   const remainingMs = resolveRemaining(runtime, nowTick);
+
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      return;
+    }
+    syncPomodoroTabPresence({
+      phase: runtime.phase,
+      remainingMs,
+      isRunning: runtime.isRunning,
+    });
+  }, [runtime.phase, runtime.isRunning, remainingMs]);
+
+  useEffect(() => {
+    const onVisibility = (): void => {
+      if (document.visibilityState === "visible") {
+        unlockPomodoroAudio();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", unlockPomodoroAudio);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", unlockPomodoroAudio);
+      clearPomodoroTabPresence();
+    };
+  }, []);
 
   const selectTodo = useCallback((todoId: number | null): void => {
     setRuntime((prev) => ({
@@ -183,12 +243,15 @@ export const usePomodoro = (): UsePomodoroResult => {
   }, []);
 
   const start = useCallback((): void => {
+    unlockPomodoroAudio();
+    ensurePomodoroNotificationPermission();
     setRuntime((prev) => {
       const remaining = resolveRemaining(prev, Date.now());
       if (remaining <= 0) {
         return prev;
       }
       if (!prev.isRunning) {
+        lastCountdownSecondRef.current = null;
         playPomodoroStartSound();
       }
       return {
@@ -229,8 +292,16 @@ export const usePomodoro = (): UsePomodoroResult => {
       setSettings(pendingSettingsRef.current);
       pendingSettingsRef.current = null;
     }
+    lastCountdownSecondRef.current = null;
+    const fromPhase = runtimeRef.current.phase;
+    const advanced = advanceFromPhase(runtimeRef.current, activeSettings);
     playPomodoroPhaseEndSound();
-    setRuntime((prev) => advanceFromPhase(prev, activeSettings));
+    notifyPomodoroPhaseEnd({
+      fromPhase,
+      toPhase: advanced.phase,
+    });
+    runtimeRef.current = advanced;
+    setRuntime(advanced);
   }, []);
 
   const saveSettings = useCallback((next: PomodoroSettings): void => {
