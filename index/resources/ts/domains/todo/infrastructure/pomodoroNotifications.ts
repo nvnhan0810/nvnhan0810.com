@@ -2,6 +2,7 @@ import {
   POMODORO_PHASE_LABEL,
   type PomodoroPhase,
 } from "../constants/pomodoro";
+import { getCurrentPushSubscription } from "./webPushClient";
 
 const NOTIFICATION_TAG = "todo-pomodoro-phase";
 const NOTIFICATION_ICON_FOCUS = "/images/todos/work.gif";
@@ -39,8 +40,8 @@ export type PhaseTransitionNotice = {
 };
 
 /**
- * Browser notification (Facebook-style) when a phase ends and the Todo tab
- * is not active. No-op if permission missing or tab is focused.
+ * Browser notification when a phase ends and the Todo tab is not active.
+ * Skipped when this device already has Web Push — SW showNotification owns that path.
  */
 export const notifyPomodoroPhaseEnd = ({
   fromPhase,
@@ -53,35 +54,45 @@ export const notifyPomodoroPhaseEnd = ({
     return;
   }
 
-  const fromLabel = POMODORO_PHASE_LABEL[fromPhase];
-  const toLabel = POMODORO_PHASE_LABEL[toPhase];
-  const title =
-    fromPhase === "focus"
-      ? "Hết phiên tập trung"
-      : "Hết giờ nghỉ";
-  const body = `${fromLabel} → ${toLabel}. Bấm để quay lại Todo.`;
-
-  try {
-    const notification = new Notification(title, {
-      body,
-      icon: iconForPhase(toPhase),
-      badge: NOTIFICATION_BADGE,
-      tag: NOTIFICATION_TAG,
-      renotify: true,
-      requireInteraction: true,
-      silent: false,
-    });
-
-    notification.onclick = (): void => {
-      try {
-        window.focus();
-        // Some browsers need both focus() on window and bring tab forward
-        window.parent?.focus();
-      } finally {
-        notification.close();
+  void (async (): Promise<void> => {
+    try {
+      const pushSubscription = await getCurrentPushSubscription();
+      if (pushSubscription !== null) {
+        return;
       }
-    };
-  } catch {
-    // Permission revoked mid-session or unsupported Notification options
-  }
+    } catch {
+      // Fall through to local Notification.
+    }
+
+    const fromLabel = POMODORO_PHASE_LABEL[fromPhase];
+    const toLabel = POMODORO_PHASE_LABEL[toPhase];
+    const title =
+      fromPhase === "focus"
+        ? "Hết phiên tập trung"
+        : "Hết giờ nghỉ";
+    const body = `${fromLabel} → ${toLabel}. Bấm để quay lại Todo.`;
+
+    try {
+      const notification = new Notification(title, {
+        body,
+        icon: iconForPhase(toPhase),
+        badge: NOTIFICATION_BADGE,
+        tag: NOTIFICATION_TAG,
+        renotify: true,
+        requireInteraction: true,
+        silent: false,
+      });
+
+      notification.onclick = (): void => {
+        try {
+          window.focus();
+          window.parent?.focus();
+        } finally {
+          notification.close();
+        }
+      };
+    } catch {
+      // Permission revoked mid-session or unsupported Notification options
+    }
+  })();
 };

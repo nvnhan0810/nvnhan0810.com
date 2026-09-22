@@ -55,6 +55,8 @@ Cách cập nhật focus:
 
 Service worker **luôn** `showNotification` khi nhận push (iOS yêu cầu); suppress chỉ ở server.
 
+**Không double noti:** máy đã có Web Push subscription thì **không** gọi `new Notification()` local — chỉ SW từ push. Local Notification chỉ là fallback khi chưa bật Web Push.
+
 ## Click noti
 
 `notificationclick` trong `public/sw.js` mở `/matrix` (hoặc `data.url`), ưu tiên focus tab Matrix đã mở.
