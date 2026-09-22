@@ -48,6 +48,11 @@ final class MinishlinkWebPushSender implements WebPushSender
             $report = $webPush->sendOneNotification(
                 $sub,
                 json_encode($payload, JSON_THROW_ON_ERROR),
+                [
+                    'urgency' => 'high',
+                    'topic' => 'pomodoro-phase',
+                    'TTL' => 60 * 30,
+                ],
             );
         } catch (Throwable $e) {
             Log::warning('web-push.send.exception', [

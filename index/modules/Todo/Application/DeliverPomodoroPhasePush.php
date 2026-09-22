@@ -52,9 +52,8 @@ final class DeliverPomodoroPhasePush
             ? 'Hết phiên tập trung'
             : 'Hết giờ nghỉ';
         $body = "{$fromLabel} → {$toLabel}. Bấm để mở Matrix.";
-        $icon = $advanced->phase === PomodoroDefaults::PHASE_FOCUS
-            ? '/images/todos/work.gif'
-            : '/images/todos/relax.gif';
+        // PNG only — iOS ignores/fails GIF icons in web push notifications.
+        $icon = url('/images/android-chrome-192x192.png');
 
         $payload = [
             'title' => $title,
