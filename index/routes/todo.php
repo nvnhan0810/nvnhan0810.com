@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\Todo\MatrixController;
 use App\Http\Controllers\Admin\Todo\ProjectController;
 use App\Http\Controllers\Admin\Todo\TodoController;
+use App\Http\Controllers\Admin\Todo\WebPushController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->group(function () {
@@ -10,6 +11,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/matrix/stream', [MatrixController::class, 'stream'])->name('matrix.stream');
     Route::get('/matrix/pomodoro', [MatrixController::class, 'showPomodoro'])->name('matrix.pomodoro.show');
     Route::put('/matrix/pomodoro', [MatrixController::class, 'updatePomodoro'])->name('matrix.pomodoro.update');
+    Route::get('/matrix/web-push/vapid-public-key', [WebPushController::class, 'publicKey'])->name('matrix.web-push.vapid');
+    Route::get('/matrix/web-push/status', [WebPushController::class, 'status'])->name('matrix.web-push.status');
+    Route::post('/matrix/web-push/subscribe', [WebPushController::class, 'subscribe'])->name('matrix.web-push.subscribe');
+    Route::delete('/matrix/web-push/subscribe', [WebPushController::class, 'unsubscribe'])->name('matrix.web-push.unsubscribe');
+    Route::post('/matrix/web-push/presence', [WebPushController::class, 'presence'])->name('matrix.web-push.presence');
     Route::patch('/matrix/todos/{id}', [MatrixController::class, 'update'])->name('matrix.update');
     Route::patch('/matrix/todos/{id}/complete', [MatrixController::class, 'complete'])->name('matrix.complete');
     Route::post('/matrix/backlog/promote', [MatrixController::class, 'promoteBacklog'])->name('matrix.backlog.promote');

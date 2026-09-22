@@ -13,8 +13,10 @@ import {
 } from "@/ts/components/ui/tooltip";
 import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
 import { cn } from "@ts/utils";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import {
+  Bell,
+  BellOff,
   Inbox,
   Maximize2,
   Minimize2,
@@ -32,6 +34,7 @@ import TodoNav from "../../components/TodoNav";
 import { pickNextMatrixTodo } from "../../application/matrixTodoOrder";
 import { useMatrixSse } from "../../presentation/hooks/useMatrixSse";
 import { usePomodoro } from "../../presentation/hooks/usePomodoro";
+import { useWebPush } from "../../presentation/hooks/useWebPush";
 import type {
   MatrixQuadrants,
   TodoItem,
@@ -46,6 +49,14 @@ import PomodoroBar from "./PomodoroBar";
 import PomodoroSettingsDialog from "./PomodoroSettingsDialog";
 import { QUADRANTS, type QuadrantMeta } from "./quadrants";
 
+type SharedWebPush = {
+  configured: boolean;
+  publicKey: string | null;
+} | null;
+
+type PageShared = {
+  webPush?: SharedWebPush;
+};
 type ModalState =
   | { mode: "create"; defaults: TodoCreateDefaults }
   | { mode: "edit"; todo: TodoItem }
@@ -146,6 +157,8 @@ const MatrixPage = ({
   backlog,
 }: Props): React.ReactElement => {
   const route = useRoute();
+  const page = usePage<PageShared>();
+  const sharedWebPush = page.props.webPush ?? null;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [backlogOpen, setBacklogOpen] = useState(false);
   const [pomodoroSettingsOpen, setPomodoroSettingsOpen] = useState(false);
@@ -154,6 +167,15 @@ const MatrixPage = ({
   const pomodoro = usePomodoro({
     initialPayload: initialPomodoro,
     syncUrl: route("matrix.pomodoro.update"),
+  });
+  const webPush = useWebPush({
+    configured: sharedWebPush?.configured === true,
+    publicKey:
+      typeof sharedWebPush?.publicKey === "string" ? sharedWebPush.publicKey : null,
+    subscribeUrl: route("matrix.web-push.subscribe"),
+    unsubscribeUrl: route("matrix.web-push.unsubscribe"),
+    presenceUrl: route("matrix.web-push.presence"),
+    enablePresence: true,
   });
   const { quadrants, isLive } = useMatrixSse({
     streamUrl: stream_url,
@@ -363,7 +385,7 @@ const MatrixPage = ({
           </TooltipTrigger>
           <TooltipContent side="bottom">Thêm thao tác</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent align="end" className="z-[240] w-52">
+        <DropdownMenuContent align="end" className="z-[240] w-56">
           <DropdownMenuItem
             className="cursor-pointer"
             onSelect={() => setBacklogOpen(true)}
@@ -383,8 +405,41 @@ const MatrixPage = ({
             <Timer className="w-4 h-4" />
             Pomodoro settings
           </DropdownMenuItem>
+          {webPush.configured && (
+            <DropdownMenuItem
+              className="cursor-pointer"
+              disabled={webPush.busy || (!webPush.supported && !webPush.needsHomeScreen)}
+              onSelect={(event) => {
+                event.preventDefault();
+                if (webPush.subscribed) {
+                  void webPush.disable();
+                } else {
+                  void webPush.enable();
+                }
+              }}
+            >
+              {webPush.subscribed ? (
+                <BellOff className="w-4 h-4" />
+              ) : (
+                <Bell className="w-4 h-4" />
+              )}
+              {webPush.needsHomeScreen && !webPush.subscribed
+                ? "iOS: Add to Home Screen"
+                : webPush.subscribed
+                  ? "Tắt Web Push"
+                  : "Bật Web Push"}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {webPush.error && (
+        <span
+          className="basis-full text-[10px] text-rose-300 truncate"
+          title={webPush.error}
+        >
+          {webPush.error}
+        </span>
+      )}
     </div>
   );
 

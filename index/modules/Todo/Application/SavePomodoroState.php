@@ -11,6 +11,7 @@ final class SavePomodoroState
 {
     public function __construct(
         private readonly PomodoroStateRepository $repository,
+        private readonly SchedulePomodoroPhasePush $schedulePomodoroPhasePush,
     ) {}
 
     /**
@@ -72,6 +73,12 @@ final class SavePomodoroState
 
         $saved = $this->repository->save($incoming);
         $version = PomodoroStreamVersion::bump($userId);
+
+        $this->schedulePomodoroPhasePush->execute(
+            $userId,
+            $saved->endsAt,
+            $saved->isRunning,
+        );
 
         return [
             ...$saved->toPayload($version),

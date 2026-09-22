@@ -7,6 +7,14 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Project docs
+
+Tài liệu nội bộ của site (không phải Laravel generic):
+
+- [Central SSO](docs/sso.md)
+- [Reading Digest flow](docs/reading-digest-flow.md)
+- [Web Push (Pomodoro / Matrix)](docs/web-push.md) — PWA, VAPID, iOS Home Screen, suppress khi đang focus
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
