@@ -54,6 +54,7 @@ type Props = RootProps & {
   quadrants: MatrixQuadrants;
   stream_url: string;
   version: number;
+  pomodoro: unknown;
   projects: Pick<TodoProject, "id" | "name">[];
   statuses: TodoStatus[];
   priorities: TodoPriority[];
@@ -137,6 +138,7 @@ const MatrixPage = ({
   quadrants: initialQuadrants,
   stream_url,
   version: initialVersion,
+  pomodoro: initialPomodoro,
   projects,
   statuses,
   priorities,
@@ -148,11 +150,15 @@ const MatrixPage = ({
   const [pomodoroSettingsOpen, setPomodoroSettingsOpen] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [highlightedTodoId, setHighlightedTodoId] = useState<number | null>(null);
-  const pomodoro = usePomodoro();
+  const pomodoro = usePomodoro({
+    initialPayload: initialPomodoro,
+    syncUrl: route("matrix.pomodoro.update"),
+  });
   const { quadrants, isLive } = useMatrixSse({
     streamUrl: stream_url,
     initialQuadrants,
     initialVersion,
+    onPomodoro: pomodoro.applyRemotePayload,
   });
 
   const matrixTodos = useMemo(

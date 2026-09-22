@@ -1,7 +1,15 @@
-import { parseMatrixStreamPayload, type MatrixStreamPayload } from "../application/parseMatrixStreamPayload";
+import {
+  parseMatrixStreamPayload,
+  type MatrixStreamPayload,
+} from "../application/parseMatrixStreamPayload";
+import {
+  parsePomodoroSyncPayload,
+  type PomodoroSyncPayload,
+} from "../application/parsePomodoroSyncPayload";
 
 export type MatrixSseHandlers = {
   onMatrix: (payload: MatrixStreamPayload) => void;
+  onPomodoro?: (payload: PomodoroSyncPayload) => void;
   onError?: (error: unknown) => void;
 };
 
@@ -20,16 +28,27 @@ export const connectMatrixSse = (url: string, handlers: MatrixSseHandlers): (() 
     }
   };
 
+  const onPomodoro = (event: MessageEvent<string>): void => {
+    try {
+      const raw: unknown = JSON.parse(event.data);
+      handlers.onPomodoro?.(parsePomodoroSyncPayload(raw));
+    } catch (error: unknown) {
+      handlers.onError?.(error);
+    }
+  };
+
   const onError = (): void => {
     // EventSource reconnects automatically; surface only for diagnostics.
     handlers.onError?.(new Error("matrix SSE connection error"));
   };
 
   source.addEventListener("matrix", onMatrix as EventListener);
+  source.addEventListener("pomodoro", onPomodoro as EventListener);
   source.addEventListener("error", onError);
 
   return (): void => {
     source.removeEventListener("matrix", onMatrix as EventListener);
+    source.removeEventListener("pomodoro", onPomodoro as EventListener);
     source.removeEventListener("error", onError);
     source.close();
   };

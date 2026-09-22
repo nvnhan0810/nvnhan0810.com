@@ -15,7 +15,7 @@ export class JsonFetchError extends Error {
 }
 
 type JsonFetchOptions = {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 };

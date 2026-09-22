@@ -6,7 +6,7 @@ import {
 } from "@/ts/components/ui/tooltip";
 import { cn } from "@ts/utils";
 import { router } from "@inertiajs/react";
-import { CheckCircle2, Pause, Play, SkipForward } from "lucide-react";
+import { CheckCircle2, Pause, Play, SkipForward, X } from "lucide-react";
 import { useRoute } from "ziggy-js";
 import {
   formatTimer,
@@ -104,21 +104,38 @@ const PomodoroBar = ({
 
       <div className="min-w-0 flex-1">
         {activeTodo ? (
-          <button
-            type="button"
-            onClick={() => onLocateTodo(activeTodo.id)}
-            className="text-left max-w-full group cursor-pointer"
-            title="Click để tìm task trên Matrix"
-          >
-            <span className="block truncate text-sm font-medium text-gray-100 group-hover:text-sky-300 transition-colors underline-offset-2 group-hover:underline">
-              {activeTodo.title}
-            </span>
-            {activeTodo.project?.name && (
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {activeTodo.project.name}
+          <div className="flex items-start gap-1.5 max-w-full">
+            <button
+              type="button"
+              onClick={() => onLocateTodo(activeTodo.id)}
+              className="text-left min-w-0 flex-1 group cursor-pointer"
+              title="Click để tìm task trên Matrix"
+            >
+              <span className="block truncate text-sm font-medium text-gray-100 group-hover:text-sky-300 transition-colors underline-offset-2 group-hover:underline">
+                {activeTodo.title}
               </span>
-            )}
-          </button>
+              {activeTodo.project?.name && (
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {activeTodo.project.name}
+                </span>
+              )}
+            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 shrink-0 p-0 cursor-pointer text-muted-foreground hover:text-rose-300"
+                  onClick={clearActiveTodo}
+                  aria-label="Bỏ task khỏi Pomodoro"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Bỏ task & reset Pomodoro</TooltipContent>
+            </Tooltip>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             Chưa chọn todo — bấm Play trên card
@@ -179,7 +196,7 @@ const PomodoroBar = ({
               <CheckCircle2 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Đánh Done & chọn todo khác (giữ timer)</TooltipContent>
+          <TooltipContent>Đánh Done & reset Pomodoro</TooltipContent>
         </Tooltip>
       </div>
     </div>
