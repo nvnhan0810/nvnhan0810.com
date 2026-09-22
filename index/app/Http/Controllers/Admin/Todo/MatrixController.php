@@ -151,4 +151,18 @@ class MatrixController extends Controller
 
         return redirect()->route('matrix.index');
     }
+
+    public function complete(string $id): RedirectResponse
+    {
+        $todo = Todo::query()
+            ->whereIn('status', BuildMatrixQuadrants::ACTIVE_STATUSES)
+            ->findOrFail($id);
+
+        $todo->update([
+            'status' => 'done',
+            'closed_at' => now(),
+        ]);
+
+        return redirect()->route('matrix.index');
+    }
 }

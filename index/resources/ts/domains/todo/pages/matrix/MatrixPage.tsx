@@ -1,5 +1,11 @@
 import { Button } from "@/ts/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/ts/components/ui/dropdown-menu";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -7,14 +13,24 @@ import {
 } from "@/ts/components/ui/tooltip";
 import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
 import { cn } from "@ts/utils";
-import { Inbox, Maximize2, Minimize2, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { router } from "@inertiajs/react";
+import {
+  Inbox,
+  Maximize2,
+  Minimize2,
+  MoreVertical,
+  Plus,
+  Timer,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRoute } from "ziggy-js";
 import TodoFormModal, {
   type TodoCreateDefaults,
 } from "../../components/TodoFormModal";
 import TodoNav from "../../components/TodoNav";
 import { useMatrixSse } from "../../presentation/hooks/useMatrixSse";
+import { usePomodoro } from "../../presentation/hooks/usePomodoro";
 import type {
   MatrixQuadrants,
   TodoItem,
@@ -22,8 +38,11 @@ import type {
   TodoProject,
   TodoStatus,
 } from "../../types";
+import type { PomodoroPhase } from "../../constants/pomodoro";
 import BacklogPromoteDialog from "./BacklogPromoteDialog";
 import MatrixQuadrant from "./MatrixQuadrant";
+import PomodoroBar from "./PomodoroBar";
+import PomodoroSettingsDialog from "./PomodoroSettingsDialog";
 import { QUADRANTS, type QuadrantMeta } from "./quadrants";
 
 type ModalState =
@@ -45,12 +64,20 @@ type GridProps = {
   quadrants: MatrixQuadrants;
   onCreateInQuadrant: (meta: QuadrantMeta) => void;
   onEditTodo: (todo: TodoItem) => void;
+  onSelectForPomodoro: (todo: TodoItem) => void;
+  activePomodoroTodoId: number | null;
+  highlightedTodoId: number | null;
+  pomodoroPhase: PomodoroPhase;
 };
 
 const MatrixGrid = ({
   quadrants,
   onCreateInQuadrant,
   onEditTodo,
+  onSelectForPomodoro,
+  activePomodoroTodoId,
+  highlightedTodoId,
+  pomodoroPhase,
 }: GridProps): React.ReactElement => (
   <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:grid-rows-2 lg:h-full min-h-0">
     {QUADRANTS.map((meta) => (
@@ -60,6 +87,10 @@ const MatrixGrid = ({
         todos={quadrants[meta.key] ?? []}
         onCreateInQuadrant={onCreateInQuadrant}
         onEditTodo={onEditTodo}
+        onSelectForPomodoro={onSelectForPomodoro}
+        activePomodoroTodoId={activePomodoroTodoId}
+        highlightedTodoId={highlightedTodoId}
+        pomodoroPhase={pomodoroPhase}
       />
     ))}
   </div>
@@ -111,16 +142,25 @@ const MatrixPage = ({
   priorities,
   backlog,
 }: Props): React.ReactElement => {
+  const route = useRoute();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [backlogOpen, setBacklogOpen] = useState(false);
+  const [pomodoroSettingsOpen, setPomodoroSettingsOpen] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
+  const [highlightedTodoId, setHighlightedTodoId] = useState<number | null>(null);
+  const pomodoro = usePomodoro();
   const { quadrants, isLive } = useMatrixSse({
     streamUrl: stream_url,
     initialQuadrants,
     initialVersion,
   });
 
-  const overlayOpen = modal !== null || backlogOpen;
+  const matrixTodos = useMemo(
+    () => QUADRANTS.flatMap((meta) => quadrants[meta.key] ?? []),
+    [quadrants],
+  );
+
+  const overlayOpen = modal !== null || backlogOpen || pomodoroSettingsOpen;
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -144,6 +184,57 @@ const MatrixPage = ({
     };
   }, [isFullscreen, overlayOpen]);
 
+  const { activeTodoId, clearActiveTodo, isRunning, selectTodo, start, toggle } =
+    pomodoro;
+
+  // Space toggles pause / resume (ignore when typing in fields).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.code !== "Space" && event.key !== " ") {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      if (overlayOpen) {
+        return;
+      }
+      event.preventDefault();
+      toggle();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [overlayOpen, toggle]);
+
+  useEffect(() => {
+    if (highlightedTodoId === null) {
+      return;
+    }
+    const timer = window.setTimeout(() => setHighlightedTodoId(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [highlightedTodoId]);
+
+  // Drop active todo if it left the matrix (done / removed).
+  useEffect(() => {
+    if (activeTodoId === null) {
+      return;
+    }
+    const stillThere = matrixTodos.some((todo) => todo.id === activeTodoId);
+    if (!stillThere) {
+      clearActiveTodo();
+    }
+  }, [matrixTodos, activeTodoId, clearActiveTodo]);
+
   const openCreateInQuadrant = (meta: QuadrantMeta): void => {
     setModal({
       mode: "create",
@@ -161,6 +252,24 @@ const MatrixPage = ({
 
   const openEdit = (todo: TodoItem): void => {
     setModal({ mode: "edit", todo });
+  };
+
+  const selectForPomodoro = (todo: TodoItem): void => {
+    selectTodo(todo.id);
+    if (todo.status === "todo") {
+      router.patch(
+        route("matrix.update", todo.id),
+        {
+          is_urgent: todo.is_urgent,
+          is_important: todo.is_important,
+          status: "in_progress",
+        },
+        { preserveScroll: true },
+      );
+    }
+    if (!isRunning) {
+      start();
+    }
   };
 
   const toolbar = (
@@ -187,25 +296,12 @@ const MatrixPage = ({
         </TooltipContent>
       </Tooltip>
 
-      <span className="inline-flex items-center gap-1.5 text-sky-300">
+      <span className="inline-flex items-center gap-1.5 text-sky-300 ml-auto">
         <span className="h-2.5 w-2.5 rounded-sm bg-sky-500" /> Todo
       </span>
       <span className="inline-flex items-center gap-1.5 text-orange-300">
         <span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> In progress
       </span>
-
-      <HintButton
-        label="Chọn backlog đưa vào Matrix"
-        className="ml-auto"
-        onClick={() => setBacklogOpen(true)}
-      >
-        <Inbox className="w-4 h-4" />
-        {backlog.length > 0 && (
-          <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] tabular-nums">
-            {backlog.length}
-          </span>
-        )}
-      </HintButton>
 
       <HintButton
         label={isFullscreen ? "Thoát toàn màn hình (Esc)" : "Toàn màn hình"}
@@ -217,6 +313,46 @@ const MatrixPage = ({
           <Maximize2 className="w-4 h-4" />
         )}
       </HintButton>
+
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                aria-label="Thêm thao tác"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Thêm thao tác</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="z-[240] w-52">
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onSelect={() => setBacklogOpen(true)}
+          >
+            <Inbox className="w-4 h-4" />
+            Backlog
+            {backlog.length > 0 && (
+              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                {backlog.length}
+              </span>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onSelect={() => setPomodoroSettingsOpen(true)}
+          >
+            <Timer className="w-4 h-4" />
+            Pomodoro settings
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
@@ -248,12 +384,47 @@ const MatrixPage = ({
     />
   );
 
+  const pomodoroSettingsDialog = (
+    <PomodoroSettingsDialog
+      open={pomodoroSettingsOpen}
+      onOpenChange={setPomodoroSettingsOpen}
+      settings={pomodoro.settings}
+      isTimerRunning={pomodoro.isRunning}
+      onSave={pomodoro.saveSettings}
+    />
+  );
+
+  const locateTodo = (todoId: number): void => {
+    setHighlightedTodoId(todoId);
+  };
+
+  const pomodoroBar = (
+    <PomodoroBar
+      pomodoro={pomodoro}
+      matrixTodos={matrixTodos}
+      onLocateTodo={locateTodo}
+      className="mb-3"
+    />
+  );
+
+  const grid = (
+    <MatrixGrid
+      quadrants={quadrants}
+      onCreateInQuadrant={openCreateInQuadrant}
+      onEditTodo={openEdit}
+      onSelectForPomodoro={selectForPomodoro}
+      activePomodoroTodoId={pomodoro.activeTodoId}
+      highlightedTodoId={highlightedTodoId}
+      pomodoroPhase={pomodoro.phase}
+    />
+  );
+
   return (
     <TooltipProvider delayDuration={250}>
       <PrivateLayout auth={auth}>
         <TodoNav />
 
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold text-gray-100 inline-flex items-center gap-2">
             Eisenhower Matrix
             <HintButton
@@ -266,34 +437,27 @@ const MatrixPage = ({
           {toolbar}
         </div>
 
-        <div className={cn(isFullscreen && "invisible h-[70vh]")}>
-          <MatrixGrid
-            quadrants={quadrants}
-            onCreateInQuadrant={openCreateInQuadrant}
-            onEditTodo={openEdit}
-          />
+        <div className={cn(isFullscreen && "invisible")}>
+          {pomodoroBar}
+          <div className={cn(isFullscreen && "h-[70vh]")}>{grid}</div>
         </div>
 
         {formModal}
         {backlogDialog}
+        {pomodoroSettingsDialog}
 
         {isFullscreen &&
           createPortal(
             <TooltipProvider delayDuration={250}>
               <div className="fixed inset-0 z-[100] flex flex-col bg-background p-4 sm:p-6">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
                   <h1 className="text-xl font-bold text-gray-100">
                     Eisenhower Matrix
                   </h1>
                   {toolbar}
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto">
-                  <MatrixGrid
-                    quadrants={quadrants}
-                    onCreateInQuadrant={openCreateInQuadrant}
-                    onEditTodo={openEdit}
-                  />
-                </div>
+                <div className="shrink-0">{pomodoroBar}</div>
+                <div className="min-h-0 flex-1 overflow-auto">{grid}</div>
               </div>
             </TooltipProvider>,
             document.body,

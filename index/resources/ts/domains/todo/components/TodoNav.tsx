@@ -7,7 +7,7 @@ const links = [
   { route: "todos.projects.index", label: "Projects" },
 ] as const;
 
-const TodoNav = () => {
+const TodoNav = (): React.ReactElement => {
   const route = useRoute();
 
   return (
