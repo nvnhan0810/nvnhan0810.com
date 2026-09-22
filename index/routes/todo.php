@@ -9,6 +9,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/matrix', [MatrixController::class, 'index'])->name('matrix.index');
     Route::get('/matrix/stream', [MatrixController::class, 'stream'])->name('matrix.stream');
     Route::patch('/matrix/todos/{id}', [MatrixController::class, 'update'])->name('matrix.update');
+    Route::post('/matrix/backlog/promote', [MatrixController::class, 'promoteBacklog'])->name('matrix.backlog.promote');
 });
 
 Route::middleware('auth')->prefix('todos')->name('todos.')->group(function () {
