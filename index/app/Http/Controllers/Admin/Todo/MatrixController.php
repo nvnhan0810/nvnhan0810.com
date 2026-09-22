@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Todo;
 use App\Http\Controllers\Controller;
 use App\Models\EisenhowerLog;
 use App\Models\Todo;
+use App\Models\TodoProject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,9 @@ class MatrixController extends Controller
             'quadrants' => $this->buildMatrixQuadrants->execute(),
             'stream_url' => route('matrix.stream'),
             'version' => MatrixStreamVersion::current(),
+            'projects' => TodoProject::query()->orderBy('name')->get(['id', 'name']),
+            'statuses' => Todo::STATUSES,
+            'priorities' => Todo::PRIORITIES,
         ]);
     }
 
