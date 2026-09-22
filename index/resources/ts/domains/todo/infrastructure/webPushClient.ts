@@ -81,7 +81,10 @@ const persistSubscription = async (
         p256dh: json.keys.p256dh,
         auth: json.keys.auth,
       },
-      contentEncoding: PushManager.supportedContentEncodings?.[0] ?? "aes128gcm",
+      contentEncoding:
+        PushManager.supportedContentEncodings?.includes("aes128gcm")
+          ? "aes128gcm"
+          : (PushManager.supportedContentEncodings?.[0] ?? "aes128gcm"),
     },
   });
 };

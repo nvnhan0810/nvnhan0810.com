@@ -98,15 +98,13 @@ php artisan webpush:vapid
 6. Start Pomodoro, khoá màn hình → hết phase phải có banner
 7. Mở Matrix đang focus → không spam noti trên máy đó
 
-## Troubleshooting production
+## iOS: noti chỉ hiện khi mở app
 
-```bash
-kubectl -n nvnhan0810-com exec deploy/nvnhan0810-com -- php artisan tinker --execute="
-echo 'subs='.DB::table('web_push_subscriptions')->count().PHP_EOL;
-"
-```
+Nguyên nhân thường gặp:
 
-- `subs=0` → chưa có thiết bị nào POST `/matrix/web-push/subscribe` thành công.  
-  Noti trên laptop lúc đó thường là **Notification API local** (tab Chrome còn chạy JS), không phải Web Push.
-- Job `SendPomodoroPhasePushJob` DONE nhưng không noti phone → đúng khi `subs=0`.
-- Cần `queue:work` (Supervisor program `queue` trong image).
+1. **SW skip `showNotification` khi “focused”** — PWA nền trên iOS đôi khi vẫn báo window focused → không có banner; lúc mở app JS catch-up mới thấy.  
+   → SW **luôn** `showNotification` (bắt buộc WebKit). Suppress chỉ ở server (presence).
+2. **Icon GIF / relative URL** — dùng PNG tuyệt đối (`android-chrome-192x192.png`).
+3. Chưa có row `web.push.apple.com` trong DB → chưa phải Web Push.
+
+Sau deploy: mở PWA → menu **Bật Web Push** lại (cập nhật SW) → khoá máy thử phase ngắn.
