@@ -7,6 +7,7 @@ use Minishlink\WebPush\WebPush;
 use Modules\Todo\Domain\Ports\WebPushSender;
 use Modules\Todo\Domain\WebPushSubscription;
 use Throwable;
+use Illuminate\Support\Facades\Log;
 
 final class MinishlinkWebPushSender implements WebPushSender
 {
@@ -48,7 +49,12 @@ final class MinishlinkWebPushSender implements WebPushSender
                 $sub,
                 json_encode($payload, JSON_THROW_ON_ERROR),
             );
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            Log::warning('web-push.send.exception', [
+                'endpoint_host' => parse_url($subscription->endpoint, PHP_URL_HOST),
+                'message' => $e->getMessage(),
+            ]);
+
             return true;
         }
 
@@ -57,6 +63,11 @@ final class MinishlinkWebPushSender implements WebPushSender
         }
 
         $reason = $report->getReason();
+        Log::warning('web-push.send.failed', [
+            'endpoint_host' => parse_url($subscription->endpoint, PHP_URL_HOST),
+            'reason' => $reason,
+        ]);
+
         // Gone / expired subscription
         if (str_contains($reason, '410') || str_contains($reason, '404')) {
             return false;

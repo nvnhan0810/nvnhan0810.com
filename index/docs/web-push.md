@@ -91,6 +91,22 @@ php artisan webpush:vapid
 1. iOS ≥ 16.4, HTTPS production/dev
 2. Safari → Share → Add to Home Screen
 3. Mở từ Home Screen (standalone)
-4. Matrix → menu → Bật thông báo → Allow
-5. Start Pomodoro, khoá màn hình → hết phase phải có banner
-6. Mở Matrix đang focus → không spam noti trên máy đó
+4. Matrix → menu → **Bật Web Push** → Allow  
+   (Hoặc bấm Play/Start Pomodoro — sẽ tự subscribe nếu có thể)
+5. Menu phải hiện `Tắt Web Push (N máy)` với **N ≥ 1** (đã lưu DB).  
+   Nếu chỉ thấy quyền noti local / `chưa lưu server` → bấm Bật lại.
+6. Start Pomodoro, khoá màn hình → hết phase phải có banner
+7. Mở Matrix đang focus → không spam noti trên máy đó
+
+## Troubleshooting production
+
+```bash
+kubectl -n nvnhan0810-com exec deploy/nvnhan0810-com -- php artisan tinker --execute="
+echo 'subs='.DB::table('web_push_subscriptions')->count().PHP_EOL;
+"
+```
+
+- `subs=0` → chưa có thiết bị nào POST `/matrix/web-push/subscribe` thành công.  
+  Noti trên laptop lúc đó thường là **Notification API local** (tab Chrome còn chạy JS), không phải Web Push.
+- Job `SendPomodoroPhasePushJob` DONE nhưng không noti phone → đúng khi `subs=0`.
+- Cần `queue:work` (Supervisor program `queue` trong image).

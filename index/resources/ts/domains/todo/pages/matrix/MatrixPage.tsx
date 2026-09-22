@@ -175,6 +175,7 @@ const MatrixPage = ({
     subscribeUrl: route("matrix.web-push.subscribe"),
     unsubscribeUrl: route("matrix.web-push.unsubscribe"),
     presenceUrl: route("matrix.web-push.presence"),
+    statusUrl: route("matrix.web-push.status"),
     enablePresence: true,
   });
   const { quadrants, isLive } = useMatrixSse({
@@ -213,8 +214,21 @@ const MatrixPage = ({
     };
   }, [isFullscreen, overlayOpen]);
 
-  const { activeTodoId, clearActiveTodo, isRunning, selectTodo, start, toggle } =
+  const { activeTodoId, clearActiveTodo, isRunning, selectTodo, start, pause } =
     pomodoro;
+
+  const startWithWebPush = (): void => {
+    void webPush.ensureSubscribed();
+    start();
+  };
+
+  const toggleWithWebPush = (): void => {
+    if (isRunning) {
+      pause();
+    } else {
+      startWithWebPush();
+    }
+  };
 
   // Space toggles pause / resume (ignore when typing in fields).
   useEffect(() => {
@@ -238,12 +252,12 @@ const MatrixPage = ({
         return;
       }
       event.preventDefault();
-      toggle();
+      toggleWithWebPush();
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [overlayOpen, toggle]);
+  }, [overlayOpen, isRunning]);
 
   useEffect(() => {
     if (highlightedTodoId === null) {
@@ -297,7 +311,9 @@ const MatrixPage = ({
       );
     }
     if (!isRunning) {
-      start();
+      startWithWebPush();
+    } else {
+      void webPush.ensureSubscribed();
     }
   };
 
@@ -426,12 +442,19 @@ const MatrixPage = ({
               {webPush.needsHomeScreen && !webPush.subscribed
                 ? "iOS: Add to Home Screen"
                 : webPush.subscribed
-                  ? "Tắt Web Push"
+                  ? webPush.serverSubscriptionCount > 0
+                    ? `Tắt Web Push (${webPush.serverSubscriptionCount} máy)`
+                    : "Tắt Web Push (chưa lưu server)"
                   : "Bật Web Push"}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {webPush.subscribed && webPush.serverSubscriptionCount === 0 && !webPush.error && (
+        <span className="basis-full text-[10px] text-amber-300">
+          Quyền noti local OK — bấm Bật Web Push lại để lưu lên server (cần cho iPhone)
+        </span>
+      )}
       {webPush.error && (
         <span
           className="basis-full text-[10px] text-rose-300 truncate"
@@ -487,7 +510,7 @@ const MatrixPage = ({
 
   const pomodoroBar = (
     <PomodoroBar
-      pomodoro={pomodoro}
+      pomodoro={{ ...pomodoro, toggle: toggleWithWebPush, start: startWithWebPush }}
       matrixTodos={matrixTodos}
       onLocateTodo={locateTodo}
       onCompleteActiveTodo={completeActiveTodo}
