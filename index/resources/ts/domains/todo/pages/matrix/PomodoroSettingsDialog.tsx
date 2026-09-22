@@ -74,8 +74,8 @@ const PomodoroSettingsDialog = ({
             <DialogTitle>Pomodoro settings</DialogTitle>
             <DialogDescription>
               {isTimerRunning
-                ? "Timer đang chạy — giá trị mới áp dụng từ phase kế tiếp."
-                : "Lưu trên trình duyệt này."}
+                ? "Timer đang chạy — giá trị mới áp dụng từ phase kế tiếp (đồng bộ mọi thiết bị)."
+                : "Đồng bộ settings trên mọi thiết bị đã đăng nhập."}
             </DialogDescription>
           </DialogHeader>
 
