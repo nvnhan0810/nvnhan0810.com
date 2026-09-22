@@ -13,6 +13,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Todo\Application\BuildMatrixQuadrants;
+use Modules\Todo\Application\PromoteBacklogItems;
 use Modules\Todo\Domain\MatrixStreamVersion;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -20,6 +21,7 @@ class MatrixController extends Controller
 {
     public function __construct(
         private readonly BuildMatrixQuadrants $buildMatrixQuadrants,
+        private readonly PromoteBacklogItems $promoteBacklogItems,
     ) {}
 
     public function index(): Response
@@ -31,6 +33,13 @@ class MatrixController extends Controller
             'projects' => TodoProject::query()->orderBy('name')->get(['id', 'name']),
             'statuses' => Todo::STATUSES,
             'priorities' => Todo::PRIORITIES,
+            'backlog' => Todo::query()
+                ->with('project:id,name')
+                ->where('status', PromoteBacklogItems::SOURCE_STATUS)
+                ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END")
+                ->orderBy('due_at')
+                ->orderByDesc('updated_at')
+                ->get(),
         ]);
     }
 
@@ -115,6 +124,30 @@ class MatrixController extends Controller
                 'created_by' => $userId,
             ]);
         }
+
+        return redirect()->route('matrix.index');
+    }
+
+    public function promoteBacklog(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.id' => ['required', 'integer', 'distinct', 'exists:todos,id'],
+            'items.*.is_urgent' => ['required', 'boolean'],
+            'items.*.is_important' => ['required', 'boolean'],
+        ]);
+
+        /** @var list<array{id: int, is_urgent: bool, is_important: bool}> $items */
+        $items = array_map(
+            static fn (array $item): array => [
+                'id' => (int) $item['id'],
+                'is_urgent' => filter_var($item['is_urgent'], FILTER_VALIDATE_BOOLEAN),
+                'is_important' => filter_var($item['is_important'], FILTER_VALIDATE_BOOLEAN),
+            ],
+            $data['items'],
+        );
+
+        $this->promoteBacklogItems->execute($items, Auth::id());
 
         return redirect()->route('matrix.index');
     }

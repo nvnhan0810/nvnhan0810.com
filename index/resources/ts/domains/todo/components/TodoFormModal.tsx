@@ -87,8 +87,7 @@ const TodoFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-lg max-h-[90vh] overflow-y-auto z-[210]"
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[220]"
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >

@@ -1,7 +1,13 @@
 import { Button } from "@/ts/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/ts/components/ui/tooltip";
 import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
 import { cn } from "@ts/utils";
-import { Maximize2, Minimize2, Plus } from "lucide-react";
+import { Inbox, Maximize2, Minimize2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import TodoFormModal, {
@@ -16,6 +22,7 @@ import type {
   TodoProject,
   TodoStatus,
 } from "../../types";
+import BacklogPromoteDialog from "./BacklogPromoteDialog";
 import MatrixQuadrant from "./MatrixQuadrant";
 import { QUADRANTS, type QuadrantMeta } from "./quadrants";
 
@@ -31,6 +38,7 @@ type Props = RootProps & {
   projects: Pick<TodoProject, "id" | "name">[];
   statuses: TodoStatus[];
   priorities: TodoPriority[];
+  backlog: TodoItem[];
 };
 
 type GridProps = {
@@ -63,6 +71,36 @@ const BACKLOG_DEFAULTS: TodoCreateDefaults = {
   is_important: false,
 };
 
+type HintButtonProps = {
+  label: string;
+  children: React.ReactNode;
+  onClick: () => void;
+  className?: string;
+};
+
+const HintButton = ({
+  label,
+  children,
+  onClick,
+  className,
+}: HintButtonProps): React.ReactElement => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={cn("cursor-pointer", className)}
+        onClick={onClick}
+        aria-label={label}
+      >
+        {children}
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent side="bottom">{label}</TooltipContent>
+  </Tooltip>
+);
+
 const MatrixPage = ({
   auth,
   quadrants: initialQuadrants,
@@ -71,14 +109,18 @@ const MatrixPage = ({
   projects,
   statuses,
   priorities,
+  backlog,
 }: Props): React.ReactElement => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [backlogOpen, setBacklogOpen] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const { quadrants, isLive } = useMatrixSse({
     streamUrl: stream_url,
     initialQuadrants,
     initialVersion,
   });
+
+  const overlayOpen = modal !== null || backlogOpen;
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -89,7 +131,7 @@ const MatrixPage = ({
     document.body.style.overflow = "hidden";
 
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !modal) {
+      if (event.key === "Escape" && !overlayOpen) {
         setIsFullscreen(false);
       }
     };
@@ -100,7 +142,7 @@ const MatrixPage = ({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [isFullscreen, modal]);
+  }, [isFullscreen, overlayOpen]);
 
   const openCreateInQuadrant = (meta: QuadrantMeta): void => {
     setModal({
@@ -123,45 +165,58 @@ const MatrixPage = ({
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-3 text-xs">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 cursor-default",
+              isLive ? "text-emerald-300" : "text-muted-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                isLive ? "bg-emerald-400 animate-pulse" : "bg-slate-500",
+              )}
+            />
+            {isLive ? "Live" : "Offline"}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          {isLive ? "SSE đang kết nối" : "SSE đang kết nối lại…"}
+        </TooltipContent>
+      </Tooltip>
+
       <span className="inline-flex items-center gap-1.5 text-sky-300">
         <span className="h-2.5 w-2.5 rounded-sm bg-sky-500" /> Todo
       </span>
       <span className="inline-flex items-center gap-1.5 text-orange-300">
         <span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> In progress
       </span>
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5",
-          isLive ? "text-emerald-300" : "text-muted-foreground",
-        )}
-        title={isLive ? "SSE connected" : "SSE reconnecting…"}
+
+      <HintButton
+        label="Chọn backlog đưa vào Matrix"
+        className="ml-auto"
+        onClick={() => setBacklogOpen(true)}
       >
-        <span
-          className={cn(
-            "h-2 w-2 rounded-full",
-            isLive ? "bg-emerald-400 animate-pulse" : "bg-slate-500",
-          )}
-        />
-        {isLive ? "Live" : "Offline"}
-      </span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="cursor-pointer"
+        <Inbox className="w-4 h-4" />
+        {backlog.length > 0 && (
+          <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] tabular-nums">
+            {backlog.length}
+          </span>
+        )}
+      </HintButton>
+
+      <HintButton
+        label={isFullscreen ? "Thoát toàn màn hình (Esc)" : "Toàn màn hình"}
         onClick={() => setIsFullscreen((value) => !value)}
-        title={isFullscreen ? "Thoát toàn màn hình (Esc)" : "Toàn màn hình"}
       >
         {isFullscreen ? (
-          <>
-            <Minimize2 className="w-4 h-4" />
-          </>
+          <Minimize2 className="w-4 h-4" />
         ) : (
-          <>
-            <Maximize2 className="w-4 h-4" />
-          </>
+          <Maximize2 className="w-4 h-4" />
         )}
-      </Button>
+      </HintButton>
     </div>
   );
 
@@ -182,64 +237,69 @@ const MatrixPage = ({
     />
   );
 
-  return (
-    <PrivateLayout auth={auth}>
-      <TodoNav />
+  const backlogDialog = (
+    <BacklogPromoteDialog
+      open={backlogOpen}
+      onOpenChange={setBacklogOpen}
+      backlog={backlog}
+      projects={projects}
+      priorities={priorities}
+      onEditTodo={openEdit}
+    />
+  );
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-100">
+  return (
+    <TooltipProvider delayDuration={250}>
+      <PrivateLayout auth={auth}>
+        <TodoNav />
+
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold text-gray-100 inline-flex items-center gap-2">
             Eisenhower Matrix
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="cursor-pointer ml-1"
+            <HintButton
+              label="Tạo todo mới (status Backlog)"
               onClick={openCreateBacklog}
-              title="Tạo todo với status Backlog"
             >
               <Plus className="w-4 h-4" />
-            </Button>
+            </HintButton>
           </h1>
+          {toolbar}
         </div>
-        {toolbar}
-      </div>
 
-      <div className={cn(isFullscreen && "invisible h-[70vh]")}>
-        <MatrixGrid
-          quadrants={quadrants}
-          onCreateInQuadrant={openCreateInQuadrant}
-          onEditTodo={openEdit}
-        />
-      </div>
+        <div className={cn(isFullscreen && "invisible h-[70vh]")}>
+          <MatrixGrid
+            quadrants={quadrants}
+            onCreateInQuadrant={openCreateInQuadrant}
+            onEditTodo={openEdit}
+          />
+        </div>
 
-      {formModal}
+        {formModal}
+        {backlogDialog}
 
-      {isFullscreen &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex flex-col bg-background p-4 sm:p-6">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-              <div>
-                <h1 className="text-xl font-bold text-gray-100">
-                  Eisenhower Matrix
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  Esc hoặc Exit để thoát toàn màn hình
-                </p>
+        {isFullscreen &&
+          createPortal(
+            <TooltipProvider delayDuration={250}>
+              <div className="fixed inset-0 z-[100] flex flex-col bg-background p-4 sm:p-6">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+                  <h1 className="text-xl font-bold text-gray-100">
+                    Eisenhower Matrix
+                  </h1>
+                  {toolbar}
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto">
+                  <MatrixGrid
+                    quadrants={quadrants}
+                    onCreateInQuadrant={openCreateInQuadrant}
+                    onEditTodo={openEdit}
+                  />
+                </div>
               </div>
-              {toolbar}
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <MatrixGrid
-                quadrants={quadrants}
-                onCreateInQuadrant={openCreateInQuadrant}
-                onEditTodo={openEdit}
-              />
-            </div>
-          </div>,
-          document.body,
-        )}
-    </PrivateLayout>
+            </TooltipProvider>,
+            document.body,
+          )}
+      </PrivateLayout>
+    </TooltipProvider>
   );
 };
 
