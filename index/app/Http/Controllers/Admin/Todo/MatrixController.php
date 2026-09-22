@@ -17,6 +17,7 @@ use Modules\Todo\Application\BuildMatrixQuadrants;
 use Modules\Todo\Application\GetPomodoroState;
 use Modules\Todo\Application\PromoteBacklogItems;
 use Modules\Todo\Application\SavePomodoroState;
+use Modules\Todo\Application\UpdateWebPushPresence;
 use Modules\Todo\Domain\MatrixStreamVersion;
 use Modules\Todo\Domain\PomodoroDefaults;
 use Modules\Todo\Domain\PomodoroStreamVersion;
@@ -128,7 +129,7 @@ class MatrixController extends Controller
         return response()->json($this->getPomodoroState->execute($userId));
     }
 
-    public function updatePomodoro(Request $request): JsonResponse
+    public function updatePomodoro(Request $request, UpdateWebPushPresence $presence): JsonResponse
     {
         $data = $request->validate([
             'settings' => ['required', 'array'],
@@ -144,10 +145,17 @@ class MatrixController extends Controller
             'runtime.activeTodoId' => ['nullable', 'integer', 'exists:todos,id'],
             'runtime.isRunning' => ['required', 'boolean'],
             'runtime.updatedAt' => ['required', 'integer', 'min:0'],
+            'focused' => ['sometimes', 'boolean'],
+            'endpoint' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
 
         $userId = (int) Auth::id();
         $result = $this->savePomodoroState->execute($userId, $data);
+
+        // Stamp per-device Matrix focus alongside timer sync (advance / start / pause).
+        if (array_key_exists('focused', $data) && filled($data['endpoint'] ?? null)) {
+            $presence->execute($userId, (string) $data['endpoint'], (bool) $data['focused']);
+        }
 
         return response()->json($result);
     }

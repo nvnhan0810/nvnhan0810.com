@@ -115,7 +115,7 @@ export const useWebPush = ({
     };
 
     syncFocus();
-    const intervalId = window.setInterval(syncFocus, 20_000);
+    const intervalId = window.setInterval(syncFocus, 10_000);
     const onVis = (): void => syncFocus();
     const onFocus = (): void => beat(true);
     const onBlur = (): void => beat(false);

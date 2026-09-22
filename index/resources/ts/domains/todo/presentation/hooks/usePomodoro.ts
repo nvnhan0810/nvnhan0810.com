@@ -10,7 +10,7 @@ import {
   parsePomodoroSyncPayload,
   type PomodoroSyncPayload,
 } from "../../application/parsePomodoroSyncPayload";
-import { pushPomodoroState } from "../../infrastructure/pomodoroApi";
+import { pushPomodoroState, fetchPomodoroState } from "../../infrastructure/pomodoroApi";
 import {
   loadPomodoroRuntime,
   loadPomodoroSettings,
@@ -242,7 +242,49 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     }, 400);
   }, []);
 
-    const applyRemotePayload = useCallback((payload: PomodoroSyncPayload): void => {
+  const reconcileOnVisible = useCallback((): void => {
+    const url = syncUrlRef.current;
+    if (!url || !hydratedRef.current) {
+      return;
+    }
+
+    pushAbortRef.current?.abort();
+    const controller = new AbortController();
+    pushAbortRef.current = controller;
+
+    void fetchPomodoroState(url, controller.signal)
+      .then((remote) => {
+        const localSettings = pendingSettingsRef.current ?? settingsRef.current;
+        const localRuntime = {
+          ...runtimeRef.current,
+          remainingMs: resolveRemaining(runtimeRef.current, Date.now()),
+        };
+        const picked = pickNewer(localSettings, localRuntime, remote);
+
+        if (picked.runtime.updatedAt > runtimeRef.current.updatedAt) {
+          pendingSettingsRef.current = null;
+          setSettings(picked.settings);
+          savePomodoroSettings(picked.settings);
+          const normalized = normalizeHydratedRuntime(picked.runtime, picked.settings);
+          runtimeRef.current = normalized.runtime;
+          setRuntime(normalized.runtime);
+          savePomodoroRuntime(normalized.runtime);
+          lastCountdownSecondRef.current = null;
+          lastPushedUpdatedAtRef.current = Math.max(
+            lastPushedUpdatedAtRef.current,
+            picked.runtime.updatedAt,
+          );
+        }
+
+        // If local is still newer (edits while visible), push; otherwise stay.
+        scheduleRemotePush();
+      })
+      .catch(() => {
+        scheduleRemotePush();
+      });
+  }, [scheduleRemotePush]);
+
+  const applyRemotePayload = useCallback((payload: PomodoroSyncPayload): void => {
     if (!hydratedRef.current) {
       return;
     }
@@ -262,7 +304,6 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     savePomodoroRuntime(normalized.runtime);
     lastCountdownSecondRef.current = null;
   }, []);
-
   useEffect(() => {
     const localSettings = loadPomodoroSettings();
     const localRuntime = loadPomodoroRuntime();
@@ -289,11 +330,9 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     setRuntime(normalized.runtime);
     savePomodoroRuntime(normalized.runtime);
     if (normalized.didAdvance) {
+      // Catch-up after opening a backgrounded PWA / tab. Web Push should have
+      // notified already — skip local Notification popup (especially on iOS).
       playPomodoroPhaseEndSound();
-      notifyPomodoroPhaseEnd({
-        fromPhase: normalized.fromPhase,
-        toPhase: normalized.runtime.phase,
-      });
     }
     hydratedRef.current = true;
     scheduleRemotePush();
@@ -320,6 +359,7 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       const remaining = resolveRemaining(current, Date.now());
       if (remaining <= 0) {
         lastCountdownSecondRef.current = null;
+
         const activeSettings = pendingSettingsRef.current ?? settingsRef.current;
         if (pendingSettingsRef.current) {
           setSettings(pendingSettingsRef.current);
@@ -369,6 +409,7 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     const onVisibility = (): void => {
       if (document.visibilityState === "visible") {
         unlockPomodoroAudio();
+        reconcileOnVisible();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -382,7 +423,7 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       }
       pushAbortRef.current?.abort();
     };
-  }, []);
+  }, [reconcileOnVisible]);
 
   const selectTodo = useCallback((todoId: number | null): void => {
     setRuntime((prev) =>
