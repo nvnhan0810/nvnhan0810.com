@@ -29,6 +29,7 @@ import TodoFormModal, {
   type TodoCreateDefaults,
 } from "../../components/TodoFormModal";
 import TodoNav from "../../components/TodoNav";
+import { pickNextMatrixTodo } from "../../application/matrixTodoOrder";
 import { useMatrixSse } from "../../presentation/hooks/useMatrixSse";
 import { usePomodoro } from "../../presentation/hooks/usePomodoro";
 import type {
@@ -278,6 +279,31 @@ const MatrixPage = ({
     }
   };
 
+  const completeActiveTodo = (): void => {
+    if (activeTodoId === null) {
+      return;
+    }
+    const completedId = activeTodoId;
+    const next = pickNextMatrixTodo(quadrants, completedId);
+    if (next !== null) {
+      selectTodo(next.id);
+      if (next.status === "todo") {
+        router.patch(
+          route("matrix.update", next.id),
+          {
+            is_urgent: next.is_urgent,
+            is_important: next.is_important,
+            status: "in_progress",
+          },
+          { preserveScroll: true },
+        );
+      }
+    } else {
+      selectTodo(null);
+    }
+    router.patch(route("matrix.complete", completedId), {}, { preserveScroll: true });
+  };
+
   const toolbar = (
     <div className="flex flex-wrap items-center gap-3 text-xs">
       <Tooltip>
@@ -409,6 +435,7 @@ const MatrixPage = ({
       pomodoro={pomodoro}
       matrixTodos={matrixTodos}
       onLocateTodo={locateTodo}
+      onCompleteActiveTodo={completeActiveTodo}
       className="mb-3"
     />
   );

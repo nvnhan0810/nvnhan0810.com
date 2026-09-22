@@ -5,9 +5,7 @@ import {
   TooltipTrigger,
 } from "@/ts/components/ui/tooltip";
 import { cn } from "@ts/utils";
-import { router } from "@inertiajs/react";
 import { CheckCircle2, Pause, Play, SkipForward, X } from "lucide-react";
-import { useRoute } from "ziggy-js";
 import {
   formatTimer,
   POMODORO_PHASE_LABEL,
@@ -20,6 +18,7 @@ type Props = {
   pomodoro: UsePomodoroResult;
   matrixTodos: TodoItem[];
   onLocateTodo: (todoId: number) => void;
+  onCompleteActiveTodo: () => void;
   className?: string;
 };
 
@@ -27,9 +26,9 @@ const PomodoroBar = ({
   pomodoro,
   matrixTodos,
   onLocateTodo,
+  onCompleteActiveTodo,
   className,
 }: Props): React.ReactElement => {
-  const route = useRoute();
   const {
     settings,
     phase,
@@ -58,15 +57,6 @@ const PomodoroBar = ({
       : phase === "short_break"
         ? "border-teal-500/40 bg-teal-950/25"
         : "border-indigo-500/40 bg-indigo-950/30";
-
-  const onComplete = (): void => {
-    if (activeTodoId === null) {
-      return;
-    }
-    const id = activeTodoId;
-    clearActiveTodo();
-    router.patch(route("matrix.complete", id), {}, { preserveScroll: true });
-  };
 
   return (
     <div
@@ -190,13 +180,13 @@ const PomodoroBar = ({
               size="sm"
               className="cursor-pointer"
               disabled={activeTodoId === null}
-              onClick={onComplete}
+              onClick={onCompleteActiveTodo}
               aria-label="Hoàn thành todo"
             >
               <CheckCircle2 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Đánh Done & reset Pomodoro</TooltipContent>
+          <TooltipContent>Đánh Done & lấy todo tiếp theo (giữ timer)</TooltipContent>
         </Tooltip>
       </div>
     </div>

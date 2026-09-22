@@ -68,12 +68,11 @@ const MatrixCard = ({
         onEdit(todo);
       }}
       className={cn(
-        "rounded-md px-3 py-2.5 cursor-grab active:cursor-grabbing transition-all duration-300",
+        "rounded-md px-3 py-2.5 cursor-grab active:cursor-grabbing transition-colors duration-200",
         "border border-white/5 hover:border-white/15",
         style.card,
         isPomodoroActive && "ring-1 ring-rose-400/60",
-        isHighlighted &&
-          "ring-2 ring-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,0.25)] scale-[1.02] z-10",
+        isHighlighted && "animate-matrix-locate relative z-[1]",
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
