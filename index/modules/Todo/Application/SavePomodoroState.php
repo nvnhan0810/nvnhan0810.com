@@ -78,6 +78,7 @@ final class SavePomodoroState
             $userId,
             $saved->endsAt,
             $saved->isRunning,
+            $saved->phase,
         );
 
         return [

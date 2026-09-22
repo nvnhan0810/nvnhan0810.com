@@ -1,6 +1,7 @@
 /* global self, clients */
 const MATRIX_PATH = "/matrix";
 const DEFAULT_ICON = "/images/android-chrome-192x192.png";
+const ICON_FOCUS = "/images/todos/work.gif";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -11,7 +12,7 @@ self.addEventListener("activate", (event) => {
 });
 
 /**
- * Absolute URL for notification assets (iOS is picky about relative/GIF icons).
+ * Absolute URL for notification assets (iOS prefers absolute paths).
  * @param {string | undefined} path
  */
 const toAbsoluteUrl = (path) => {
@@ -35,7 +36,7 @@ self.addEventListener("push", (event) => {
         body: "Phase đã kết thúc — mở Matrix để tiếp tục.",
         url: MATRIX_PATH,
         tag: "todo-pomodoro-phase",
-        icon: DEFAULT_ICON,
+        icon: ICON_FOCUS,
       };
 
       try {
@@ -46,9 +47,9 @@ self.addEventListener("push", (event) => {
             ...parsed,
             url: typeof parsed.url === "string" ? parsed.url : MATRIX_PATH,
             icon:
-              typeof parsed.icon === "string" && !/\.gif(\?|$)/i.test(parsed.icon)
+              typeof parsed.icon === "string" && parsed.icon.length > 0
                 ? parsed.icon
-                : DEFAULT_ICON,
+                : ICON_FOCUS,
           };
         }
       } catch {

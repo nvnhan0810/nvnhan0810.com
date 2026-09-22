@@ -15,10 +15,11 @@ final class SendPomodoroPhasePushJob implements ShouldQueue
     public function __construct(
         public readonly int $userId,
         public readonly int $expectedEndsAtMs,
+        public readonly string $fromPhase,
     ) {}
 
     public function handle(DeliverPomodoroPhasePush $deliver): void
     {
-        $deliver->execute($this->userId, $this->expectedEndsAtMs);
+        $deliver->execute($this->userId, $this->expectedEndsAtMs, $this->fromPhase);
     }
 }

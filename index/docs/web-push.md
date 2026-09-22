@@ -36,14 +36,24 @@ Trên iPhone: Share → **Add to Home Screen** → mở app từ icon → bật 
 7. Click noti → mở /matrix (không về home trừ khi không cấu hình)
 ```
 
-## Suppress khi đang nhìn Matrix
+## Suppress khi đang nhìn Matrix (theo thiết bị)
 
-Hai lớp:
+Advance timer **luôn** chạy bình thường trên mọi máy (kể cả tab nền). Quyết định gửi noti tách riêng theo **focus từng subscription**:
 
-1. **Server**: presence heartbeat; bỏ qua subscription có `last_focused_at` gần đây.
-2. **Service worker**: nếu có window `/matrix` đang `focused` → không `showNotification`.
+| Thiết bị | Đang focus Matrix? | Push tới máy đó |
+| --- | --- | --- |
+| Laptop tab hiện | Có | Không (web lo local) |
+| iPhone PWA đang mở/nhìn | Có | Không |
+| iPhone PWA nền / khoá máy | Không | **Có** |
+| Laptop tab nền | Không | Có (FCM) nếu đã subscribe |
 
-Rule theo **từng thiết bị**: laptop đang focus Matrix thì không noti laptop; điện thoại vẫn có thể nhận.
+Cách cập nhật focus:
+
+1. **Heartbeat** `POST /matrix/web-push/presence` mỗi ~10s khi Matrix mở + blur/hide → `focused=false` (clear ngay).
+2. **PUT sync Pomodoro** kèm `focused` + `endpoint` (mỗi lần advance/start/pause).
+3. **Job** bỏ qua subscription có `last_focused_at` trong TTL (`WEB_PUSH_FOCUS_TTL_SECONDS`, mặc định 30s — phải lớn hơn heartbeat).
+
+Service worker **luôn** `showNotification` khi nhận push (iOS yêu cầu); suppress chỉ ở server.
 
 ## Click noti
 
@@ -55,6 +65,7 @@ Rule theo **từng thiết bị**: laptop đang focus Matrix thì không noti la
 VAPID_SUBJECT=mailto:you@example.com
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
+WEB_PUSH_FOCUS_TTL_SECONDS=30
 ```
 
 Generate:
@@ -72,7 +83,8 @@ php artisan webpush:vapid
 | GET | `/matrix/web-push/vapid-public-key` | Public key (hoặc lấy từ Inertia props) |
 | POST | `/matrix/web-push/subscribe` | Lưu subscription |
 | DELETE | `/matrix/web-push/subscribe` | Huỷ theo endpoint |
-| POST | `/matrix/web-push/presence` | `{ focused: bool }` heartbeat |
+| POST | `/matrix/web-push/presence` | `{ endpoint, focused: bool }` heartbeat |
+| PUT | `/matrix/pomodoro` | Timer sync; optional `{ focused, endpoint }` |
 
 ## PWA files
 
@@ -83,7 +95,8 @@ php artisan webpush:vapid
 ## Vận hành
 
 - Cần **HTTPS**, `queue:work` (delayed job tới `endsAt`), worker đang chạy.
-- Khi pause / đổi timer: job cũ tự no-op (so khớp `endsAt`).
+- Khi pause / đổi timer: job cũ tự no-op nếu `endsAt` còn ở tương lai (timer đã bị thay).
+- Job vẫn gửi push theo `endsAt` đã schedule ngay cả khi client đã advance trước (race) — chỉ skip máy đang focus.
 - Local `Notification` trong tab (desktop) vẫn là fallback khi tab còn sống nhưng không focus.
 
 ## Checklist thử trên iPhone
@@ -95,16 +108,5 @@ php artisan webpush:vapid
    (Hoặc bấm Play/Start Pomodoro — sẽ tự subscribe nếu có thể)
 5. Menu phải hiện `Tắt Web Push (N máy)` với **N ≥ 1** (đã lưu DB).  
    Nếu chỉ thấy quyền noti local / `chưa lưu server` → bấm Bật lại.
-6. Start Pomodoro, khoá màn hình → hết phase phải có banner
-7. Mở Matrix đang focus → không spam noti trên máy đó
-
-## iOS: noti chỉ hiện khi mở app
-
-Nguyên nhân thường gặp:
-
-1. **SW skip `showNotification` khi “focused”** — PWA nền trên iOS đôi khi vẫn báo window focused → không có banner; lúc mở app JS catch-up mới thấy.  
-   → SW **luôn** `showNotification` (bắt buộc WebKit). Suppress chỉ ở server (presence).
-2. **Icon GIF / relative URL** — dùng PNG tuyệt đối (`android-chrome-192x192.png`).
-3. Chưa có row `web.push.apple.com` trong DB → chưa phải Web Push.
-
-Sau deploy: mở PWA → menu **Bật Web Push** lại (cập nhật SW) → khoá máy thử phase ngắn.
+6. Start Pomodoro, **khoá màn hình** (PWA không focus) → hết phase phải có banner
+7. Mở Matrix đang nhìn trên iPhone → không spam noti trên máy đó; laptop nền vẫn có thể nhận (nếu subscribe)
