@@ -6,6 +6,7 @@ export type WebPushSubscribeUrls = {
   subscribe: string;
   unsubscribe: string;
   presence: string;
+  status?: string;
 };
 
 const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
@@ -35,7 +36,9 @@ export const isIosSafari = (): boolean => {
     return false;
   }
   const ua = window.navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const iOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const webkit = /WebKit/.test(ua);
   return iOS && webkit;
 };
@@ -61,6 +64,43 @@ export const getCurrentPushSubscription = async (): Promise<PushSubscription | n
   return registration.pushManager.getSubscription();
 };
 
+const persistSubscription = async (
+  subscription: PushSubscription,
+  subscribeUrl: string,
+): Promise<void> => {
+  const json = subscription.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    throw new Error("Subscription không hợp lệ");
+  }
+
+  await jsonFetch(subscribeUrl, {
+    method: "POST",
+    body: {
+      endpoint: json.endpoint,
+      keys: {
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+      },
+      contentEncoding: PushManager.supportedContentEncodings?.[0] ?? "aes128gcm",
+    },
+  });
+};
+
+/**
+ * If the browser already has a PushSubscription, re-POST it to the server.
+ * Fixes the common case: permission granted locally but never saved in DB.
+ */
+export const syncExistingWebPushSubscription = async (
+  subscribeUrl: string,
+): Promise<boolean> => {
+  const subscription = await getCurrentPushSubscription();
+  if (subscription === null) {
+    return false;
+  }
+  await persistSubscription(subscription, subscribeUrl);
+  return true;
+};
+
 export const subscribeWebPush = async (
   publicKey: string,
   urls: WebPushSubscribeUrls,
@@ -84,23 +124,7 @@ export const subscribeWebPush = async (
     });
   }
 
-  const json = subscription.toJSON();
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-    throw new Error("Subscription không hợp lệ");
-  }
-
-  await jsonFetch(urls.subscribe, {
-    method: "POST",
-    body: {
-      endpoint: json.endpoint,
-      keys: {
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
-      },
-      contentEncoding: PushManager.supportedContentEncodings?.[0] ?? "aes128gcm",
-    },
-  });
-
+  await persistSubscription(subscription, urls.subscribe);
   return subscription;
 };
 
@@ -132,4 +156,20 @@ export const sendWebPushPresence = async (
       focused,
     },
   });
+};
+
+export type WebPushServerStatus = {
+  configured: boolean;
+  subscriptionCount: number;
+};
+
+export const fetchWebPushStatus = async (
+  statusUrl: string,
+): Promise<WebPushServerStatus> => {
+  const raw = await jsonFetch<Record<string, unknown>>(statusUrl, { method: "GET" });
+  return {
+    configured: raw.configured === true,
+    subscriptionCount:
+      typeof raw.subscriptionCount === "number" ? raw.subscriptionCount : 0,
+  };
 };
