@@ -514,27 +514,33 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
   const saveSettings = useCallback(
     (next: PomodoroSettings): void => {
       savePomodoroSettings(next);
-      if (runtimeRef.current.isRunning) {
-        pendingSettingsRef.current = next;
-        // Stamp runtime so remote devices receive the new settings promptly.
-        setRuntime((prev) =>
-          stampRuntime({
-            ...prev,
-            remainingMs: resolveRemaining(prev, Date.now()),
-          }),
-        );
-        return;
-      }
       pendingSettingsRef.current = null;
+      settingsRef.current = next;
       setSettings(next);
-      setRuntime((prev) =>
-        stampRuntime({
+
+      setRuntime((prev) => {
+        const now = Date.now();
+        const currentRemaining = resolveRemaining(prev, now);
+        const maxMs = phaseDurationMs(prev.phase, next);
+        // Shrink if remaining exceeds new phase length; never extend mid-phase.
+        const nextRemaining = Math.min(currentRemaining, maxMs);
+
+        if (prev.isRunning) {
+          return stampRuntime({
+            ...prev,
+            remainingMs: nextRemaining,
+            endsAt: now + nextRemaining,
+            isRunning: true,
+          });
+        }
+
+        return stampRuntime({
           ...prev,
-          remainingMs: phaseDurationMs(prev.phase, next),
+          remainingMs: nextRemaining,
           endsAt: null,
           isRunning: false,
-        }),
-      );
+        });
+      });
     },
     [],
   );
