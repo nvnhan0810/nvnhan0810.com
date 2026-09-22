@@ -59,14 +59,29 @@ export default {
     			border: 'hsl(var(--border))',
     			input: 'hsl(var(--input))',
     			ring: 'hsl(var(--ring))',
-    			chart: {
+    		chart: {
     				'1': 'hsl(var(--chart-1))',
     				'2': 'hsl(var(--chart-2))',
     				'3': 'hsl(var(--chart-3))',
     				'4': 'hsl(var(--chart-4))',
     				'5': 'hsl(var(--chart-5))'
     			}
-    		}
+    		},
+    		keyframes: {
+    			'matrix-locate': {
+    				'0%, 100%': {
+    					backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    					boxShadow: 'inset 0 0 0 1px rgba(56, 189, 248, 0.35)',
+    				},
+    				'50%': {
+    					backgroundColor: 'rgba(56, 189, 248, 0.32)',
+    					boxShadow: 'inset 0 0 0 2px rgba(56, 189, 248, 0.9)',
+    				},
+    			},
+    		},
+    		animation: {
+    			'matrix-locate': 'matrix-locate 0.4s ease-in-out 4',
+    		},
     	}
     },
     plugins: [require("tailwindcss-animate")],

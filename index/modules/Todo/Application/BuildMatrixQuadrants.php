@@ -24,9 +24,10 @@ final class BuildMatrixQuadrants
         $todos = Todo::query()
             ->with('project:id,name')
             ->whereIn('status', self::ACTIVE_STATUSES)
-            ->orderByRaw("CASE status WHEN 'in_progress' THEN 0 ELSE 1 END")
             ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END")
-            ->orderBy('due_at')
+            ->orderByRaw('due_at ASC NULLS LAST')
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         return [

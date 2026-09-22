@@ -2,6 +2,7 @@ import { cn } from "@ts/utils";
 import { useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { useRoute } from "ziggy-js";
+import { sortMatrixTodos } from "../../application/matrixTodoOrder";
 import type { PomodoroPhase } from "../../constants/pomodoro";
 import type { TodoItem } from "../../types";
 import MatrixCard from "./MatrixCard";
@@ -31,6 +32,7 @@ const MatrixQuadrant = ({
   const route = useRoute();
   const [isOver, setIsOver] = useState(false);
   const suppressClickRef = useRef(false);
+  const orderedTodos = sortMatrixTodos(todos);
 
   const onDrop = (event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault();
@@ -88,17 +90,17 @@ const MatrixQuadrant = ({
           </p>
         </div>
         <span className="rounded-full bg-black/30 px-2 py-0.5 text-xs tabular-nums text-gray-300">
-          {todos.length}
+          {orderedTodos.length}
         </span>
       </header>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto min-h-0">
-        {todos.length === 0 && (
+        {orderedTodos.length === 0 && (
           <p className="mt-6 text-center text-xs text-muted-foreground pointer-events-none">
             Click để tạo · hoặc kéo todo vào đây
           </p>
         )}
-        {todos.map((todo) => (
+        {orderedTodos.map((todo) => (
           <MatrixCard
             key={todo.id}
             todo={todo}

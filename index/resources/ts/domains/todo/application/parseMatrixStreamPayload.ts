@@ -68,6 +68,8 @@ const parseTodoItem = (value: unknown): TodoItem | null => {
     is_urgent: value.is_urgent,
     is_important: value.is_important,
     project: parseProject(value.project) ?? null,
+    created_at: typeof value.created_at === "string" ? value.created_at : undefined,
+    updated_at: typeof value.updated_at === "string" ? value.updated_at : undefined,
   };
 };
 
