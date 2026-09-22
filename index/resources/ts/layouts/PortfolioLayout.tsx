@@ -6,7 +6,7 @@ type PortfolioLayoutProps = {
 
 const PortfolioLayout = ({ children }: PortfolioLayoutProps) => {
   return (
-    <div className="min-h-screen bg-background font-sans antialiased text-foreground">
+    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-background font-sans antialiased text-foreground">
       {children}
     </div>
   );

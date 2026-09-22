@@ -13,9 +13,9 @@ type PrivateLayoutProps = RootProps & {
 
 const PrivateLayout = ({ children, auth }: PrivateLayoutProps) => {
   return (
-    <div className="min-h-screen bg-background font-sans antialiased scroll-smooth scroll-pt-24 p-4">
+    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-background p-4 font-sans antialiased scroll-smooth scroll-pt-24">
       <Header auth={auth} />
-      <div className="py-4 flex-grow">
+      <div className="min-w-0 flex-grow py-4">
         {children}
       </div>
       <Footer />

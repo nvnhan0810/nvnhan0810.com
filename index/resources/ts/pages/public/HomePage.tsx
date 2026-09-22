@@ -51,12 +51,15 @@ const HomePage = ({ posts }: Props) => {
 				locale={locale === "vi" ? "vi_VN" : "en_US"}
 				imageAlt={`${cv.name} — ${cv.title}`}
 			/>
-			<nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
-				<div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-					<a href="#top" className="text-sm font-semibold tracking-tight">
+			<nav className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-hidden border-b border-border/60 bg-background/80 backdrop-blur-md">
+				<div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+					<a
+						href="#top"
+						className="min-w-0 truncate text-sm font-semibold tracking-tight"
+					>
 						{cv.name}
 					</a>
-					<div className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
+					<div className="hidden min-w-0 items-center gap-4 text-sm text-muted-foreground sm:flex">
 						{navItems.map((item) => (
 							<a
 								key={item.id}
@@ -75,7 +78,7 @@ const HomePage = ({ posts }: Props) => {
 						</Link> */}
 						<LocaleSwitcher />
 					</div>
-					<div className="flex items-center gap-3 sm:hidden">
+					<div className="flex shrink-0 items-center gap-3 sm:hidden">
 						{/* <Link
 							href={route("posts.index")}
 							className="inline-flex items-center gap-1.5 text-sm text-emerald-500"
