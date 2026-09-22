@@ -59,6 +59,13 @@ class HandleInertiaRequests extends Middleware
             'postAgent' => fn () => $request->user() && $request->is('admin', 'admin/*')
                 ? ['configured' => filled(config('post-agent.cursor_api_key'))]
                 : null,
+            'webPush' => fn () => $request->user()
+                ? [
+                    'configured' => filled(config('web-push.vapid.public_key'))
+                        && filled(config('web-push.vapid.private_key')),
+                    'publicKey' => config('web-push.vapid.public_key'),
+                ]
+                : null,
         ];
     }
 }
