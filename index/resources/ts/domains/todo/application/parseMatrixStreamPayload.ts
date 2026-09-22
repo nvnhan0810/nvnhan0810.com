@@ -1,4 +1,4 @@
-import type { MatrixQuadrantKey, MatrixQuadrants, TodoItem, TodoPriority, TodoStatus } from "../../types";
+import type { MatrixQuadrantKey, MatrixQuadrants, TodoItem, TodoPriority, TodoStatus } from "../types";
 
 const STATUSES: readonly TodoStatus[] = [
   "backlog",

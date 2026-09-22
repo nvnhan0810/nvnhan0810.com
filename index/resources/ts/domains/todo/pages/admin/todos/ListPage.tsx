@@ -11,12 +11,14 @@ import {
   AlertDialogTrigger,
 } from "@/ts/components/ui/alert-dialog";
 import { Button } from "@/ts/components/ui/button";
+import Combobox from "@/ts/components/ui/combobox";
 import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
 import { Pagination } from "@/ts/types/common";
 import { router } from "@inertiajs/react";
 import { Plus } from "lucide-react";
 import { useRoute } from "ziggy-js";
 import TodoNav from "../../../components/TodoNav";
+import { TODO_PRIORITY_LABEL, TODO_STATUS_LABEL } from "../../../constants/labels";
 import type { TodoItem, TodoPriority, TodoProject, TodoStatus } from "../../../types";
 
 type Props = RootProps & {
@@ -30,22 +32,7 @@ type Props = RootProps & {
   priorities: TodoPriority[];
 };
 
-const statusLabel: Record<TodoStatus, string> = {
-  backlog: "Backlog",
-  todo: "Todo",
-  in_progress: "In progress",
-  done: "Done",
-  rejected: "Rejected",
-};
-
-const priorityLabel: Record<TodoPriority, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
-};
-
-const ListPage = ({ auth, todos, projects, filters, statuses }: Props) => {
+const ListPage = ({ auth, todos, projects, filters, statuses }: Props): React.ReactElement => {
   const route = useRoute();
 
   const applyFilter = (key: "project_id" | "status", value: string): void => {
@@ -62,6 +49,22 @@ const ListPage = ({ auth, todos, projects, filters, statuses }: Props) => {
   const handleDelete = (id: number): void => {
     router.delete(route("todos.destroy", id));
   };
+
+  const projectOptions = [
+    { value: "", label: "All projects" },
+    ...projects.map((project) => ({
+      value: String(project.id),
+      label: project.name,
+    })),
+  ];
+
+  const statusOptions = [
+    { value: "", label: "All statuses" },
+    ...statuses.map((status) => ({
+      value: status,
+      label: TODO_STATUS_LABEL[status],
+    })),
+  ];
 
   return (
     <PrivateLayout auth={auth}>
@@ -82,30 +85,24 @@ const ListPage = ({ auth, todos, projects, filters, statuses }: Props) => {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <select
-          className="h-9 rounded-md border border-gray-700 bg-transparent px-3 text-sm text-gray-200"
-          value={filters.project_id ?? ""}
-          onChange={(e) => applyFilter("project_id", e.target.value)}
-        >
-          <option value="">All projects</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="h-9 rounded-md border border-gray-700 bg-transparent px-3 text-sm text-gray-200"
-          value={filters.status ?? ""}
-          onChange={(e) => applyFilter("status", e.target.value)}
-        >
-          <option value="">All statuses</option>
-          {statuses.map((status) => (
-            <option key={status} value={status}>
-              {statusLabel[status]}
-            </option>
-          ))}
-        </select>
+        <div className="w-full sm:w-56">
+          <Combobox
+            options={projectOptions}
+            value={filters.project_id != null ? String(filters.project_id) : ""}
+            handleChange={(value) => applyFilter("project_id", value)}
+            placeholder="All projects"
+            searchPlaceholder="Tìm project..."
+          />
+        </div>
+        <div className="w-full sm:w-48">
+          <Combobox
+            options={statusOptions}
+            value={filters.status ?? ""}
+            handleChange={(value) => applyFilter("status", value)}
+            placeholder="All statuses"
+            searchPlaceholder="Tìm status..."
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -133,8 +130,12 @@ const ListPage = ({ auth, todos, projects, filters, statuses }: Props) => {
               <tr key={todo.id}>
                 <td className="px-3 py-2 border">{todo.title}</td>
                 <td className="px-3 py-2 border">{todo.project?.name ?? "—"}</td>
-                <td className="px-3 py-2 border text-center">{statusLabel[todo.status]}</td>
-                <td className="px-3 py-2 border text-center">{priorityLabel[todo.priority]}</td>
+                <td className="px-3 py-2 border text-center">
+                  {TODO_STATUS_LABEL[todo.status as TodoStatus]}
+                </td>
+                <td className="px-3 py-2 border text-center">
+                  {TODO_PRIORITY_LABEL[todo.priority as keyof typeof TODO_PRIORITY_LABEL]}
+                </td>
                 <td className="px-3 py-2 border text-center text-xs">
                   {[todo.is_urgent ? "U" : null, todo.is_important ? "I" : null]
                     .filter(Boolean)

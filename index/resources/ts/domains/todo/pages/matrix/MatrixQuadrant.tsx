@@ -1,7 +1,7 @@
 import { cn } from "@ts/utils";
+import { useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { useRoute } from "ziggy-js";
-import { useState } from "react";
 import type { TodoItem } from "../../types";
 import MatrixCard from "./MatrixCard";
 import type { QuadrantMeta } from "./quadrants";
@@ -9,15 +9,29 @@ import type { QuadrantMeta } from "./quadrants";
 type Props = {
   meta: QuadrantMeta;
   todos: TodoItem[];
+  onCreateInQuadrant: (meta: QuadrantMeta) => void;
+  onEditTodo: (todo: TodoItem) => void;
 };
 
-const MatrixQuadrant = ({ meta, todos }: Props) => {
+const MatrixQuadrant = ({
+  meta,
+  todos,
+  onCreateInQuadrant,
+  onEditTodo,
+}: Props): React.ReactElement => {
   const route = useRoute();
   const [isOver, setIsOver] = useState(false);
+  const suppressClickRef = useRef(false);
 
   const onDrop = (event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault();
     setIsOver(false);
+    // Drop often synthesizes a click — ignore it so we don't open create.
+    suppressClickRef.current = true;
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 200);
+
     const id = event.dataTransfer.getData("text/todo-id");
     if (!id) {
       return;
@@ -33,8 +47,16 @@ const MatrixQuadrant = ({ meta, todos }: Props) => {
     );
   };
 
+  const onQuadrantClick = (): void => {
+    if (suppressClickRef.current) {
+      return;
+    }
+    onCreateInQuadrant(meta);
+  };
+
   return (
     <section
+      onClick={onQuadrantClick}
       onDragOver={(event) => {
         event.preventDefault();
         event.dataTransfer.dropEffect = "move";
@@ -42,14 +64,15 @@ const MatrixQuadrant = ({ meta, todos }: Props) => {
       }}
       onDragLeave={() => setIsOver(false)}
       onDrop={onDrop}
+      title="Click để tạo todo trong vùng này"
       className={cn(
-        "flex h-full min-h-[18rem] flex-col rounded-lg border-2 border-dashed p-3 transition-colors duration-200",
+        "flex h-full min-h-[18rem] flex-col rounded-lg border-2 border-dashed p-3 transition-colors duration-200 cursor-pointer",
         meta.accent,
         meta.panel,
         isOver && "border-solid bg-white/5",
       )}
     >
-      <header className="mb-3 flex items-baseline justify-between gap-2 shrink-0">
+      <header className="mb-3 flex items-baseline justify-between gap-2 shrink-0 pointer-events-none">
         <div>
           <h2 className={cn("text-base font-semibold", meta.header)}>{meta.title}</h2>
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{meta.subtitle}</p>
@@ -61,12 +84,12 @@ const MatrixQuadrant = ({ meta, todos }: Props) => {
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto min-h-0">
         {todos.length === 0 && (
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Kéo todo vào đây
+          <p className="mt-6 text-center text-xs text-muted-foreground pointer-events-none">
+            Click để tạo · hoặc kéo todo vào đây
           </p>
         )}
         {todos.map((todo) => (
-          <MatrixCard key={todo.id} todo={todo} />
+          <MatrixCard key={todo.id} todo={todo} onEdit={onEditTodo} />
         ))}
       </div>
     </section>

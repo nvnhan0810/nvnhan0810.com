@@ -55,7 +55,7 @@ class TodoController extends Controller
     {
         Todo::query()->create($this->validated($request));
 
-        return redirect()->route('todos.index');
+        return $this->redirectAfterSave($request);
     }
 
     public function edit(string $id): Response
@@ -82,12 +82,21 @@ class TodoController extends Controller
 
         $todo->update($data);
 
-        return redirect()->route('todos.index');
+        return $this->redirectAfterSave($request);
     }
 
     public function destroy(string $id): RedirectResponse
     {
         Todo::query()->findOrFail($id)->delete();
+
+        return redirect()->route('todos.index');
+    }
+
+    private function redirectAfterSave(Request $request): RedirectResponse
+    {
+        if ($request->string('return_to')->toString() === 'matrix') {
+            return redirect()->route('matrix.index');
+        }
 
         return redirect()->route('todos.index');
     }
