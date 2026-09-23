@@ -146,8 +146,6 @@ export const savePomodoroRuntime = (runtime: PomodoroRuntimeSnapshot): void => {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(
-    POMODORO_STORAGE_RUNTIME_KEY,
-    JSON.stringify({ ...runtime, updatedAt: Date.now() }),
-  );
+  // Keep server updatedAt — never stamp Date.now() or hydrate GET gets rejected as "stale".
+  window.localStorage.setItem(POMODORO_STORAGE_RUNTIME_KEY, JSON.stringify(runtime));
 };

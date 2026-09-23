@@ -117,31 +117,38 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
   runtimeRef.current = runtime;
   urlsRef.current = urls;
 
-  const applyServerPayload = useCallback((payload: PomodoroSyncPayload): void => {
-    if (payload.runtime.updatedAt < lastAppliedUpdatedAtRef.current) {
-      return;
-    }
+  const applyServerPayload = useCallback(
+    (payload: PomodoroSyncPayload, options?: { force?: boolean }): void => {
+      const force = options?.force === true;
+      if (!force && payload.runtime.updatedAt < lastAppliedUpdatedAtRef.current) {
+        return;
+      }
 
-    const prevPhase = lastPhaseRef.current;
-    const nextRuntime = toDisplayRuntime(payload.runtime);
-    const phaseChanged = nextRuntime.phase !== prevPhase;
+      const prevPhase = lastPhaseRef.current;
+      const nextRuntime = toDisplayRuntime(payload.runtime);
+      const phaseChanged = nextRuntime.phase !== prevPhase;
 
-    lastAppliedUpdatedAtRef.current = payload.runtime.updatedAt;
-    lastPhaseRef.current = nextRuntime.phase;
+      lastAppliedUpdatedAtRef.current = Math.max(
+        lastAppliedUpdatedAtRef.current,
+        payload.runtime.updatedAt,
+      );
+      lastPhaseRef.current = nextRuntime.phase;
 
-    setSettings(payload.settings);
-    savePomodoroSettings(payload.settings);
-    settingsRef.current = payload.settings;
-    runtimeRef.current = nextRuntime;
-    setRuntime(nextRuntime);
-    savePomodoroRuntime(nextRuntime);
-    lastCountdownSecondRef.current = null;
-
-    if (phaseChanged && hydratedRef.current) {
-      playPomodoroPhaseEndSound();
+      setSettings(payload.settings);
+      savePomodoroSettings(payload.settings);
+      settingsRef.current = payload.settings;
+      runtimeRef.current = nextRuntime;
+      setRuntime(nextRuntime);
+      savePomodoroRuntime(nextRuntime);
+      lastCountdownSecondRef.current = null;
       awaitingPhaseEndRef.current = false;
-    }
-  }, []);
+
+      if (phaseChanged && hydratedRef.current) {
+        playPomodoroPhaseEndSound();
+      }
+    },
+    [],
+  );
 
   const runCommand = useCallback(
     async (request: (signal: AbortSignal) => Promise<PomodoroSyncPayload>): Promise<void> => {
@@ -154,7 +161,7 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       commandAbortRef.current = controller;
       try {
         const result = await request(controller.signal);
-        applyServerPayload(result);
+        applyServerPayload(result, { force: true });
       } catch {
         // Keep last known server snapshot; hydrate on next visibility.
       }
@@ -172,7 +179,8 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     hydrateAbortRef.current = controller;
     void fetchPomodoroState(currentUrls.show, controller.signal)
       .then((remote) => {
-        applyServerPayload(remote);
+        // GET is source of truth across devices — always apply.
+        applyServerPayload(remote, { force: true });
       })
       .catch(() => {
         // ignore
@@ -199,11 +207,9 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     if (bootstrapPayload !== undefined) {
       try {
         const remote = parsePomodoroSyncPayload(bootstrapPayload);
-        // Server bootstrap wins over stale local cache.
-        if (remote.runtime.updatedAt >= localRuntime.updatedAt) {
-          nextSettings = remote.settings;
-          nextRuntime = remote.runtime;
-        }
+        // Inertia snapshot always wins over localStorage (cross-device sync).
+        nextSettings = remote.settings;
+        nextRuntime = remote.runtime;
       } catch {
         // Keep local snapshot when initial payload is invalid.
       }
@@ -220,7 +226,6 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     lastPhaseRef.current = display.phase;
     hydratedRef.current = true;
 
-    // Always reconcile with GET so overdue phases are advanced by BE job / next command.
     hydrateFromServer();
   }, [hydrateFromServer]);
 
@@ -230,6 +235,7 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     }
     savePomodoroRuntime({
       ...runtime,
+      // Cache display remaining for offline flash only; updatedAt stays server's.
       remainingMs: resolveRemaining(runtime, Date.now()),
     });
   }, [runtime]);
@@ -240,20 +246,24 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       awaitingPhaseEndRef.current = false;
       return;
     }
+
+    let lastHydrateAt = 0;
     const id = window.setInterval(() => {
       const current = runtimeRef.current;
       const remaining = resolveRemaining(current, Date.now());
       if (remaining <= 0) {
         lastCountdownSecondRef.current = null;
         setNowTick(Date.now());
-        if (!awaitingPhaseEndRef.current) {
-          awaitingPhaseEndRef.current = true;
-          // Soft poll — SSE may be delayed; BE owns phase change.
+        const now = Date.now();
+        // Poll until BE advances (SSE may be suspended on mobile).
+        if (now - lastHydrateAt >= 2000) {
+          lastHydrateAt = now;
           hydrateFromServer();
         }
         return;
       }
 
+      awaitingPhaseEndRef.current = false;
       const secondsLeft = Math.ceil(remaining / 1000);
       if (
         secondsLeft >= 1 &&
