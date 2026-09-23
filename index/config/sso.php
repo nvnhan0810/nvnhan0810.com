@@ -2,6 +2,7 @@
 
 $walletsUrl = rtrim((string) env('SSO_WALLETS_URL', 'https://wallets.nvnhan0810.com'), '/');
 $flcUrl = rtrim((string) env('SSO_FLC_URL', 'https://foreign.nvnhan0810.com'), '/');
+$todoUrl = rtrim((string) env('SSO_TODO_URL', 'https://todo.nvnhan0810.com'), '/');
 
 return [
     'code_ttl_seconds' => max(30, (int) env('SSO_CODE_TTL_SECONDS', 120)),
@@ -20,6 +21,12 @@ return [
         'wallets' => [
             'redirect_uris' => [
                 $walletsUrl.'/auth/sso/callback',
+            ],
+            'redirect_uri_patterns' => [],
+        ],
+        'todo' => [
+            'redirect_uris' => [
+                $todoUrl.'/auth/sso/callback',
             ],
             'redirect_uri_patterns' => [],
         ],
