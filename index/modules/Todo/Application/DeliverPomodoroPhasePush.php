@@ -159,7 +159,9 @@ final class DeliverPomodoroPhasePush
             'url' => (string) config('web-push.matrix_url', '/matrix'),
             'tag' => 'todo-pomodoro-phase',
             'icon' => $icon,
-            'topic' => 'pomodoro-'.$sessionUuid,
+            // Apple: Topic max 32 chars, URL-safe Base64 alphabet only (a-zA-Z0-9_-).
+            // UUID without hyphens is exactly 32 hex chars — unique per phase session.
+            'topic' => str_replace('-', '', $sessionUuid),
         ];
 
         $sent = 0;

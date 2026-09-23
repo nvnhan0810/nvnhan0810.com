@@ -130,7 +130,7 @@ Runtime: `endsAt` = ms job sẽ chạy (source of truth khi running). `remaining
 - TTL **15s** (`WEB_PUSH_FOCUS_TTL_SECONDS`) — heartbeat 10s < TTL.
 - Job: `SendPomodoroPhasePushJob(userId, sessionUuid, expectedEndsAtMs, fromPhase)`.
 - Cancel: xoá pending `jobs` payload chứa uuid cũ + guard UUID lúc handle.
-- FCM topic: `pomodoro-{sessionUuid}`.
+- FCM topic: UUID bỏ dấu `-` (đúng 32 hex) — Apple max 32 ký tự URL-safe; `pomodoro-{uuid}` sẽ 400 BadWebPushTopic.
 
 ---
 
