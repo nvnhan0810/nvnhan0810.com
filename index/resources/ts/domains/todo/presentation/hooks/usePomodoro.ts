@@ -34,6 +34,7 @@ import {
   clearPomodoroTabPresence,
   syncPomodoroTabPresence,
 } from "../../infrastructure/pomodoroTabPresence";
+import { useWakeLock } from "./useWakeLock";
 
 export type UsePomodoroResult = {
   settings: PomodoroSettings;
@@ -393,6 +394,8 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
   }, [runtime.isRunning, runtime.phase, runtime.endsAt]);
 
   const remainingMs = resolveRemaining(runtime, nowTick);
+
+  useWakeLock({ shouldKeepScreenOn: runtime.isRunning });
 
   useEffect(() => {
     if (!hydratedRef.current) {
