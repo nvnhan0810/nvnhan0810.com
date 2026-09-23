@@ -69,15 +69,15 @@ const MatrixCard = ({
       }}
       className={cn(
         "rounded-md px-3 py-2.5 cursor-grab active:cursor-grabbing transition-colors duration-200",
-        "border border-white/5 hover:border-white/15",
+        "border border-black/10 dark:border-white/5 hover:border-black/20 dark:hover:border-white/15",
         style.card,
-        isPomodoroActive && "ring-1 ring-rose-400/60",
+        isPomodoroActive && "ring-1 ring-rose-500/50 dark:ring-rose-400/60",
         isHighlighted && "animate-matrix-locate relative z-[1]",
       )}
     >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <span className="block text-sm font-medium text-gray-100 leading-snug">
+          <span className="block text-sm font-medium text-foreground leading-snug">
             {todo.title}
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">

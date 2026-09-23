@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/ts/components/ui/tooltip";
+import { ThemeToggle } from "@/ts/components/ui/theme-toggle";
 import PrivateLayout, { RootProps } from "@/ts/layouts/PrivateLayout";
 import { cn } from "@ts/utils";
 import { router, usePage } from "@inertiajs/react";
@@ -358,13 +359,13 @@ const MatrixPage = ({
           <span
             className={cn(
               "inline-flex items-center gap-1.5 cursor-default",
-              isLive ? "text-emerald-300" : "text-muted-foreground",
+              isLive ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground",
             )}
           >
             <span
               className={cn(
                 "h-2 w-2 rounded-full",
-                isLive ? "bg-emerald-400 animate-pulse" : "bg-slate-500",
+                isLive ? "bg-emerald-500 dark:bg-emerald-400 animate-pulse" : "bg-slate-500",
               )}
             />
             {isLive ? "Live" : "Offline"}
@@ -375,10 +376,10 @@ const MatrixPage = ({
         </TooltipContent>
       </Tooltip>
 
-      <span className="inline-flex items-center gap-1.5 text-sky-300 ml-auto">
+      <span className="inline-flex items-center gap-1.5 text-sky-700 dark:text-sky-300 ml-auto">
         <span className="h-2.5 w-2.5 rounded-sm bg-sky-500" /> Todo
       </span>
-      <span className="inline-flex items-center gap-1.5 text-orange-300">
+      <span className="inline-flex items-center gap-1.5 text-orange-700 dark:text-orange-300">
         <span className="h-2.5 w-2.5 rounded-sm bg-orange-500" /> In progress
       </span>
 
@@ -392,6 +393,8 @@ const MatrixPage = ({
           <Maximize2 className="w-4 h-4" />
         )}
       </HintButton>
+
+      <ThemeToggle />
 
       <DropdownMenu>
         <Tooltip>
@@ -460,13 +463,13 @@ const MatrixPage = ({
         </DropdownMenuContent>
       </DropdownMenu>
       {webPush.subscribed && webPush.serverSubscriptionCount === 0 && !webPush.error && (
-        <span className="basis-full text-[10px] text-amber-300">
+        <span className="basis-full text-[10px] text-amber-700 dark:text-amber-300">
           Quyền noti local OK — bấm Bật Web Push lại để lưu lên server (cần cho iPhone)
         </span>
       )}
       {webPush.error && (
         <span
-          className="basis-full text-[10px] text-rose-300 truncate"
+          className="basis-full text-[10px] text-rose-700 dark:text-rose-300 truncate"
           title={webPush.error}
         >
           {webPush.error}
@@ -545,7 +548,7 @@ const MatrixPage = ({
         <TodoNav />
 
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold text-gray-100 inline-flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground inline-flex items-center gap-2">
             Eisenhower Matrix
             <HintButton
               label="Tạo todo mới (status Backlog)"
@@ -571,7 +574,7 @@ const MatrixPage = ({
             <TooltipProvider delayDuration={250}>
               <div className="fixed inset-0 z-[100] flex flex-col bg-background p-4 sm:p-6">
                 <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-                  <h1 className="text-xl font-bold text-gray-100">
+                  <h1 className="text-xl font-bold text-foreground">
                     Eisenhower Matrix
                   </h1>
                   {toolbar}

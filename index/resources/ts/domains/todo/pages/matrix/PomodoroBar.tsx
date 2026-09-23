@@ -53,10 +53,10 @@ const PomodoroBar = ({
 
   const phaseAccent =
     phase === "focus"
-      ? "border-rose-500/40 bg-rose-950/30"
+      ? "border-rose-400/50 bg-rose-200/40 dark:border-rose-500/40 dark:bg-rose-950/30"
       : phase === "short_break"
-        ? "border-teal-500/40 bg-teal-950/25"
-        : "border-indigo-500/40 bg-indigo-950/30";
+        ? "border-teal-400/50 bg-teal-200/35 dark:border-teal-500/40 dark:bg-teal-950/25"
+        : "border-indigo-400/50 bg-indigo-200/35 dark:border-indigo-500/40 dark:bg-indigo-950/30";
 
   return (
     <div
@@ -67,7 +67,7 @@ const PomodoroBar = ({
       )}
     >
       <div className="min-w-0 shrink-0 sm:w-[7.5rem]">
-        <p className="text-xs font-medium text-gray-200">
+        <p className="text-xs font-medium text-foreground">
           {POMODORO_PHASE_LABEL[phase]}
         </p>
         <div className="mt-1 flex items-center gap-1">
@@ -129,7 +129,7 @@ const PomodoroBar = ({
               className="text-left min-w-0 flex-1 group cursor-pointer"
               title="Click để tìm task trên Matrix"
             >
-              <span className="block truncate text-sm font-medium text-gray-100 group-hover:text-sky-300 transition-colors underline-offset-2 group-hover:underline">
+              <span className="block truncate text-sm font-medium text-foreground group-hover:text-sky-700 dark:group-hover:text-sky-300 transition-colors underline-offset-2 group-hover:underline">
                 {activeTodo.title}
               </span>
               {activeTodo.project?.name && (
@@ -148,7 +148,7 @@ const PomodoroBar = ({
 
       <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
         <PomodoroPhaseGif phase={phase} size="md" />
-        <div className="tabular-nums text-2xl font-semibold tracking-tight text-gray-100 min-w-[4.5rem] text-right">
+        <div className="tabular-nums text-2xl font-semibold tracking-tight text-foreground min-w-[4.5rem] text-right">
           {formatTimer(remainingMs)}
         </div>
 

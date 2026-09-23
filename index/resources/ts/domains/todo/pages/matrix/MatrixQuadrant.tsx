@@ -89,7 +89,7 @@ const MatrixQuadrant = ({
             {meta.subtitle}
           </p>
         </div>
-        <span className="rounded-full bg-black/30 px-2 py-0.5 text-xs tabular-nums text-gray-300">
+        <span className="rounded-full bg-black/10 dark:bg-black/30 px-2 py-0.5 text-xs tabular-nums text-foreground/70 dark:text-gray-300">
           {orderedTodos.length}
         </span>
       </header>

@@ -21,8 +21,8 @@ export const QUADRANTS: QuadrantMeta[] = [
     is_urgent: true,
     is_important: true,
     accent: "border-rose-500/70",
-    panel: "bg-rose-950/40",
-    header: "text-rose-300",
+    panel: "bg-rose-200/55 dark:bg-rose-950/40",
+    header: "text-rose-800 dark:text-rose-300",
   },
   {
     key: "schedule",
@@ -31,8 +31,8 @@ export const QUADRANTS: QuadrantMeta[] = [
     is_urgent: false,
     is_important: true,
     accent: "border-teal-500/70",
-    panel: "bg-teal-950/35",
-    header: "text-teal-300",
+    panel: "bg-teal-200/50 dark:bg-teal-950/35",
+    header: "text-teal-800 dark:text-teal-300",
   },
   {
     key: "delegate",
@@ -41,8 +41,8 @@ export const QUADRANTS: QuadrantMeta[] = [
     is_urgent: true,
     is_important: false,
     accent: "border-amber-500/70",
-    panel: "bg-amber-950/35",
-    header: "text-amber-300",
+    panel: "bg-amber-200/50 dark:bg-amber-950/35",
+    header: "text-amber-900 dark:text-amber-300",
   },
   {
     key: "eliminate",
@@ -51,8 +51,8 @@ export const QUADRANTS: QuadrantMeta[] = [
     is_urgent: false,
     is_important: false,
     accent: "border-slate-500/60",
-    panel: "bg-slate-900/50",
-    header: "text-slate-300",
+    panel: "bg-slate-300/45 dark:bg-slate-900/50",
+    header: "text-slate-700 dark:text-slate-300",
   },
 ];
 
@@ -68,9 +68,10 @@ export const statusStyles: Record<
   { card: string }
 > = {
   todo: {
-    card: "border-l-4 border-l-sky-500 bg-sky-950/30",
+    card: "border-l-4 border-l-sky-500 bg-sky-200/45 dark:bg-sky-950/30",
   },
   in_progress: {
-    card: "border-l-4 border-l-orange-500 bg-orange-950/40 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.25)]",
+    card:
+      "border-l-4 border-l-orange-500 bg-orange-200/45 dark:bg-orange-950/40 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.2)] dark:shadow-[inset_0_0_0_1px_rgba(249,115,22,0.25)]",
   },
 };

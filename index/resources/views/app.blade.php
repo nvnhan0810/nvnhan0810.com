@@ -14,6 +14,30 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Matrix" />
+    <script>
+      (function () {
+        try {
+          var key = "vite-ui-theme";
+          var stored = localStorage.getItem(key) || "dark";
+          var resolved =
+            stored === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : stored;
+          document.documentElement.classList.add(resolved);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute(
+              "content",
+              resolved === "dark" ? "#0a0a0a" : "#dce2e9",
+            );
+          }
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
     {{-- OG/Twitter meta come from SeoHead via @inertiaHead (SSR). Do not duplicate here — crawlers use the first og:* tags. --}}
     @viteReactRefresh
     @vite('resources/sass/app.scss')
@@ -29,7 +53,7 @@
       </script>
     @endif
   </head>
-  <body class="dark">
+  <body>
     @inertia
   </body>
 </html>

@@ -260,7 +260,7 @@ const BacklogRow = ({
               <button
                 type="button"
                 onClick={onEdit}
-                className="text-left text-sm font-medium text-gray-100 hover:text-sky-300 transition-colors cursor-pointer truncate max-w-full"
+                className="text-left text-sm font-medium text-foreground hover:text-sky-700 dark:hover:text-sky-300 transition-colors cursor-pointer truncate max-w-full"
                 aria-label={`Sửa ${todo.title}`}
               >
                 {todo.title}
@@ -309,7 +309,7 @@ const BacklogRow = ({
           <label
             className={cn(
               "inline-flex items-center gap-1.5 text-xs",
-              enabled ? "text-gray-200" : "text-muted-foreground/50",
+              enabled ? "text-foreground" : "text-muted-foreground/50",
             )}
           >
             <Checkbox
@@ -322,7 +322,7 @@ const BacklogRow = ({
           <label
             className={cn(
               "inline-flex items-center gap-1.5 text-xs",
-              enabled ? "text-gray-200" : "text-muted-foreground/50",
+              enabled ? "text-foreground" : "text-muted-foreground/50",
             )}
           >
             <Checkbox
