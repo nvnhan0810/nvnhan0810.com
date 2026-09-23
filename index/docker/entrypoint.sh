@@ -14,6 +14,12 @@ mkdir -p \
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R ug+rwX storage bootstrap/cache
 
+# Redis is required for QUEUE_CONNECTION=redis / CACHE_STORE=redis (survives pod rebuilds).
+if ! php -m 2>/dev/null | grep -qi '^redis$'; then
+  echo "ERROR: PHP redis extension missing — rebuild the image." >&2
+  exit 1
+fi
+
 if [ "$APP_ENV" = "production" ]; then
   php artisan config:cache
   php artisan route:cache

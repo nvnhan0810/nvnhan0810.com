@@ -69,6 +69,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev \
         libonig-dev \
         libxml2-dev \
+        $PHPIZE_DEPS \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && ln -sf /usr/bin/node /usr/local/bin/node \
@@ -81,6 +82,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         opcache \
         mbstring \
         xml \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $PHPIZE_DEPS \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/99-opcache.ini

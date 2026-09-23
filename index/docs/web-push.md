@@ -149,7 +149,7 @@ php artisan webpush:vapid   # copy vào .env → config:clear
 
 Files: `public/manifest.webmanifest`, `public/sw.js`, manifest + `apple-mobile-web-app-capable` trong `app.blade.php`.
 
-Cần **HTTPS** + `queue:work` (xem `docker/supervisor/supervisord.conf`).
+Cần **HTTPS**, Redis (`QUEUE_CONNECTION=redis`, `CACHE_STORE=redis`), và Supervisor `queue:work redis`. Redis phải **ngoài app pod** (PVC / managed) — không để queue/cache trong ephemeral storage của Pod.
 
 ---
 

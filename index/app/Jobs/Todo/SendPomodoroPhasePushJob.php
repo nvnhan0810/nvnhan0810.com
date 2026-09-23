@@ -13,11 +13,14 @@ final class SendPomodoroPhasePushJob implements ShouldQueue
 
     public int $tries = 2;
 
-    public int $userId;
+    public int $userId = 0;
 
-    public string $sessionUuid;
+    /**
+     * Default '' keeps delayed jobs serialized before sessionUuid was added runnable.
+     */
+    public string $sessionUuid = '';
 
-    public int $expectedEndsAtMs;
+    public int $expectedEndsAtMs = 0;
 
     /**
      * Default keeps delayed jobs serialized before fromPhase was added runnable.
@@ -40,6 +43,11 @@ final class SendPomodoroPhasePushJob implements ShouldQueue
 
     public function handle(DeliverPomodoroPhasePush $deliver): void
     {
+        // Stale payload from pre-sessionUuid / pre-redis deploy — drop quietly.
+        if ($this->userId <= 0 || $this->sessionUuid === '' || $this->expectedEndsAtMs <= 0) {
+            return;
+        }
+
         $deliver->execute(
             $this->userId,
             $this->sessionUuid,

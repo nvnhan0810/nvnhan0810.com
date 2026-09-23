@@ -14,6 +14,7 @@ Tài liệu nội bộ của site (không phải Laravel generic):
 - [Central SSO](docs/sso.md)
 - [Reading Digest flow](docs/reading-digest-flow.md)
 - [Web Push / Pomodoro](docs/web-push.md) — VAPID, PWA, server-authoritative timer, focus global
+- Production: `QUEUE_CONNECTION=redis` + `CACHE_STORE=redis` (Redis ngoài Pod; image có `ext-redis`, Supervisor `queue:work redis`)
 
 ## About Laravel
 
