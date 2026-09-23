@@ -13,7 +13,7 @@ Tài liệu nội bộ của site (không phải Laravel generic):
 
 - [Central SSO](docs/sso.md)
 - [Reading Digest flow](docs/reading-digest-flow.md)
-- [Web Push (Pomodoro / Matrix)](docs/web-push.md) — PWA, VAPID, iOS Home Screen, suppress khi đang focus
+- [Web Push / Pomodoro](docs/web-push.md) — VAPID, PWA, server-authoritative timer, focus global
 
 ## About Laravel
 

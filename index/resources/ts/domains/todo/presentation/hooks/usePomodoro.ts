@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEFAULT_POMODORO_SETTINGS,
-  nextPhaseAfterFocus,
-  phaseDurationMs,
   type PomodoroPhase,
   type PomodoroSettings,
 } from "../../constants/pomodoro";
@@ -10,7 +8,16 @@ import {
   parsePomodoroSyncPayload,
   type PomodoroSyncPayload,
 } from "../../application/parsePomodoroSyncPayload";
-import { pushPomodoroState, fetchPomodoroState } from "../../infrastructure/pomodoroApi";
+import {
+  fetchPomodoroState,
+  pausePomodoro,
+  pingPomodoroFocus,
+  resetPomodoro,
+  skipPomodoro,
+  startPomodoro,
+  updatePomodoroActiveTodo,
+  updatePomodoroSettings,
+} from "../../infrastructure/pomodoroApi";
 import {
   loadPomodoroRuntime,
   loadPomodoroSettings,
@@ -26,10 +33,7 @@ import {
   POMODORO_COUNTDOWN_WARN_SECONDS,
   unlockPomodoroAudio,
 } from "../../infrastructure/pomodoroAudio";
-import {
-  ensurePomodoroNotificationPermission,
-  notifyPomodoroPhaseEnd,
-} from "../../infrastructure/pomodoroNotifications";
+import { ensurePomodoroNotificationPermission } from "../../infrastructure/pomodoroNotifications";
 import {
   clearPomodoroTabPresence,
   syncPomodoroTabPresence,
@@ -43,6 +47,7 @@ export type UsePomodoroResult = {
   focusCount: number;
   activeTodoId: number | null;
   isRunning: boolean;
+  sessionUuid: string | null;
   selectTodo: (todoId: number | null) => void;
   clearActiveTodo: () => void;
   start: () => void;
@@ -53,124 +58,37 @@ export type UsePomodoroResult = {
   applyRemotePayload: (payload: PomodoroSyncPayload) => void;
 };
 
+type UsePomodoroUrls = {
+  show: string;
+  start: string;
+  pause: string;
+  skip: string;
+  reset: string;
+  settings: string;
+  activeTodo: string;
+  focus: string;
+};
+
 type UsePomodoroArgs = {
   initialPayload?: unknown;
-  syncUrl?: string;
+  urls?: UsePomodoroUrls;
 };
 
 const resolveRemaining = (runtime: PomodoroRuntimeSnapshot, now: number): number => {
+  // Running: only endsAt (job fire time). Never trust API remainingMs (server clock).
   if (runtime.isRunning && runtime.endsAt !== null) {
     return Math.max(0, runtime.endsAt - now);
   }
   return Math.max(0, runtime.remainingMs);
 };
 
-const stampRuntime = (
-  runtime: Omit<PomodoroRuntimeSnapshot, "updatedAt"> & { updatedAt?: number },
-): PomodoroRuntimeSnapshot => ({
+const toDisplayRuntime = (runtime: PomodoroRuntimeSnapshot): PomodoroRuntimeSnapshot => ({
   ...runtime,
-  updatedAt: Date.now(),
+  remainingMs: resolveRemaining(runtime, Date.now()),
 });
 
-const resetRuntime = (settings: PomodoroSettings): PomodoroRuntimeSnapshot =>
-  stampRuntime({
-    phase: "focus",
-    remainingMs: phaseDurationMs("focus", settings),
-    endsAt: null,
-    focusCount: 0,
-    activeTodoId: null,
-    isRunning: false,
-  });
-
-const advanceFromPhase = (
-  prev: PomodoroRuntimeSnapshot,
-  settings: PomodoroSettings,
-): PomodoroRuntimeSnapshot => {
-  const wasRunning = prev.isRunning;
-
-  if (prev.phase === "focus") {
-    const completedCount = prev.focusCount + 1;
-    const nextPhase = nextPhaseAfterFocus(
-      completedCount,
-      settings.sessionsBeforeLongBreak,
-    );
-    const focusCount = nextPhase === "long_break" ? 0 : completedCount;
-    const duration = phaseDurationMs(nextPhase, settings);
-
-    return stampRuntime({
-      ...prev,
-      phase: nextPhase,
-      focusCount,
-      remainingMs: duration,
-      endsAt: wasRunning ? Date.now() + duration : null,
-      isRunning: wasRunning,
-    });
-  }
-
-  const duration = phaseDurationMs("focus", settings);
-  return stampRuntime({
-    ...prev,
-    phase: "focus",
-    remainingMs: duration,
-    endsAt: wasRunning ? Date.now() + duration : null,
-    isRunning: wasRunning,
-  });
-};
-
-const normalizeHydratedRuntime = (
-  loadedRuntime: PomodoroRuntimeSnapshot,
-  loadedSettings: PomodoroSettings,
-): {
-  runtime: PomodoroRuntimeSnapshot;
-  didAdvance: boolean;
-  fromPhase: PomodoroPhase;
-} => {
-  const currentRemaining = resolveRemaining(loadedRuntime, Date.now());
-  if (loadedRuntime.isRunning && currentRemaining <= 0) {
-    let cursor = loadedRuntime;
-    let guard = 0;
-    while (
-      cursor.isRunning &&
-      resolveRemaining(cursor, Date.now()) <= 0 &&
-      guard < 8
-    ) {
-      cursor = advanceFromPhase(cursor, loadedSettings);
-      guard += 1;
-    }
-    return {
-      runtime: cursor,
-      didAdvance: guard > 0,
-      fromPhase: loadedRuntime.phase,
-    };
-  }
-
-  return {
-    runtime: {
-      ...loadedRuntime,
-      remainingMs: currentRemaining,
-      endsAt:
-        loadedRuntime.isRunning && currentRemaining > 0
-          ? Date.now() + currentRemaining
-          : null,
-    },
-    didAdvance: false,
-    fromPhase: loadedRuntime.phase,
-  };
-};
-
-const pickNewer = (
-  localSettings: PomodoroSettings,
-  localRuntime: PomodoroRuntimeSnapshot,
-  remote: PomodoroSyncPayload,
-): { settings: PomodoroSettings; runtime: PomodoroRuntimeSnapshot } => {
-  if (remote.runtime.updatedAt > localRuntime.updatedAt) {
-    return { settings: remote.settings, runtime: remote.runtime };
-  }
-  return { settings: localSettings, runtime: localRuntime };
-};
-
 export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
-  const { initialPayload, syncUrl } = args;
+  const { initialPayload, urls } = args;
   const [settings, setSettings] = useState<PomodoroSettings>(DEFAULT_POMODORO_SETTINGS);
   const [runtime, setRuntime] = useState<PomodoroRuntimeSnapshot>(() => ({
     phase: "focus",
@@ -180,131 +98,97 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     activeTodoId: null,
     isRunning: false,
     updatedAt: 0,
+    sessionUuid: null,
   }));
   const [nowTick, setNowTick] = useState(() => Date.now());
   const hydratedRef = useRef(false);
-  const pendingSettingsRef = useRef<PomodoroSettings | null>(null);
   const settingsRef = useRef(settings);
   const runtimeRef = useRef(runtime);
   const lastCountdownSecondRef = useRef<number | null>(null);
-  const lastPushedUpdatedAtRef = useRef(0);
-  const syncUrlRef = useRef(syncUrl);
-  const pushTimerRef = useRef<number | null>(null);
-  const pushAbortRef = useRef<AbortController | null>(null);
+  const lastAppliedUpdatedAtRef = useRef(0);
+  const lastPhaseRef = useRef<PomodoroPhase>("focus");
+  const urlsRef = useRef(urls);
+  const commandAbortRef = useRef<AbortController | null>(null);
+  const hydrateAbortRef = useRef<AbortController | null>(null);
+  const awaitingPhaseEndRef = useRef(false);
   const initialPayloadRef = useRef(initialPayload);
 
   settingsRef.current = settings;
   runtimeRef.current = runtime;
-  syncUrlRef.current = syncUrl;
+  urlsRef.current = urls;
 
-  const scheduleRemotePush = useCallback((): void => {
-    const url = syncUrlRef.current;
-    if (!url || !hydratedRef.current) {
-      return;
-    }
-    if (pushTimerRef.current !== null) {
-      window.clearTimeout(pushTimerRef.current);
-    }
-    pushTimerRef.current = window.setTimeout(() => {
-      pushTimerRef.current = null;
-      const activeSettings = pendingSettingsRef.current ?? settingsRef.current;
-      const currentRuntime = {
-        ...runtimeRef.current,
-        remainingMs: resolveRemaining(runtimeRef.current, Date.now()),
-      };
-      if (currentRuntime.updatedAt <= lastPushedUpdatedAtRef.current) {
-        return;
-      }
-      pushAbortRef.current?.abort();
-      const controller = new AbortController();
-      pushAbortRef.current = controller;
-      const pushedUpdatedAt = currentRuntime.updatedAt;
-      void pushPomodoroState(
-        url,
-        { settings: activeSettings, runtime: currentRuntime },
-        controller.signal,
-      )
-        .then((result) => {
-          lastPushedUpdatedAtRef.current = Math.max(
-            lastPushedUpdatedAtRef.current,
-            pushedUpdatedAt,
-          );
-          if (result.accepted === false && result.runtime.updatedAt > runtimeRef.current.updatedAt) {
-            setSettings(result.settings);
-            savePomodoroSettings(result.settings);
-            setRuntime(result.runtime);
-            savePomodoroRuntime(result.runtime);
-            pendingSettingsRef.current = null;
-          }
-        })
-        .catch(() => {
-          // Offline / aborted — localStorage remains source until next push.
-        });
-    }, 400);
-  }, []);
-
-  const reconcileOnVisible = useCallback((): void => {
-    const url = syncUrlRef.current;
-    if (!url || !hydratedRef.current) {
+  const applyServerPayload = useCallback((payload: PomodoroSyncPayload): void => {
+    if (payload.runtime.updatedAt < lastAppliedUpdatedAtRef.current) {
       return;
     }
 
-    pushAbortRef.current?.abort();
-    const controller = new AbortController();
-    pushAbortRef.current = controller;
+    const prevPhase = lastPhaseRef.current;
+    const nextRuntime = toDisplayRuntime(payload.runtime);
+    const phaseChanged = nextRuntime.phase !== prevPhase;
 
-    void fetchPomodoroState(url, controller.signal)
-      .then((remote) => {
-        const localSettings = pendingSettingsRef.current ?? settingsRef.current;
-        const localRuntime = {
-          ...runtimeRef.current,
-          remainingMs: resolveRemaining(runtimeRef.current, Date.now()),
-        };
-        const picked = pickNewer(localSettings, localRuntime, remote);
+    lastAppliedUpdatedAtRef.current = payload.runtime.updatedAt;
+    lastPhaseRef.current = nextRuntime.phase;
 
-        if (picked.runtime.updatedAt > runtimeRef.current.updatedAt) {
-          pendingSettingsRef.current = null;
-          setSettings(picked.settings);
-          savePomodoroSettings(picked.settings);
-          const normalized = normalizeHydratedRuntime(picked.runtime, picked.settings);
-          runtimeRef.current = normalized.runtime;
-          setRuntime(normalized.runtime);
-          savePomodoroRuntime(normalized.runtime);
-          lastCountdownSecondRef.current = null;
-          lastPushedUpdatedAtRef.current = Math.max(
-            lastPushedUpdatedAtRef.current,
-            picked.runtime.updatedAt,
-          );
-        }
-
-        // If local is still newer (edits while visible), push; otherwise stay.
-        scheduleRemotePush();
-      })
-      .catch(() => {
-        scheduleRemotePush();
-      });
-  }, [scheduleRemotePush]);
-
-  const applyRemotePayload = useCallback((payload: PomodoroSyncPayload): void => {
-    if (!hydratedRef.current) {
-      return;
-    }
-    if (payload.runtime.updatedAt <= runtimeRef.current.updatedAt) {
-      return;
-    }
-    if (payload.runtime.updatedAt <= lastPushedUpdatedAtRef.current) {
-      return;
-    }
-    pendingSettingsRef.current = null;
-    lastPushedUpdatedAtRef.current = payload.runtime.updatedAt;
     setSettings(payload.settings);
     savePomodoroSettings(payload.settings);
-    const normalized = normalizeHydratedRuntime(payload.runtime, payload.settings);
-    runtimeRef.current = normalized.runtime;
-    setRuntime(normalized.runtime);
-    savePomodoroRuntime(normalized.runtime);
+    settingsRef.current = payload.settings;
+    runtimeRef.current = nextRuntime;
+    setRuntime(nextRuntime);
+    savePomodoroRuntime(nextRuntime);
     lastCountdownSecondRef.current = null;
+
+    if (phaseChanged && hydratedRef.current) {
+      playPomodoroPhaseEndSound();
+      awaitingPhaseEndRef.current = false;
+    }
   }, []);
+
+  const runCommand = useCallback(
+    async (request: (signal: AbortSignal) => Promise<PomodoroSyncPayload>): Promise<void> => {
+      const currentUrls = urlsRef.current;
+      if (!currentUrls || !hydratedRef.current) {
+        return;
+      }
+      commandAbortRef.current?.abort();
+      const controller = new AbortController();
+      commandAbortRef.current = controller;
+      try {
+        const result = await request(controller.signal);
+        applyServerPayload(result);
+      } catch {
+        // Keep last known server snapshot; hydrate on next visibility.
+      }
+    },
+    [applyServerPayload],
+  );
+
+  const hydrateFromServer = useCallback((): void => {
+    const currentUrls = urlsRef.current;
+    if (!currentUrls || !hydratedRef.current) {
+      return;
+    }
+    hydrateAbortRef.current?.abort();
+    const controller = new AbortController();
+    hydrateAbortRef.current = controller;
+    void fetchPomodoroState(currentUrls.show, controller.signal)
+      .then((remote) => {
+        applyServerPayload(remote);
+      })
+      .catch(() => {
+        // ignore
+      });
+  }, [applyServerPayload]);
+
+  const applyRemotePayload = useCallback(
+    (payload: PomodoroSyncPayload): void => {
+      if (!hydratedRef.current) {
+        return;
+      }
+      applyServerPayload(payload);
+    },
+    [applyServerPayload],
+  );
+
   useEffect(() => {
     const localSettings = loadPomodoroSettings();
     const localRuntime = loadPomodoroRuntime();
@@ -315,29 +199,30 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     if (bootstrapPayload !== undefined) {
       try {
         const remote = parsePomodoroSyncPayload(bootstrapPayload);
-        const picked = pickNewer(localSettings, localRuntime, remote);
-        nextSettings = picked.settings;
-        nextRuntime = picked.runtime;
+        // Server bootstrap wins over stale local cache.
+        if (remote.runtime.updatedAt >= localRuntime.updatedAt) {
+          nextSettings = remote.settings;
+          nextRuntime = remote.runtime;
+        }
       } catch {
         // Keep local snapshot when initial payload is invalid.
       }
     }
 
-    const normalized = normalizeHydratedRuntime(nextRuntime, nextSettings);
+    const display = toDisplayRuntime(nextRuntime);
     setSettings(nextSettings);
     savePomodoroSettings(nextSettings);
     settingsRef.current = nextSettings;
-    runtimeRef.current = normalized.runtime;
-    setRuntime(normalized.runtime);
-    savePomodoroRuntime(normalized.runtime);
-    if (normalized.didAdvance) {
-      // Catch-up after opening a backgrounded PWA / tab. Web Push should have
-      // notified already — skip local Notification popup (especially on iOS).
-      playPomodoroPhaseEndSound();
-    }
+    runtimeRef.current = display;
+    setRuntime(display);
+    savePomodoroRuntime(display);
+    lastAppliedUpdatedAtRef.current = display.updatedAt;
+    lastPhaseRef.current = display.phase;
     hydratedRef.current = true;
-    scheduleRemotePush();
-  }, [scheduleRemotePush]);
+
+    // Always reconcile with GET so overdue phases are advanced by BE job / next command.
+    hydrateFromServer();
+  }, [hydrateFromServer]);
 
   useEffect(() => {
     if (!hydratedRef.current) {
@@ -347,12 +232,12 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       ...runtime,
       remainingMs: resolveRemaining(runtime, Date.now()),
     });
-    scheduleRemotePush();
-  }, [runtime, scheduleRemotePush]);
+  }, [runtime]);
 
   useEffect(() => {
     if (!runtime.isRunning) {
       lastCountdownSecondRef.current = null;
+      awaitingPhaseEndRef.current = false;
       return;
     }
     const id = window.setInterval(() => {
@@ -360,21 +245,12 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       const remaining = resolveRemaining(current, Date.now());
       if (remaining <= 0) {
         lastCountdownSecondRef.current = null;
-
-        const activeSettings = pendingSettingsRef.current ?? settingsRef.current;
-        if (pendingSettingsRef.current) {
-          setSettings(pendingSettingsRef.current);
-          savePomodoroSettings(pendingSettingsRef.current);
-          pendingSettingsRef.current = null;
+        setNowTick(Date.now());
+        if (!awaitingPhaseEndRef.current) {
+          awaitingPhaseEndRef.current = true;
+          // Soft poll — SSE may be delayed; BE owns phase change.
+          hydrateFromServer();
         }
-        const advanced = advanceFromPhase(current, activeSettings);
-        runtimeRef.current = advanced;
-        setRuntime(advanced);
-        playPomodoroPhaseEndSound();
-        notifyPomodoroPhaseEnd({
-          fromPhase: current.phase,
-          toPhase: advanced.phase,
-        });
         return;
       }
 
@@ -391,7 +267,7 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       setNowTick(Date.now());
     }, 250);
     return () => window.clearInterval(id);
-  }, [runtime.isRunning, runtime.phase, runtime.endsAt]);
+  }, [runtime.isRunning, runtime.phase, runtime.endsAt, hydrateFromServer]);
 
   const remainingMs = resolveRemaining(runtime, nowTick);
 
@@ -408,11 +284,49 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
     });
   }, [runtime.phase, runtime.isRunning, remainingMs]);
 
+  // Global focus heartbeat for push suppress (any focused device stamps BE).
+  useEffect(() => {
+    const currentUrls = urlsRef.current;
+    const sessionUuid = runtime.sessionUuid;
+    if (!currentUrls || !runtime.isRunning || sessionUuid === null) {
+      return;
+    }
+
+    const beat = (focused: boolean): void => {
+      if (!focused) {
+        return;
+      }
+      void pingPomodoroFocus(currentUrls.focus, sessionUuid, true).catch(() => {
+        // ignore
+      });
+    };
+
+    const syncFocus = (): void => {
+      const focused =
+        document.visibilityState === "visible" && document.hasFocus();
+      beat(focused);
+    };
+
+    syncFocus();
+    const intervalId = window.setInterval(syncFocus, 10_000);
+    const onVis = (): void => syncFocus();
+    const onFocus = (): void => beat(true);
+
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [runtime.isRunning, runtime.sessionUuid]);
+
   useEffect(() => {
     const onVisibility = (): void => {
       if (document.visibilityState === "visible") {
         unlockPomodoroAudio();
-        reconcileOnVisible();
+        hydrateFromServer();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -421,71 +335,45 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", unlockPomodoroAudio);
       clearPomodoroTabPresence();
-      if (pushTimerRef.current !== null) {
-        window.clearTimeout(pushTimerRef.current);
-      }
-      pushAbortRef.current?.abort();
+      commandAbortRef.current?.abort();
+      hydrateAbortRef.current?.abort();
     };
-  }, [reconcileOnVisible]);
+  }, [hydrateFromServer]);
 
-  const selectTodo = useCallback((todoId: number | null): void => {
-    setRuntime((prev) =>
-      stampRuntime({
-        ...prev,
-        activeTodoId: todoId,
-        remainingMs: resolveRemaining(prev, Date.now()),
-      }),
-    );
-  }, []);
+  const selectTodo = useCallback(
+    (todoId: number | null): void => {
+      void runCommand((signal) =>
+        updatePomodoroActiveTodo(urlsRef.current!.activeTodo, todoId, signal),
+      );
+    },
+    [runCommand],
+  );
 
   const clearActiveTodo = useCallback((): void => {
-    const activeSettings = pendingSettingsRef.current ?? settingsRef.current;
-    if (pendingSettingsRef.current) {
-      setSettings(pendingSettingsRef.current);
-      savePomodoroSettings(pendingSettingsRef.current);
-      pendingSettingsRef.current = null;
-    }
-    lastCountdownSecondRef.current = null;
-    const reset = resetRuntime(activeSettings);
-    runtimeRef.current = reset;
-    setRuntime(reset);
-  }, []);
+    void runCommand((signal) => resetPomodoro(urlsRef.current!.reset, signal));
+  }, [runCommand]);
 
   const start = useCallback((): void => {
     unlockPomodoroAudio();
     ensurePomodoroNotificationPermission();
-    setRuntime((prev) => {
-      const remaining = resolveRemaining(prev, Date.now());
-      if (remaining <= 0) {
-        return prev;
-      }
-      if (!prev.isRunning) {
-        lastCountdownSecondRef.current = null;
-        playPomodoroStartSound();
-      }
-      return stampRuntime({
-        ...prev,
-        isRunning: true,
-        remainingMs: remaining,
-        endsAt: Date.now() + remaining,
-      });
-    });
-  }, []);
+    if (!runtimeRef.current.isRunning) {
+      playPomodoroStartSound();
+    }
+    void runCommand((signal) =>
+      startPomodoro(
+        urlsRef.current!.start,
+        runtimeRef.current.activeTodoId,
+        signal,
+      ),
+    );
+  }, [runCommand]);
 
   const pause = useCallback((): void => {
-    setRuntime((prev) => {
-      const remaining = resolveRemaining(prev, Date.now());
-      if (prev.isRunning) {
-        playPomodoroPauseSound();
-      }
-      return stampRuntime({
-        ...prev,
-        isRunning: false,
-        remainingMs: remaining,
-        endsAt: null,
-      });
-    });
-  }, []);
+    if (runtimeRef.current.isRunning) {
+      playPomodoroPauseSound();
+    }
+    void runCommand((signal) => pausePomodoro(urlsRef.current!.pause, signal));
+  }, [runCommand]);
 
   const toggle = useCallback((): void => {
     if (runtimeRef.current.isRunning) {
@@ -496,65 +384,29 @@ export const usePomodoro = (args: UsePomodoroArgs = {}): UsePomodoroResult => {
   }, [pause, start]);
 
   const skipPhase = useCallback((): void => {
-    const activeSettings = pendingSettingsRef.current ?? settingsRef.current;
-    if (pendingSettingsRef.current) {
-      setSettings(pendingSettingsRef.current);
-      savePomodoroSettings(pendingSettingsRef.current);
-      pendingSettingsRef.current = null;
-    }
-    lastCountdownSecondRef.current = null;
-    const fromPhase = runtimeRef.current.phase;
-    const advanced = advanceFromPhase(runtimeRef.current, activeSettings);
-    playPomodoroPhaseEndSound();
-    notifyPomodoroPhaseEnd({
-      fromPhase,
-      toPhase: advanced.phase,
-    });
-    runtimeRef.current = advanced;
-    setRuntime(advanced);
-  }, []);
+    void runCommand((signal) => skipPomodoro(urlsRef.current!.skip, signal));
+  }, [runCommand]);
 
   const saveSettings = useCallback(
     (next: PomodoroSettings): void => {
       savePomodoroSettings(next);
-      pendingSettingsRef.current = null;
       settingsRef.current = next;
       setSettings(next);
-
-      setRuntime((prev) => {
-        const now = Date.now();
-        const currentRemaining = resolveRemaining(prev, now);
-        const maxMs = phaseDurationMs(prev.phase, next);
-        // Shrink if remaining exceeds new phase length; never extend mid-phase.
-        const nextRemaining = Math.min(currentRemaining, maxMs);
-
-        if (prev.isRunning) {
-          return stampRuntime({
-            ...prev,
-            remainingMs: nextRemaining,
-            endsAt: now + nextRemaining,
-            isRunning: true,
-          });
-        }
-
-        return stampRuntime({
-          ...prev,
-          remainingMs: nextRemaining,
-          endsAt: null,
-          isRunning: false,
-        });
-      });
+      void runCommand((signal) =>
+        updatePomodoroSettings(urlsRef.current!.settings, next, signal),
+      );
     },
-    [],
+    [runCommand],
   );
 
   return {
-    settings: pendingSettingsRef.current ?? settings,
+    settings,
     phase: runtime.phase,
     remainingMs,
     focusCount: runtime.focusCount,
     activeTodoId: runtime.activeTodoId,
     isRunning: runtime.isRunning,
+    sessionUuid: runtime.sessionUuid,
     selectTodo,
     clearActiveTodo,
     start,

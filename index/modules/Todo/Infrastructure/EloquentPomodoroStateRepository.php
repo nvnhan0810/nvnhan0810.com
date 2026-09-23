@@ -3,6 +3,7 @@
 namespace Modules\Todo\Infrastructure;
 
 use App\Models\TodoPomodoroState as TodoPomodoroStateModel;
+use DateTimeImmutable;
 use Modules\Todo\Domain\PomodoroDefaults;
 use Modules\Todo\Domain\PomodoroState;
 use Modules\Todo\Domain\Ports\PomodoroStateRepository;
@@ -35,6 +36,8 @@ final class EloquentPomodoroStateRepository implements PomodoroStateRepository
                 'active_todo_id' => $state->activeTodoId,
                 'is_running' => $state->isRunning,
                 'client_updated_at' => $state->clientUpdatedAt,
+                'session_uuid' => $state->sessionUuid,
+                'last_focused_at' => $state->lastFocusedAt?->format('Y-m-d H:i:s'),
             ],
         );
 
@@ -46,6 +49,11 @@ final class EloquentPomodoroStateRepository implements PomodoroStateRepository
         $phase = in_array($row->phase, PomodoroDefaults::PHASES, true)
             ? $row->phase
             : PomodoroDefaults::PHASE_FOCUS;
+
+        $lastFocused = $row->last_focused_at;
+        $lastFocusedAt = $lastFocused !== null
+            ? DateTimeImmutable::createFromMutable($lastFocused)
+            : null;
 
         return new PomodoroState(
             userId: (int) $row->user_id,
@@ -60,6 +68,10 @@ final class EloquentPomodoroStateRepository implements PomodoroStateRepository
             activeTodoId: $row->active_todo_id !== null ? (int) $row->active_todo_id : null,
             isRunning: (bool) $row->is_running,
             clientUpdatedAt: (int) $row->client_updated_at,
+            sessionUuid: is_string($row->session_uuid) && $row->session_uuid !== ''
+                ? $row->session_uuid
+                : null,
+            lastFocusedAt: $lastFocusedAt,
         );
     }
 }

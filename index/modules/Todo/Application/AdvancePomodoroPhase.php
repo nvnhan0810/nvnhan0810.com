@@ -9,6 +9,8 @@ final class AdvancePomodoroPhase
 {
     public function advance(PomodoroState $state): PomodoroState
     {
+        $nowMs = PomodoroState::nowMs();
+
         if ($state->phase === PomodoroDefaults::PHASE_FOCUS) {
             $completedCount = $state->focusCount + 1;
             $nextPhase = $completedCount >= $state->sessionsBeforeLongBreak
@@ -26,11 +28,13 @@ final class AdvancePomodoroPhase
                 longBreakMinutes: $state->longBreakMinutes,
                 phase: $nextPhase,
                 remainingMs: $durationMs,
-                endsAt: $wasRunning ? ((int) floor(microtime(true) * 1000)) + $durationMs : null,
+                endsAt: $wasRunning ? $nowMs + $durationMs : null,
                 focusCount: $focusCount,
                 activeTodoId: $state->activeTodoId,
                 isRunning: $wasRunning,
-                clientUpdatedAt: max($state->clientUpdatedAt + 1, (int) floor(microtime(true) * 1000)),
+                clientUpdatedAt: max($state->clientUpdatedAt + 1, $nowMs),
+                sessionUuid: $state->sessionUuid,
+                lastFocusedAt: $state->lastFocusedAt,
             );
         }
 
@@ -45,15 +49,17 @@ final class AdvancePomodoroPhase
             longBreakMinutes: $state->longBreakMinutes,
             phase: PomodoroDefaults::PHASE_FOCUS,
             remainingMs: $durationMs,
-            endsAt: $wasRunning ? ((int) floor(microtime(true) * 1000)) + $durationMs : null,
+            endsAt: $wasRunning ? $nowMs + $durationMs : null,
             focusCount: $state->focusCount,
             activeTodoId: $state->activeTodoId,
             isRunning: $wasRunning,
-            clientUpdatedAt: max($state->clientUpdatedAt + 1, (int) floor(microtime(true) * 1000)),
+            clientUpdatedAt: max($state->clientUpdatedAt + 1, $nowMs),
+            sessionUuid: $state->sessionUuid,
+            lastFocusedAt: $state->lastFocusedAt,
         );
     }
 
-    private function durationMs(string $phase, PomodoroState $state): int
+    public function durationMs(string $phase, PomodoroState $state): int
     {
         return match ($phase) {
             PomodoroDefaults::PHASE_FOCUS => $state->focusMinutes * 60_000,

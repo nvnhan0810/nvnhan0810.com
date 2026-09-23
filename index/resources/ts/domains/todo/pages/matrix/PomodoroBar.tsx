@@ -5,7 +5,7 @@ import {
   TooltipTrigger,
 } from "@/ts/components/ui/tooltip";
 import { cn } from "@ts/utils";
-import { CheckCircle2, Pause, Play, SkipForward, X } from "lucide-react";
+import { Check, Pause, Play, SkipForward, X } from "lucide-react";
 import {
   formatTimer,
   POMODORO_PHASE_LABEL,
@@ -61,40 +61,68 @@ const PomodoroBar = ({
   return (
     <div
       className={cn(
-        "rounded-lg border px-3 py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
+        "rounded-lg border px-3 py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3",
         phaseAccent,
         className,
       )}
     >
-      <div className="flex items-center gap-3 shrink-0">
-        <PomodoroPhaseGif phase={phase} size="md" />
-        <div className="tabular-nums text-2xl font-semibold tracking-tight text-gray-100 min-w-[4.5rem]">
-          {formatTimer(remainingMs)}
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-gray-200">
-            {POMODORO_PHASE_LABEL[phase]}
-          </p>
-          <div className="mt-1 flex items-center gap-1">
-            {sessionDots.map((filled, index) => (
-              <span
-                key={index}
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  filled ? "bg-rose-400" : "bg-white/20",
-                )}
-              />
-            ))}
-            <span className="ml-1 text-[10px] text-muted-foreground tabular-nums">
-              {focusCount}/{settings.sessionsBeforeLongBreak}
-            </span>
-          </div>
+      <div className="min-w-0 shrink-0 sm:w-[7.5rem]">
+        <p className="text-xs font-medium text-gray-200">
+          {POMODORO_PHASE_LABEL[phase]}
+        </p>
+        <div className="mt-1 flex items-center gap-1">
+          {sessionDots.map((filled, index) => (
+            <span
+              key={index}
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                filled ? "bg-rose-400" : "bg-white/20",
+              )}
+            />
+          ))}
+          <span className="ml-1 text-[10px] text-muted-foreground tabular-nums">
+            {focusCount}/{settings.sessionsBeforeLongBreak}
+          </span>
         </div>
       </div>
 
       <div className="min-w-0 flex-1">
         {activeTodo ? (
-          <div className="flex items-start gap-1.5 max-w-full">
+          <div className="flex items-center gap-1.5 max-w-full">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 shrink-0 p-0 cursor-pointer text-rose-400/90 hover:bg-rose-500/15 hover:text-rose-300"
+                  onClick={clearActiveTodo}
+                  aria-label="Bỏ task khỏi Pomodoro"
+                >
+                  <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Bỏ task & reset Pomodoro</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 shrink-0 p-0 cursor-pointer text-emerald-400/90 hover:bg-emerald-500/15 hover:text-emerald-300"
+                  onClick={onCompleteActiveTodo}
+                  aria-label="Hoàn thành todo"
+                >
+                  <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Đánh Done & lấy todo tiếp theo (giữ timer)
+              </TooltipContent>
+            </Tooltip>
+
             <button
               type="button"
               onClick={() => onLocateTodo(activeTodo.id)}
@@ -110,21 +138,6 @@ const PomodoroBar = ({
                 </span>
               )}
             </button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 shrink-0 p-0 cursor-pointer text-muted-foreground hover:text-rose-300"
-                  onClick={clearActiveTodo}
-                  aria-label="Bỏ task khỏi Pomodoro"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Bỏ task & reset Pomodoro</TooltipContent>
-            </Tooltip>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -133,7 +146,12 @@ const PomodoroBar = ({
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0 sm:ml-auto">
+      <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
+        <PomodoroPhaseGif phase={phase} size="md" />
+        <div className="tabular-nums text-2xl font-semibold tracking-tight text-gray-100 min-w-[4.5rem] text-right">
+          {formatTimer(remainingMs)}
+        </div>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -170,23 +188,6 @@ const PomodoroBar = ({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Bỏ qua phase hiện tại</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="cursor-pointer"
-              disabled={activeTodoId === null}
-              onClick={onCompleteActiveTodo}
-              aria-label="Hoàn thành todo"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Đánh Done & lấy todo tiếp theo (giữ timer)</TooltipContent>
         </Tooltip>
       </div>
     </div>

@@ -1,27 +1,9 @@
 import { jsonFetch } from "@/ts/utils/jsonFetch";
 import type { PomodoroSettings } from "../constants/pomodoro";
-import type { PomodoroRuntimeSnapshot } from "./pomodoroStorage";
 import {
   parsePomodoroSyncPayload,
   type PomodoroSyncPayload,
 } from "../application/parsePomodoroSyncPayload";
-import { getCurrentPushSubscription } from "./webPushClient";
-
-export type PomodoroPushBody = {
-  settings: PomodoroSettings;
-  runtime: PomodoroRuntimeSnapshot;
-  /** Whether Matrix is currently focused on this device (for Web Push suppress). */
-  focused?: boolean;
-  /** Push subscription endpoint for this device (pairs with focused). */
-  endpoint?: string | null;
-};
-
-const isMatrixFocused = (): boolean => {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  return document.visibilityState === "visible" && document.hasFocus();
-};
 
 export const fetchPomodoroState = async (
   url: string,
@@ -31,31 +13,76 @@ export const fetchPomodoroState = async (
   return parsePomodoroSyncPayload(raw);
 };
 
-export const pushPomodoroState = async (
+export const startPomodoro = async (
   url: string,
-  body: PomodoroPushBody,
+  activeTodoId?: number | null,
   signal?: AbortSignal,
 ): Promise<PomodoroSyncPayload> => {
-  const focused = body.focused ?? isMatrixFocused();
-  let endpoint: string | null = body.endpoint ?? null;
-  if (endpoint === null) {
-    try {
-      const subscription = await getCurrentPushSubscription();
-      endpoint = subscription?.endpoint ?? null;
-    } catch {
-      endpoint = null;
-    }
-  }
+  const body =
+    activeTodoId === undefined ? {} : { activeTodoId: activeTodoId ?? null };
+  const raw = await jsonFetch<unknown>(url, { method: "POST", body, signal });
+  return parsePomodoroSyncPayload(raw);
+};
 
+export const pausePomodoro = async (
+  url: string,
+  signal?: AbortSignal,
+): Promise<PomodoroSyncPayload> => {
+  const raw = await jsonFetch<unknown>(url, { method: "POST", signal });
+  return parsePomodoroSyncPayload(raw);
+};
+
+export const skipPomodoro = async (
+  url: string,
+  signal?: AbortSignal,
+): Promise<PomodoroSyncPayload> => {
+  const raw = await jsonFetch<unknown>(url, { method: "POST", signal });
+  return parsePomodoroSyncPayload(raw);
+};
+
+export const resetPomodoro = async (
+  url: string,
+  signal?: AbortSignal,
+): Promise<PomodoroSyncPayload> => {
+  const raw = await jsonFetch<unknown>(url, { method: "POST", signal });
+  return parsePomodoroSyncPayload(raw);
+};
+
+export const updatePomodoroSettings = async (
+  url: string,
+  settings: PomodoroSettings,
+  signal?: AbortSignal,
+): Promise<PomodoroSyncPayload> => {
   const raw = await jsonFetch<unknown>(url, {
     method: "PUT",
-    body: {
-      settings: body.settings,
-      runtime: body.runtime,
-      focused,
-      endpoint,
-    },
+    body: settings,
     signal,
   });
   return parsePomodoroSyncPayload(raw);
+};
+
+export const updatePomodoroActiveTodo = async (
+  url: string,
+  activeTodoId: number | null,
+  signal?: AbortSignal,
+): Promise<PomodoroSyncPayload> => {
+  const raw = await jsonFetch<unknown>(url, {
+    method: "PATCH",
+    body: { activeTodoId },
+    signal,
+  });
+  return parsePomodoroSyncPayload(raw);
+};
+
+export const pingPomodoroFocus = async (
+  url: string,
+  sessionUuid: string,
+  focused: boolean,
+  signal?: AbortSignal,
+): Promise<void> => {
+  await jsonFetch<unknown>(url, {
+    method: "POST",
+    body: { sessionUuid, focused },
+    signal,
+  });
 };

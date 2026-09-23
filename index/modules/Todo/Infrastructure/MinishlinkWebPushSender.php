@@ -45,12 +45,18 @@ final class MinishlinkWebPushSender implements WebPushSender
         ]);
 
         try {
+            $topic = isset($payload['topic']) && is_string($payload['topic']) && $payload['topic'] !== ''
+                ? $payload['topic']
+                : 'pomodoro-phase';
+            $bodyPayload = $payload;
+            unset($bodyPayload['topic']);
+
             $report = $webPush->sendOneNotification(
                 $sub,
-                json_encode($payload, JSON_THROW_ON_ERROR),
+                json_encode($bodyPayload, JSON_THROW_ON_ERROR),
                 [
                     'urgency' => 'high',
-                    'topic' => 'pomodoro-phase',
+                    'topic' => $topic,
                     'TTL' => 60 * 30,
                 ],
             );

@@ -58,6 +58,11 @@ export const parsePomodoroSyncPayload = (value: unknown): PomodoroSyncPayload =>
           : null,
       isRunning: value.runtime.isRunning === true,
       updatedAt: clampInt(value.runtime.updatedAt, 0, Number.MAX_SAFE_INTEGER, 0),
+      sessionUuid:
+        typeof value.runtime.sessionUuid === "string" &&
+        value.runtime.sessionUuid.length > 0
+          ? value.runtime.sessionUuid
+          : null,
     },
     version: clampInt(value.version, 0, Number.MAX_SAFE_INTEGER, 0),
     accepted: value.accepted === undefined ? undefined : value.accepted === true,

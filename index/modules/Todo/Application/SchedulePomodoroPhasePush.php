@@ -11,19 +11,26 @@ final class SchedulePomodoroPhasePush
 {
     public function __construct(
         private readonly WebPushSender $sender,
+        private readonly CancelPomodoroPhaseJobs $cancelPomodoroPhaseJobs,
     ) {}
 
     public function execute(
         int $userId,
+        ?string $sessionUuid,
         ?int $endsAtMs,
         bool $isRunning,
         string $fromPhase = PomodoroDefaults::PHASE_FOCUS,
+        ?string $previousSessionUuid = null,
     ): void {
+        if ($previousSessionUuid !== null && $previousSessionUuid !== $sessionUuid) {
+            $this->cancelPomodoroPhaseJobs->execute($previousSessionUuid);
+        }
+
         if (! $this->sender->isConfigured()) {
             return;
         }
 
-        if (! $isRunning || $endsAtMs === null || $endsAtMs <= 0) {
+        if (! $isRunning || $endsAtMs === null || $endsAtMs <= 0 || $sessionUuid === null || $sessionUuid === '') {
             return;
         }
 
@@ -34,7 +41,7 @@ final class SchedulePomodoroPhasePush
         $nowMs = (int) floor(microtime(true) * 1000);
         $delaySeconds = max(0, (int) ceil(($endsAtMs - $nowMs) / 1000));
 
-        SendPomodoroPhasePushJob::dispatch($userId, $endsAtMs, $phase)
+        SendPomodoroPhasePushJob::dispatch($userId, $sessionUuid, $endsAtMs, $phase)
             ->delay(Carbon::now()->addSeconds($delaySeconds));
     }
 }

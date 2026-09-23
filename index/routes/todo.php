@@ -10,7 +10,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/matrix', [MatrixController::class, 'index'])->name('matrix.index');
     Route::get('/matrix/stream', [MatrixController::class, 'stream'])->name('matrix.stream');
     Route::get('/matrix/pomodoro', [MatrixController::class, 'showPomodoro'])->name('matrix.pomodoro.show');
-    Route::put('/matrix/pomodoro', [MatrixController::class, 'updatePomodoro'])->name('matrix.pomodoro.update');
+    Route::post('/matrix/pomodoro/start', [MatrixController::class, 'startPomodoro'])->name('matrix.pomodoro.start');
+    Route::post('/matrix/pomodoro/pause', [MatrixController::class, 'pausePomodoro'])->name('matrix.pomodoro.pause');
+    Route::post('/matrix/pomodoro/skip', [MatrixController::class, 'skipPomodoro'])->name('matrix.pomodoro.skip');
+    Route::post('/matrix/pomodoro/reset', [MatrixController::class, 'resetPomodoro'])->name('matrix.pomodoro.reset');
+    Route::put('/matrix/pomodoro/settings', [MatrixController::class, 'updatePomodoroSettings'])->name('matrix.pomodoro.settings');
+    Route::patch('/matrix/pomodoro/active-todo', [MatrixController::class, 'updatePomodoroActiveTodo'])->name('matrix.pomodoro.active-todo');
+    Route::post('/matrix/pomodoro/focus', [MatrixController::class, 'focusPomodoro'])->name('matrix.pomodoro.focus');
     Route::get('/matrix/web-push/vapid-public-key', [WebPushController::class, 'publicKey'])->name('matrix.web-push.vapid');
     Route::get('/matrix/web-push/status', [WebPushController::class, 'status'])->name('matrix.web-push.status');
     Route::post('/matrix/web-push/subscribe', [WebPushController::class, 'subscribe'])->name('matrix.web-push.subscribe');

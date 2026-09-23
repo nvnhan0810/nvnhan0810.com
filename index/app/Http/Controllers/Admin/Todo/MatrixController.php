@@ -15,11 +15,15 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Todo\Application\BuildMatrixQuadrants;
 use Modules\Todo\Application\GetPomodoroState;
+use Modules\Todo\Application\PausePomodoro;
 use Modules\Todo\Application\PromoteBacklogItems;
-use Modules\Todo\Application\SavePomodoroState;
-use Modules\Todo\Application\UpdateWebPushPresence;
+use Modules\Todo\Application\ResetPomodoro;
+use Modules\Todo\Application\SelectPomodoroActiveTodo;
+use Modules\Todo\Application\SkipPomodoroPhase;
+use Modules\Todo\Application\StartPomodoro;
+use Modules\Todo\Application\TouchPomodoroFocus;
+use Modules\Todo\Application\UpdatePomodoroSettings;
 use Modules\Todo\Domain\MatrixStreamVersion;
-use Modules\Todo\Domain\PomodoroDefaults;
 use Modules\Todo\Domain\PomodoroStreamVersion;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -29,7 +33,6 @@ class MatrixController extends Controller
         private readonly BuildMatrixQuadrants $buildMatrixQuadrants,
         private readonly PromoteBacklogItems $promoteBacklogItems,
         private readonly GetPomodoroState $getPomodoroState,
-        private readonly SavePomodoroState $savePomodoroState,
     ) {}
 
     public function index(): Response
@@ -129,35 +132,69 @@ class MatrixController extends Controller
         return response()->json($this->getPomodoroState->execute($userId));
     }
 
-    public function updatePomodoro(Request $request, UpdateWebPushPresence $presence): JsonResponse
+    public function startPomodoro(Request $request, StartPomodoro $start): JsonResponse
     {
         $data = $request->validate([
-            'settings' => ['required', 'array'],
-            'settings.focusMinutes' => ['required', 'integer', 'min:1', 'max:180'],
-            'settings.shortBreakMinutes' => ['required', 'integer', 'min:1', 'max:60'],
-            'settings.sessionsBeforeLongBreak' => ['required', 'integer', 'min:1', 'max:12'],
-            'settings.longBreakMinutes' => ['required', 'integer', 'min:1', 'max:60'],
-            'runtime' => ['required', 'array'],
-            'runtime.phase' => ['required', 'string', Rule::in(PomodoroDefaults::PHASES)],
-            'runtime.remainingMs' => ['required', 'integer', 'min:0', 'max:86400000'],
-            'runtime.endsAt' => ['nullable', 'integer', 'min:0'],
-            'runtime.focusCount' => ['required', 'integer', 'min:0', 'max:12'],
-            'runtime.activeTodoId' => ['nullable', 'integer', 'exists:todos,id'],
-            'runtime.isRunning' => ['required', 'boolean'],
-            'runtime.updatedAt' => ['required', 'integer', 'min:0'],
-            'focused' => ['sometimes', 'boolean'],
-            'endpoint' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'activeTodoId' => ['sometimes', 'nullable', 'integer', 'exists:todos,id'],
         ]);
 
-        $userId = (int) Auth::id();
-        $result = $this->savePomodoroState->execute($userId, $data);
+        $activeTodoId = array_key_exists('activeTodoId', $data) && is_numeric($data['activeTodoId'] ?? null)
+            ? (int) $data['activeTodoId']
+            : null;
 
-        // Stamp per-device Matrix focus alongside timer sync (advance / start / pause).
-        if (array_key_exists('focused', $data) && filled($data['endpoint'] ?? null)) {
-            $presence->execute($userId, (string) $data['endpoint'], (bool) $data['focused']);
-        }
+        return response()->json($start->execute((int) Auth::id(), $activeTodoId));
+    }
 
-        return response()->json($result);
+    public function pausePomodoro(PausePomodoro $pause): JsonResponse
+    {
+        return response()->json($pause->execute((int) Auth::id()));
+    }
+
+    public function skipPomodoro(SkipPomodoroPhase $skip): JsonResponse
+    {
+        return response()->json($skip->execute((int) Auth::id()));
+    }
+
+    public function resetPomodoro(ResetPomodoro $reset): JsonResponse
+    {
+        return response()->json($reset->execute((int) Auth::id()));
+    }
+
+    public function updatePomodoroSettings(Request $request, UpdatePomodoroSettings $update): JsonResponse
+    {
+        $data = $request->validate([
+            'focusMinutes' => ['required', 'integer', 'min:1', 'max:180'],
+            'shortBreakMinutes' => ['required', 'integer', 'min:1', 'max:60'],
+            'sessionsBeforeLongBreak' => ['required', 'integer', 'min:1', 'max:12'],
+            'longBreakMinutes' => ['required', 'integer', 'min:1', 'max:60'],
+        ]);
+
+        return response()->json($update->execute((int) Auth::id(), $data));
+    }
+
+    public function updatePomodoroActiveTodo(Request $request, SelectPomodoroActiveTodo $select): JsonResponse
+    {
+        $data = $request->validate([
+            'activeTodoId' => ['nullable', 'integer', 'exists:todos,id'],
+        ]);
+
+        $activeTodoId = isset($data['activeTodoId']) && is_numeric($data['activeTodoId'])
+            ? (int) $data['activeTodoId']
+            : null;
+
+        return response()->json($select->execute((int) Auth::id(), $activeTodoId));
+    }
+
+    public function focusPomodoro(Request $request, TouchPomodoroFocus $touch): JsonResponse
+    {
+        $data = $request->validate([
+            'sessionUuid' => ['required', 'uuid'],
+            'focused' => ['required', 'boolean'],
+        ]);
+
+        $touch->execute((int) Auth::id(), (string) $data['sessionUuid'], $request->boolean('focused'));
+
+        return response()->json(['ok' => true]);
     }
 
     public function update(Request $request, string $id): RedirectResponse

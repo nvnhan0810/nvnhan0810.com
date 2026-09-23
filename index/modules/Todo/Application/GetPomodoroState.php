@@ -10,6 +10,7 @@ final class GetPomodoroState
 {
     public function __construct(
         private readonly PomodoroStateRepository $repository,
+        private readonly ReconcileOverduePomodoro $reconcileOverduePomodoro,
     ) {}
 
     /**
@@ -27,13 +28,16 @@ final class GetPomodoroState
      *     focusCount: int,
      *     activeTodoId: int|null,
      *     isRunning: bool,
-     *     updatedAt: int
+     *     updatedAt: int,
+     *     sessionUuid: string|null
      *   },
      *   version: int
      * }
      */
     public function execute(int $userId): array
     {
+        $this->reconcileOverduePomodoro->execute($userId);
+
         $state = $this->repository->findByUserId($userId) ?? PomodoroState::defaultFor($userId);
 
         return $state->toPayload(PomodoroStreamVersion::current($userId));

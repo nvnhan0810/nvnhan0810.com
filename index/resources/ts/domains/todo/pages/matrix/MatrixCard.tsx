@@ -75,11 +75,22 @@ const MatrixCard = ({
         isHighlighted && "animate-matrix-locate relative z-[1]",
       )}
     >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="block flex-1 text-sm font-medium text-gray-100 leading-snug">
-          {todo.title}
-        </span>
-        <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-gray-100 leading-snug">
+            {todo.title}
+          </span>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            {todo.project?.name && (
+              <span className="truncate max-w-[10rem]">{todo.project.name}</span>
+            )}
+            {todo.due_at && (
+              <span className="tabular-nums">Due {todo.due_at.slice(0, 10)}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0 self-start">
           {isPomodoroActive && (
             <PomodoroPhaseGif phase={pomodoroPhase} size="sm" />
           )}
@@ -105,15 +116,6 @@ const MatrixCard = ({
             <TooltipContent side="left">Làm todo này (Pomodoro)</TooltipContent>
           </Tooltip>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-        {todo.project?.name && (
-          <span className="truncate max-w-[10rem]">{todo.project.name}</span>
-        )}
-        {todo.due_at && (
-          <span className="tabular-nums">Due {todo.due_at.slice(0, 10)}</span>
-        )}
       </div>
     </article>
   );

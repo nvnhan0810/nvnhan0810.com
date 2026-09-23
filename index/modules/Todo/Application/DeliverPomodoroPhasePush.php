@@ -2,9 +2,10 @@
 
 namespace Modules\Todo\Application;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Todo\Domain\PomodoroDefaults;
+use Modules\Todo\Domain\PomodoroState;
 use Modules\Todo\Domain\PomodoroStreamVersion;
 use Modules\Todo\Domain\Ports\PomodoroStateRepository;
 use Modules\Todo\Domain\Ports\WebPushSender;
@@ -12,8 +13,6 @@ use Modules\Todo\Domain\Ports\WebPushSubscriptionRepository;
 
 final class DeliverPomodoroPhasePush
 {
-    private const DEDUPE_TTL_SECONDS = 60 * 60 * 6;
-
     public function __construct(
         private readonly PomodoroStateRepository $pomodoroStates,
         private readonly WebPushSubscriptionRepository $subscriptions,
@@ -22,84 +21,128 @@ final class DeliverPomodoroPhasePush
         private readonly SchedulePomodoroPhasePush $schedulePomodoroPhasePush,
     ) {}
 
-    public function execute(int $userId, int $expectedEndsAtMs, string $fromPhase): void
-    {
-        if (! $this->sender->isConfigured()) {
-            return;
-        }
-
-        $dedupeKey = $this->dedupeKey($userId, $expectedEndsAtMs);
-        if (Cache::has($dedupeKey)) {
-            return;
-        }
-
+    public function execute(
+        int $userId,
+        string $sessionUuid,
+        int $expectedEndsAtMs,
+        string $fromPhase,
+    ): void {
         $state = $this->pomodoroStates->findByUserId($userId);
         if ($state === null) {
             return;
         }
 
-        $nowMs = (int) floor(microtime(true) * 1000);
-        $matchesCurrent = $state->isRunning
-            && $state->endsAt !== null
-            && (int) $state->endsAt === $expectedEndsAtMs;
+        // Stale / cancelled / replaced session — no-op (no push, no advance).
+        if (
+            ! $state->isRunning
+            || $state->sessionUuid === null
+            || $state->sessionUuid !== $sessionUuid
+            || $state->endsAt === null
+            || (int) $state->endsAt !== $expectedEndsAtMs
+        ) {
+            Log::info('web-push.pomodoro.job_stale', [
+                'user_id' => $userId,
+                'job_session' => $sessionUuid,
+                'state_session' => $state->sessionUuid,
+                'expected_ends_at' => $expectedEndsAtMs,
+                'state_ends_at' => $state->endsAt,
+            ]);
 
-        // Still scheduled in the future for this endsAt — wait.
-        if ($matchesCurrent && $expectedEndsAtMs > $nowMs + 1500) {
+            return;
+        }
+
+        $nowMs = PomodoroState::nowMs();
+        // Fired early — reschedule for the same session.
+        if ($expectedEndsAtMs > $nowMs + 1500) {
             $this->schedulePomodoroPhasePush->execute(
                 $userId,
+                $state->sessionUuid,
                 $state->endsAt,
                 true,
                 $state->phase,
             );
 
-            return;
-        }
-
-        // Stale delayed job from an older timer that was replaced before it was due.
-        if (! $matchesCurrent && $expectedEndsAtMs > $nowMs + 1500) {
             return;
         }
 
         $phase = in_array($fromPhase, PomodoroDefaults::PHASES, true)
             ? $fromPhase
-            : ($matchesCurrent ? $state->phase : PomodoroDefaults::PHASE_FOCUS);
+            : $state->phase;
 
-        // Mark early so concurrent workers / double jobs don't double-notify.
-        Cache::put($dedupeKey, 1, self::DEDUPE_TTL_SECONDS);
+        $advanced = $this->advancePomodoroPhase->advance($state);
+        $nextUuid = (string) Str::uuid();
+        $next = new PomodoroState(
+            userId: $advanced->userId,
+            focusMinutes: $advanced->focusMinutes,
+            shortBreakMinutes: $advanced->shortBreakMinutes,
+            sessionsBeforeLongBreak: $advanced->sessionsBeforeLongBreak,
+            longBreakMinutes: $advanced->longBreakMinutes,
+            phase: $advanced->phase,
+            remainingMs: $advanced->remainingMs,
+            endsAt: $advanced->endsAt,
+            focusCount: $advanced->focusCount,
+            activeTodoId: $advanced->activeTodoId,
+            isRunning: $advanced->isRunning,
+            clientUpdatedAt: PomodoroState::nowMs(),
+            sessionUuid: $advanced->isRunning ? $nextUuid : null,
+            lastFocusedAt: $advanced->lastFocusedAt,
+        );
 
-        $toPhase = $state->phase;
-        if ($matchesCurrent) {
-            $advanced = $this->advancePomodoroPhase->advance($state);
-            $toPhase = $advanced->phase;
-            $this->pomodoroStates->save($advanced);
-            PomodoroStreamVersion::bump($userId);
-            $state = $advanced;
+        $this->pomodoroStates->save($next);
+        PomodoroStreamVersion::bump($userId);
+
+        // Push is optional; phase change + SSE always happen.
+        $pushed = false;
+        if ($this->sender->isConfigured() && $this->shouldPush($next)) {
+            $this->sendPhaseEndPush($userId, $phase, $next->phase, $sessionUuid);
+            $pushed = true;
+        } else {
+            Log::info('web-push.pomodoro.push_skipped', [
+                'user_id' => $userId,
+                'session_uuid' => $sessionUuid,
+                'reason' => $this->sender->isConfigured() ? 'user_focused' : 'vapid_unconfigured',
+            ]);
         }
-
-        // Always attempt push for this endsAt — even if a client already advanced
-        // the timer (race). Per-device focus decides who receives the banner.
-        $this->sendPhaseEndPush($userId, $phase, $toPhase);
 
         Log::info('web-push.pomodoro.delivered', [
             'user_id' => $userId,
-            'expected_ends_at' => $expectedEndsAtMs,
+            'session_uuid' => $sessionUuid,
+            'next_session_uuid' => $next->sessionUuid,
             'from_phase' => $phase,
-            'to_phase' => $toPhase,
-            'advanced' => $matchesCurrent,
+            'to_phase' => $next->phase,
+            'pushed' => $pushed,
         ]);
 
-        if ($state->isRunning && $state->endsAt !== null) {
+        if ($next->isRunning && $next->endsAt !== null && $next->sessionUuid !== null) {
             $this->schedulePomodoroPhasePush->execute(
                 $userId,
-                $state->endsAt,
+                $next->sessionUuid,
+                $next->endsAt,
                 true,
-                $state->phase,
+                $next->phase,
+                $sessionUuid,
             );
         }
     }
 
-    private function sendPhaseEndPush(int $userId, string $fromPhase, string $toPhase): void
+    private function shouldPush(PomodoroState $state): bool
     {
+        $ttl = max(5, min(60, (int) config('web-push.focus_ttl_seconds', 15)));
+        if ($state->lastFocusedAt === null) {
+            return true;
+        }
+
+        $age = time() - $state->lastFocusedAt->getTimestamp();
+
+        return $age >= $ttl;
+    }
+
+    private function sendPhaseEndPush(
+        int $userId,
+        string $fromPhase,
+        string $toPhase,
+        string $sessionUuid,
+    ): void {
         $fromLabel = $this->phaseLabel($fromPhase);
         $toLabel = $this->phaseLabel($toPhase);
         $title = $fromPhase === PomodoroDefaults::PHASE_FOCUS
@@ -116,24 +159,11 @@ final class DeliverPomodoroPhasePush
             'url' => (string) config('web-push.matrix_url', '/matrix'),
             'tag' => 'todo-pomodoro-phase',
             'icon' => $icon,
+            'topic' => 'pomodoro-'.$sessionUuid,
         ];
 
-        // Per-device: skip only subscriptions that reported Matrix focus recently
-        // (laptop tab OR iOS PWA currently looking). TTL must exceed heartbeat interval.
-        $focusTtl = max(15, min(60, (int) config('web-push.focus_ttl_seconds', 30)));
-        $cutoff = time() - $focusTtl;
         $sent = 0;
-        $skippedFocused = 0;
-
         foreach ($this->subscriptions->listByUserId($userId) as $subscription) {
-            if (
-                $subscription->lastFocusedAt !== null
-                && $subscription->lastFocusedAt->getTimestamp() >= $cutoff
-            ) {
-                $skippedFocused++;
-                continue;
-            }
-
             $ok = $this->sender->send($subscription, $payload);
             if (! $ok) {
                 $this->subscriptions->deleteByEndpointOnly($subscription->endpoint);
@@ -144,15 +174,9 @@ final class DeliverPomodoroPhasePush
 
         Log::info('web-push.pomodoro.send_summary', [
             'user_id' => $userId,
+            'session_uuid' => $sessionUuid,
             'sent' => $sent,
-            'skipped_focused' => $skippedFocused,
-            'focus_ttl_seconds' => $focusTtl,
         ]);
-    }
-
-    private function dedupeKey(int $userId, int $expectedEndsAtMs): string
-    {
-        return "todo.pomodoro.push.{$userId}.{$expectedEndsAtMs}";
     }
 
     private function phaseLabel(string $phase): string

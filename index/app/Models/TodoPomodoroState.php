@@ -20,6 +20,8 @@ class TodoPomodoroState extends Model
         'active_todo_id',
         'is_running',
         'client_updated_at',
+        'session_uuid',
+        'last_focused_at',
     ];
 
     protected function casts(): array
@@ -35,6 +37,7 @@ class TodoPomodoroState extends Model
             'active_todo_id' => 'integer',
             'is_running' => 'boolean',
             'client_updated_at' => 'integer',
+            'last_focused_at' => 'datetime',
         ];
     }
 

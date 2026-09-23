@@ -15,6 +15,8 @@ final class SendPomodoroPhasePushJob implements ShouldQueue
 
     public int $userId;
 
+    public string $sessionUuid;
+
     public int $expectedEndsAtMs;
 
     /**
@@ -24,10 +26,12 @@ final class SendPomodoroPhasePushJob implements ShouldQueue
 
     public function __construct(
         int $userId,
+        string $sessionUuid,
         int $expectedEndsAtMs,
         string $fromPhase = PomodoroDefaults::PHASE_FOCUS,
     ) {
         $this->userId = $userId;
+        $this->sessionUuid = $sessionUuid;
         $this->expectedEndsAtMs = $expectedEndsAtMs;
         $this->fromPhase = in_array($fromPhase, PomodoroDefaults::PHASES, true)
             ? $fromPhase
@@ -36,6 +40,11 @@ final class SendPomodoroPhasePushJob implements ShouldQueue
 
     public function handle(DeliverPomodoroPhasePush $deliver): void
     {
-        $deliver->execute($this->userId, $this->expectedEndsAtMs, $this->fromPhase);
+        $deliver->execute(
+            $this->userId,
+            $this->sessionUuid,
+            $this->expectedEndsAtMs,
+            $this->fromPhase,
+        );
     }
 }

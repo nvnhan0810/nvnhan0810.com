@@ -8,15 +8,20 @@ import {
 
 export type PomodoroRuntimeSnapshot = {
   phase: PomodoroPhase;
-  /** Remaining time when paused, or ignored when endsAt is set */
+  /**
+   * Frozen remaining while paused (`endsAt === null`).
+   * Ignored for display while running — use `endsAt - Date.now()`.
+   */
   remainingMs: number;
-  /** Absolute end timestamp while running; null when paused/idle */
+  /** Absolute epoch ms when the phase job fires; null when paused/idle */
   endsAt: number | null;
   /** Completed focus sessions in current cycle (0..N-1 while in focus, resets after long break) */
   focusCount: number;
   activeTodoId: number | null;
   isRunning: boolean;
   updatedAt: number;
+  /** Server phase session — used for focus heartbeat + job guard */
+  sessionUuid: string | null;
 };
 
 export const DEFAULT_POMODORO_RUNTIME: PomodoroRuntimeSnapshot = {
@@ -27,6 +32,7 @@ export const DEFAULT_POMODORO_RUNTIME: PomodoroRuntimeSnapshot = {
   activeTodoId: null,
   isRunning: false,
   updatedAt: 0,
+  sessionUuid: null,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -126,6 +132,10 @@ export const loadPomodoroRuntime = (): PomodoroRuntimeSnapshot => {
         typeof parsed.updatedAt === "number" && Number.isFinite(parsed.updatedAt)
           ? parsed.updatedAt
           : 0,
+      sessionUuid:
+        typeof parsed.sessionUuid === "string" && parsed.sessionUuid.length > 0
+          ? parsed.sessionUuid
+          : null,
     };
   } catch {
     return DEFAULT_POMODORO_RUNTIME;

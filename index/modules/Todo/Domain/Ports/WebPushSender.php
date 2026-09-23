@@ -7,7 +7,7 @@ use Modules\Todo\Domain\WebPushSubscription;
 interface WebPushSender
 {
     /**
-     * @param  array{title: string, body: string, url?: string, tag?: string, icon?: string}  $payload
+     * @param  array{title: string, body: string, url?: string, tag?: string, icon?: string, topic?: string}  $payload
      * @return bool false when the endpoint is gone (caller should delete subscription)
      */
     public function send(WebPushSubscription $subscription, array $payload): bool;

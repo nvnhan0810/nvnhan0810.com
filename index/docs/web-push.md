@@ -1,114 +1,186 @@
-# Web Push (Pomodoro / Matrix)
+# Web Push / Pomodoro (Matrix)
 
-Hướng dẫn đăng ký và vận hành **Web Push** cho Eisenhower Matrix + Pomodoro trên `nvnhan0810.com` — **không cần native app**, không tốn phí push service của trình duyệt.
+Đăng ký VAPID, PWA, và timer **server-authoritative** cho Eisenhower Matrix trên `nvnhan0810.com` — không native app, không SaaS push.
 
-## Chi phí
+---
+
+## 1. Yêu cầu sản phẩm
+
+| Môi trường | Hành vi |
+| --- | --- |
+| Tab/PWA đang **focus Matrix** (bất kỳ thiết bị) | Hết phase → **không** Web Push (mọi máy) |
+| Không ai focus ≥ 15s | Hết phase → **Web Push** tới mọi subscription |
+| FE | Chỉ countdown theo `endsAt`; **không** tự advance phase |
+| iOS Safari (tab thường) | Không subscribe Web Push |
+| iOS 16.4+ PWA (Add to Home Screen) | OK — mở từ icon Home Screen |
+
+### Verdict thiết kế
+
+| Câu hỏi | Trả lời |
+| --- | --- |
+| Ai advance phase? | **Chỉ BE** (job hoặc skip) |
+| Focus suppress | **Global theo user** — 1 máy focus → không push mọi máy |
+| Job khi đang focus? | Vẫn advance + SSE; **chỉ bỏ push** (không fail/retry) |
+| FE hydrate khi PWA chết / SSE đứt? | **GET** (+ SSE reconnect) |
+
+---
+
+## 2. Chi phí
 
 | Thành phần | Phí |
 | --- | --- |
-| Push service Chrome / Firefox / Safari (endpoint trình duyệt) | Free |
-| VAPID key pair | Free (tự generate) |
+| Push Chrome / Firefox / Safari | Free |
+| VAPID key pair | Free |
 | `minishlink/web-push` (PHP) | Free |
 | Vendor SaaS (OneSignal, …) | Không dùng |
 
-Chỉ tốn hosting/queue bạn đã chạy (`queue:work` + `schedule:work`).
+Chỉ tốn hosting/queue (`queue:work`).
 
-## iOS / Safari — vì sao tab thường không có noti
+---
 
-| Môi trường | Notifications / Web Push |
-| --- | --- |
-| Desktop Chrome / Firefox | OK (xin quyền) |
-| macOS Safari 16.4+ | OK trong tab |
-| **iOS Safari (tab)** | **Không** — không subscribe được |
-| **iOS 16.4+ PWA (Add to Home Screen)** | OK — mở từ icon Home Screen |
-
-Trên iPhone: Share → **Add to Home Screen** → mở app từ icon → bật thông báo trong Matrix.
-
-## Luồng đăng ký
+## 3. Flow timer + push
 
 ```text
-1. Tạo VAPID public/private (1 lần) → env
-2. User mở PWA / trình duyệt hỗ trợ → bấm "Bật thông báo"
-3. pushManager.subscribe({ applicationServerKey: VAPID_public })
-4. Browser trả subscription (endpoint + keys) → POST /matrix/web-push/subscribe
-5. Server lưu theo user_id
-6. Khi hết phase Pomodoro: job gửi push (ký VAPID_private) → SW showNotification
-7. Click noti → mở /matrix (không về home trừ khi không cấu hình)
+START / RESUME
+  FE → POST /matrix/pomodoro/start
+  BE: tạo session_uuid, endsAt, activeTodoId, isRunning
+      cancel job cũ → delayed job(session_uuid, endsAt, fromPhase)
+      bump PomodoroStreamVersion → SSE event:pomodoro
+  FE: nhận SSE → lưu uuid + endsAt → countdown local
+
+FOCUS (Matrix visible + hasFocus)
+  FE mỗi ~10s → POST /matrix/pomodoro/focus { sessionUuid, focused: true }
+  BE: uuid khớp → stamp last_focused_at = now
+  focused:false → no-op (TTL tự hết; tránh 1 máy blur xoá focus máy khác)
+
+SETTINGS (đang chạy)
+  FE → PUT /matrix/pomodoro/settings
+  BE: clamp remaining, endsAt + session_uuid mới, cancel/schedule job → SSE
+
+PAUSE
+  FE → POST /matrix/pomodoro/pause
+  BE: remainingMs = endsAt-now, clear endsAt/session_uuid, cancel job → SSE
+
+SKIP
+  FE → POST /matrix/pomodoro/skip
+  BE: advance (không push) → schedule nếu running → SSE
+
+JOB đến hạn
+  Guard: job.session_uuid === state.session_uuid && isRunning && endsAt khớp
+  Luôn: advance, session_uuid mới, save, SSE, schedule phase sau
+  Push chỉ khi: last_focused_at null HOẶC (now - last_focused_at) >= FOCUS_TTL (15s)
+
+FE
+  Running: remaining = max(0, endsAt - Date.now())  // chỉ đồng hồ client
+  Paused:  remaining = remainingMs (frozen; endsAt null)
+  remaining==0 → chờ SSE/GET (không advance local)
+  Âm thanh phase-end khi server đổi phase
 ```
 
-## Suppress khi đang nhìn Matrix (theo thiết bị)
+API trả `endsAt` gốc (lúc job chạy); không derive `remainingMs` bằng đồng hồ server lúc serialize.
 
-Advance timer **luôn** chạy bình thường trên mọi máy (kể cả tab nền). Quyết định gửi noti tách riêng theo **focus từng subscription**:
+### Đăng ký Web Push
 
-| Thiết bị | Đang focus Matrix? | Push tới máy đó |
+```text
+1. VAPID public/private → env
+2. User bấm "Bật thông báo"
+3. pushManager.subscribe({ applicationServerKey })
+4. POST /matrix/web-push/subscribe → lưu theo user_id
+5. Hết phase + không focus → job push → SW showNotification
+6. Click noti → /matrix
+```
+
+Service worker **luôn** `showNotification` (iOS); suppress chỉ ở server. Local `Notification` chỉ khi chưa có PushSubscription.
+
+### So với flow cũ
+
+| Cũ | Mới |
+| --- | --- |
+| FE + BE cùng advance → `X→X` / `X→Y` | Một writer (BE) |
+| Mỗi sync schedule thêm job | Cancel/replace theo `session_uuid` |
+| Focus per-endpoint | Focus global user |
+| Job stale vẫn push | UUID không khớp → no-op |
+
+---
+
+## 4. API (auth)
+
+| Method | Path | Mô tả |
 | --- | --- | --- |
-| Laptop tab hiện | Có | Không (web lo local) |
-| iPhone PWA đang mở/nhìn | Có | Không |
-| iPhone PWA nền / khoá máy | Không | **Có** |
-| Laptop tab nền | Không | Có (FCM) nếu đã subscribe |
+| GET | `/matrix/web-push/vapid-public-key` | Public key |
+| GET | `/matrix/web-push/status` | Số subscription |
+| POST | `/matrix/web-push/subscribe` | Lưu subscription |
+| DELETE | `/matrix/web-push/subscribe` | Huỷ theo endpoint |
+| GET | `/matrix/pomodoro` | Snapshot (+ reconcile overdue) |
+| POST | `/matrix/pomodoro/start` | Start/resume; optional `activeTodoId` |
+| POST | `/matrix/pomodoro/pause` | Pause + cancel job |
+| POST | `/matrix/pomodoro/skip` | Advance phase |
+| POST | `/matrix/pomodoro/reset` | Idle + clear active todo |
+| PUT | `/matrix/pomodoro/settings` | Settings / recalc endsAt |
+| PATCH | `/matrix/pomodoro/active-todo` | `{ activeTodoId }` |
+| POST | `/matrix/pomodoro/focus` | `{ sessionUuid, focused }` ~10s |
 
-Cách cập nhật focus:
+Runtime: `endsAt` = ms job sẽ chạy (source of truth khi running). `remainingMs` chỉ dùng khi pause (`endsAt` null). FE tự `endsAt - Date.now()`.
 
-1. **Heartbeat** `POST /matrix/web-push/presence` mỗi ~10s khi Matrix mở + blur/hide → `focused=false` (clear ngay).
-2. **PUT sync Pomodoro** kèm `focused` + `endpoint` (mỗi lần advance/start/pause).
-3. **Job** bỏ qua subscription có `last_focused_at` trong TTL (`WEB_PUSH_FOCUS_TTL_SECONDS`, mặc định 30s — phải lớn hơn heartbeat).
+---
 
-Service worker **luôn** `showNotification` khi nhận push (iOS yêu cầu); suppress chỉ ở server.
+## 5. Focus global + job
 
-**Không double noti:** máy đã có Web Push subscription thì **không** gọi `new Notification()` local — chỉ SW từ push. Local Notification chỉ là fallback khi chưa bật Web Push.
+- Cột `todo_pomodoro_states.last_focused_at` (không dùng per-subscription để quyết định push).
+- TTL **15s** (`WEB_PUSH_FOCUS_TTL_SECONDS`) — heartbeat 10s < TTL.
+- Job: `SendPomodoroPhasePushJob(userId, sessionUuid, expectedEndsAtMs, fromPhase)`.
+- Cancel: xoá pending `jobs` payload chứa uuid cũ + guard UUID lúc handle.
+- FCM topic: `pomodoro-{sessionUuid}`.
 
-## Click noti
+---
 
-`notificationclick` trong `public/sw.js` mở `/matrix` (hoặc `data.url`), ưu tiên focus tab Matrix đã mở.
-
-## Env
+## 6. Env & PWA
 
 ```env
 VAPID_SUBJECT=mailto:you@example.com
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
-WEB_PUSH_FOCUS_TTL_SECONDS=30
+WEB_PUSH_FOCUS_TTL_SECONDS=15
 ```
-
-Generate:
 
 ```bash
-php artisan webpush:vapid
+php artisan webpush:vapid   # copy vào .env → config:clear
 ```
 
-(In ra cặp key — copy vào `.env`, rồi `php artisan config:clear`.)
+Files: `public/manifest.webmanifest`, `public/sw.js`, manifest + `apple-mobile-web-app-capable` trong `app.blade.php`.
 
-## API (auth)
+Cần **HTTPS** + `queue:work` (xem `docker/supervisor/supervisord.conf`).
 
-| Method | Path | Mô tả |
-| --- | --- | --- |
-| GET | `/matrix/web-push/vapid-public-key` | Public key (hoặc lấy từ Inertia props) |
-| POST | `/matrix/web-push/subscribe` | Lưu subscription |
-| DELETE | `/matrix/web-push/subscribe` | Huỷ theo endpoint |
-| POST | `/matrix/web-push/presence` | `{ endpoint, focused: bool }` heartbeat |
-| PUT | `/matrix/pomodoro` | Timer sync; optional `{ focused, endpoint }` |
+---
 
-## PWA files
+## 7. Giới hạn nền tảng
 
-- `public/manifest.webmanifest`
-- `public/sw.js`
-- Link manifest + `apple-mobile-web-app-capable` trong `resources/views/app.blade.php`
+- Android Doze có thể deliver push muộn 10–15 phút dù server gửi đúng giờ.
+- SSE reconnect ~120s — FE GET khi visible lại.
+- PWA iOS suspend JS → chỉ Web Push / GET; local Notification không đủ.
+- Screen Wake Lock (`useWakeLock`) chỉ khi app visible — không thay push.
 
-## Vận hành
+---
 
-- Cần **HTTPS**, `queue:work` (delayed job tới `endsAt`), worker đang chạy.
-- Khi pause / đổi timer: job cũ tự no-op nếu `endsAt` còn ở tương lai (timer đã bị thay).
-- Job vẫn gửi push theo `endsAt` đã schedule ngay cả khi client đã advance trước (race) — chỉ skip máy đang focus.
-- Local `Notification` trong tab (desktop) vẫn là fallback khi tab còn sống nhưng không focus.
+## 8. Checklist verify
 
-## Checklist thử trên iPhone
+1. Start → DB có `session_uuid` + 1 delayed job; SSE đẩy uuid.
+2. Settings mid-run → job cũ hủy/no-op; 1 job mới.
+3. Focus bất kỳ máy → hết phase **không** push; mọi máy blur ≥15s → có push.
+4. Job lúc focused: log skip push; phase đổi + SSE.
+5. FE không tự đổi phase khi countdown = 0.
+6. Pause → không job hợp lệ; không push.
+7. iPhone: Add to Home Screen → Bật Web Push → khoá màn (không máy focus) → có banner.
 
-1. iOS ≥ 16.4, HTTPS production/dev
-2. Safari → Share → Add to Home Screen
-3. Mở từ Home Screen (standalone)
-4. Matrix → menu → **Bật Web Push** → Allow  
-   (Hoặc bấm Play/Start Pomodoro — sẽ tự subscribe nếu có thể)
-5. Menu phải hiện `Tắt Web Push (N máy)` với **N ≥ 1** (đã lưu DB).  
-   Nếu chỉ thấy quyền noti local / `chưa lưu server` → bấm Bật lại.
-6. Start Pomodoro, **khoá màn hình** (PWA không focus) → hết phase phải có banner
-7. Mở Matrix đang nhìn trên iPhone → không spam noti trên máy đó; laptop nền vẫn có thể nhận (nếu subscribe)
+---
+
+## 9. File chính
+
+| Layer | Path |
+| --- | --- |
+| Commands | `modules/Todo/Application/*Pomodoro*.php` |
+| Schedule / cancel | `SchedulePomodoroPhasePush`, `CancelPomodoroPhaseJobs` |
+| Deliver / reconcile | `DeliverPomodoroPhasePush`, `ReconcileOverduePomodoro` |
+| Job | `app/Jobs/Todo/SendPomodoroPhasePushJob.php` |
+| FE | `resources/ts/domains/todo/presentation/hooks/usePomodoro.ts` |
+| SW | `public/sw.js` |

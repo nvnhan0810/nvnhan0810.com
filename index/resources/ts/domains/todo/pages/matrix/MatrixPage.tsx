@@ -166,7 +166,16 @@ const MatrixPage = ({
   const [highlightedTodoId, setHighlightedTodoId] = useState<number | null>(null);
   const pomodoro = usePomodoro({
     initialPayload: initialPomodoro,
-    syncUrl: route("matrix.pomodoro.update"),
+    urls: {
+      show: route("matrix.pomodoro.show"),
+      start: route("matrix.pomodoro.start"),
+      pause: route("matrix.pomodoro.pause"),
+      skip: route("matrix.pomodoro.skip"),
+      reset: route("matrix.pomodoro.reset"),
+      settings: route("matrix.pomodoro.settings"),
+      activeTodo: route("matrix.pomodoro.active-todo"),
+      focus: route("matrix.pomodoro.focus"),
+    },
   });
   const webPush = useWebPush({
     configured: sharedWebPush?.configured === true,
@@ -176,7 +185,7 @@ const MatrixPage = ({
     unsubscribeUrl: route("matrix.web-push.unsubscribe"),
     presenceUrl: route("matrix.web-push.presence"),
     statusUrl: route("matrix.web-push.status"),
-    enablePresence: true,
+    enablePresence: false,
   });
   const { quadrants, isLive } = useMatrixSse({
     streamUrl: stream_url,
