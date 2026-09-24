@@ -25,6 +25,7 @@ return [
             'redirect_uri_patterns' => [],
         ],
         'todo' => [
+            'host' => $todoUrl,
             'redirect_uris' => [
                 $todoUrl.'/auth/sso/callback',
             ],

@@ -10,6 +10,7 @@ const en: Messages = {
     admin: "Admin",
     apps: "Apps",
     news: "News",
+    todosApp: "Todo",
   },
   home: {
     portfolioLabel: "Portfolio",
@@ -34,7 +35,8 @@ const en: Messages = {
     taggedPosts: 'Posts tagged "{{tag}}"',
     tags: "Tags",
     noPosts: "No posts found.",
-    metaDescription: "Technical articles, engineering notes, and project lessons by Nguyen Van Nhan.",
+    metaDescription:
+      "Technical articles, engineering notes, and project lessons by Nguyen Van Nhan.",
     searchPlaceholder: "Search",
     search: "Search",
     backToBlog: "Back to blog",
@@ -312,7 +314,10 @@ const en: Messages = {
             { shortcut: "Ctrl/Cmd + S", action: "Save pending row edits" },
             { shortcut: "Ctrl/Cmd + K", action: "Focus table search" },
             { shortcut: "Ctrl/Cmd + W", action: "Close active tab" },
-            { shortcut: "Ctrl/Cmd + Enter", action: "Run query (query editor)" },
+            {
+              shortcut: "Ctrl/Cmd + Enter",
+              action: "Run query (query editor)",
+            },
             {
               shortcut: "Ctrl/Cmd + A",
               action: "Select all filtered tables (sidebar)",
@@ -331,7 +336,8 @@ const en: Messages = {
             },
             {
               name: "Infrastructure",
-              description: "DatabaseService, SQL splitter, MySQL/PG drivers, storage, IPC",
+              description:
+                "DatabaseService, SQL splitter, MySQL/PG drivers, storage, IPC",
               stack: "mysql2 · pg · ssh2 · keytar",
             },
             {
@@ -403,8 +409,7 @@ const en: Messages = {
       period: "Aug 2013 – Mar 2018",
       gpa: "7.68",
     },
-    languages:
-      "English — reading and comprehension well; basic communication.",
+    languages: "English — reading and comprehension well; basic communication.",
     interests: ["Reading", "Music", "Movies"],
   },
 };

@@ -5,5 +5,4 @@ return [
     Modules\Shared\SharedServiceProvider::class,
     Modules\ReadingDigest\ReadingDigestServiceProvider::class,
     Modules\Sso\SsoServiceProvider::class,
-    Modules\Todo\TodoServiceProvider::class,
 ];

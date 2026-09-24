@@ -78,6 +78,7 @@ export type Messages = {
     admin: string;
     apps: string;
     news: string;
+    todosApp: string;
   };
   home: {
     portfolioLabel: string;

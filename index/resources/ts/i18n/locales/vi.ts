@@ -10,6 +10,7 @@ const vi: Messages = {
     admin: "Quản trị",
     apps: "Ứng dụng",
     news: "Tin tức",
+    todosApp: "Quản lý Công việc",
   },
   home: {
     portfolioLabel: "Portfolio",
@@ -34,7 +35,8 @@ const vi: Messages = {
     taggedPosts: 'Bài viết gắn thẻ "{{tag}}"',
     tags: "Thẻ",
     noPosts: "Không tìm thấy bài viết.",
-    metaDescription: "Các bài viết kỹ thuật, ghi chú lập trình và kinh nghiệm triển khai dự án.",
+    metaDescription:
+      "Các bài viết kỹ thuật, ghi chú lập trình và kinh nghiệm triển khai dự án.",
     searchPlaceholder: "Tìm kiếm",
     search: "Tìm kiếm",
     backToBlog: "Quay lại blog",
@@ -307,7 +309,10 @@ const vi: Messages = {
               shortcut: "Ctrl/Cmd + Shift + R",
               action: "Reload chỉ dữ liệu tab hiện tại",
             },
-            { shortcut: "Ctrl/Cmd + S", action: "Lưu chỉnh sửa dòng đang pending" },
+            {
+              shortcut: "Ctrl/Cmd + S",
+              action: "Lưu chỉnh sửa dòng đang pending",
+            },
             { shortcut: "Ctrl/Cmd + K", action: "Focus tìm kiếm bảng" },
             { shortcut: "Ctrl/Cmd + W", action: "Đóng tab đang active" },
             { shortcut: "Ctrl/Cmd + Enter", action: "Chạy query (SQL editor)" },
@@ -329,7 +334,8 @@ const vi: Messages = {
             },
             {
               name: "Infrastructure",
-              description: "DatabaseService, SQL splitter, driver MySQL/PG, storage, IPC",
+              description:
+                "DatabaseService, SQL splitter, driver MySQL/PG, storage, IPC",
               stack: "mysql2 · pg · ssh2 · keytar",
             },
             {
@@ -401,8 +407,7 @@ const vi: Messages = {
       period: "08/2013 – 03/2018",
       gpa: "7.68",
     },
-    languages:
-      "Tiếng Anh — đọc hiểu tốt; giao tiếp cơ bản.",
+    languages: "Tiếng Anh — đọc hiểu tốt; giao tiếp cơ bản.",
     interests: ["Đọc sách", "Nghe nhạc", "Xem phim"],
   },
 };
