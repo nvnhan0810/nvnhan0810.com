@@ -1,19 +1,18 @@
 <?php
 
+use App\Http\Controllers\Admin\PostController as AdminPostController;
+use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
+use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LocaleController;
-use App\Http\Controllers\Admin\PostAgentController;
-use App\Http\Controllers\Admin\PostController as AdminPostController;
-use App\Http\Controllers\Admin\TagController as AdminTagController;
-use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
-use App\Http\Controllers\Public\AppShowController;
 use App\Http\Controllers\Public\AppsController;
+use App\Http\Controllers\Public\AppShowController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\OgImageController;
 use App\Http\Controllers\Public\PostController;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
+use App\Models\Post;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
     Route::get('/login', function () {
@@ -62,7 +61,7 @@ Route::get('/robots.txt', function () {
 });
 
 Route::get('/sitemap.xml', function () {
-    $posts = \App\Models\Post::query()
+    $posts = Post::query()
         ->where('is_published', true)
         ->whereDate('published_at', '<=', now())
         ->orderByDesc('updated_at')
@@ -116,7 +115,6 @@ Route::get('/sitemap.xml', function () {
     ]);
 });
 
-
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
@@ -124,13 +122,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminPostController::class, 'index'])->name('index');
 
     Route::resource('posts', AdminPostController::class)->except(['index', 'show']);
-
-    Route::prefix('post-agent')->name('post-agent.')->group(function () {
-        Route::get('/status', [PostAgentController::class, 'status'])->name('status');
-        Route::get('/session', [PostAgentController::class, 'session'])->name('session');
-        Route::post('/chat', [PostAgentController::class, 'chat'])->name('chat');
-        Route::post('/cancel', [PostAgentController::class, 'cancel'])->name('cancel');
-    });
 
     Route::resource('tags', AdminTagController::class)->except(['show', 'create', 'store']);
 

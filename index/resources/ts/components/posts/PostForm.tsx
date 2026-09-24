@@ -1,12 +1,10 @@
 import usePostPreview from "@/ts/hooks/usePostPreview";
 import type { Post, PostPayload } from "@/ts/types/post";
-import type { PostAgentEdits } from "@/ts/types/postAgent";
-import { Link, usePage } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { format } from "date-fns";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRoute } from "ziggy-js";
-import PostAgentChat from "./PostAgentChat";
 import { Button } from "../ui/button";
 import { Calendar } from "../ui/calendar";
 import { Label } from "../ui/label";
@@ -30,12 +28,6 @@ type Props = {
   selectedSeriesIds?: number[];
 };
 
-type SharedPageProps = {
-  postAgent?: {
-    configured: boolean;
-  } | null;
-};
-
 const PostForm = ({
   initialPost,
   onSave,
@@ -43,7 +35,6 @@ const PostForm = ({
   selectedSeriesIds = [],
 }: Props) => {
   const route = useRoute();
-  const { postAgent } = usePage<SharedPageProps>().props;
   const postDetailRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -142,23 +133,6 @@ const PostForm = ({
     });
   };
 
-  const handleApplyEdits = useCallback(
-    (edits: PostAgentEdits) => {
-      if (edits.markdown) {
-        setDoc(edits.markdown);
-        const parsed = parseMarkdownToPostFields(edits.markdown);
-        setPost(buildPreviewPost(parsed, { ...basePost, ...meta }));
-      }
-
-      if (edits.source_url !== undefined && edits.source_url !== null) {
-        setSourceUrl(edits.source_url);
-      }
-
-      setFormErrors([]);
-    },
-    [basePost, meta, setPost]
-  );
-
   const handleDocChange = (value: string) => {
     setDoc(value);
     const parsed = parseMarkdownToPostFields(value);
@@ -181,43 +155,31 @@ const PostForm = ({
         </div>
       )}
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row">
-          <div className="flex w-full flex-col gap-2 lg:w-1/2">
-            <div className="space-y-2 rounded-md border border-border bg-card p-3">
-              <Label htmlFor="source-url">Source URL</Label>
-              <Input
-                id="source-url"
-                type="url"
-                placeholder="https://example.com/original-post"
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect.
-              </p>
-            </div>
-            <Textarea
-              ref={textareaRef}
-              placeholder="# Tiêu đề bài viết"
-              className="min-h-[200px] resize-none overflow-y-auto border-border"
-              value={doc}
-              onChange={(e) => handleDocChange(e.target.value)}
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex w-full flex-col gap-2 lg:w-1/2">
+          <div className="space-y-2 rounded-md border border-border bg-card p-3">
+            <Label htmlFor="source-url">Source URL</Label>
+            <Input
+              id="source-url"
+              type="url"
+              placeholder="https://example.com/original-post"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Source URL chỉ hiển thị tham khảo ở trang detail, không tự redirect.
+            </p>
           </div>
-          <div className="flex w-full flex-col gap-2 px-0 lg:w-1/2 lg:px-4">
-            <div ref={postDetailRef}>{post && <PostDetail post={post} />}</div>
-          </div>
-        </div>
-
-        <div className="w-full shrink-0 xl:sticky xl:top-20 xl:z-20 xl:w-96 xl:self-start">
-          <PostAgentChat
-            postId={initialPost?.id || undefined}
-            doc={doc}
-            sourceUrl={sourceUrl}
-            configured={postAgent?.configured ?? false}
-            onApplyEdits={handleApplyEdits}
+          <Textarea
+            ref={textareaRef}
+            placeholder="# Tiêu đề bài viết"
+            className="min-h-[200px] resize-none overflow-y-auto border-border"
+            value={doc}
+            onChange={(e) => handleDocChange(e.target.value)}
           />
+        </div>
+        <div className="flex w-full flex-col gap-2 px-0 lg:w-1/2 lg:px-4">
+          <div ref={postDetailRef}>{post && <PostDetail post={post} />}</div>
         </div>
       </div>
 
