@@ -21,7 +21,7 @@ const ListPage = ({ auth, sources }: Props) => {
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
       <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold text-gray-100">Trusted Sources</h1>
+        <h1 className="text-2xl font-bold text-foreground">Trusted Sources</h1>
         <Button variant="outline" onClick={() => router.get(route("admin.reading-digest.sources.create"))}>
           <Plus className="w-4 h-4 mr-1" /> Add source
         </Button>
@@ -30,7 +30,7 @@ const ListPage = ({ auth, sources }: Props) => {
         Websites and feeds you add in admin. Fetched once daily at digest time (not on a background interval).
       </p>
       <table className="w-full text-sm">
-        <thead className="bg-gray-100 text-gray-900">
+        <thead className="bg-muted/50 text-foreground">
           <tr>
             <th className="px-3 py-2 border">Name</th>
             <th className="px-3 py-2 border">Feed URL</th>
@@ -39,7 +39,7 @@ const ListPage = ({ auth, sources }: Props) => {
             <th className="px-3 py-2 border">Actions</th>
           </tr>
         </thead>
-        <tbody className="text-gray-300">
+        <tbody className="text-foreground">
           {sources.length === 0 && (
             <tr>
               <td colSpan={5} className="px-3 py-6 border text-center text-muted-foreground">

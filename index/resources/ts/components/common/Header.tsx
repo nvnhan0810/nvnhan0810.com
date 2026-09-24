@@ -1,10 +1,10 @@
 import { profile } from "@/ts/constants/profile";
 import { AuthUser } from "@/ts/types/auth";
-import { Link, router, usePage } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import {
   BookOpenIcon,
-  CheckSquare,
   CircleUserRound,
+  KeyRound,
   ListCollapse,
   MailIcon,
   TagIcon,
@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import ThemeToggle from "../ui/theme-toggle";
 
 const Header = ({ auth }: { auth: AuthUser | null }) => {
   const route = useRoute();
@@ -59,11 +60,19 @@ const Header = ({ auth }: { auth: AuthUser | null }) => {
                 >
                   <NewspaperIcon className="w-5 h-5" />
                 </Link>
+                <Link
+                  href={route("admin.sso-clients.index")}
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-2"
+                  title="SSO clients"
+                >
+                  <KeyRound className="w-5 h-5" />
+                </Link>
               </>
             )}
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <ThemeToggle />
             <a
               href={profile.githubLink}
               target="_blank"

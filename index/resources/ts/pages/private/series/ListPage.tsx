@@ -62,7 +62,7 @@ const ListPage = ({ auth, series }: Props) => {
     <PrivateLayout auth={auth}>
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-100 text-center">
+          <h1 className="text-2xl font-bold text-foreground text-center">
             Quản Lý series
           </h1>
           <Button variant="outline" title="Thêm series" onClick={() => router.get(route('admin.series.create'))}>
@@ -76,25 +76,25 @@ const ListPage = ({ auth, series }: Props) => {
 
         <div className="max-w-auto overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-100 text-gray-900">
+            <thead className="bg-muted/50 text-foreground">
               <tr>
-                <th className="px-4 py-2 border border-gray-400">ID</th>
-                <th className="px-4 py-2 border border-gray-400">Name</th>
-                <th className="px-4 py-2 border border-gray-400">Post Count</th>
-                <th className="px-4 py-2 border border-gray-400">Created At</th>
-                <th className="px-4 py-2 border border-gray-400">Actions</th>
+                <th className="px-4 py-2 border border-border">ID</th>
+                <th className="px-4 py-2 border border-border">Name</th>
+                <th className="px-4 py-2 border border-border">Post Count</th>
+                <th className="px-4 py-2 border border-border">Created At</th>
+                <th className="px-4 py-2 border border-border">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-gray-300">
+            <tbody className="text-foreground">
               {series.data.map((seriesItem) => (
                 <tr key={seriesItem.id}>
-                  <td className="px-4 py-2 border border-gray-300">{seriesItem.id}</td>
-                  <td className="px-4 py-2 border border-gray-300">{seriesItem.name}</td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border">{seriesItem.id}</td>
+                  <td className="px-4 py-2 border border-border">{seriesItem.name}</td>
+                  <td className="px-4 py-2 border border-border">
                     {seriesItem.posts_count}
                   </td>
-                  <td className="px-4 py-2 border border-gray-300">{format(seriesItem.created_at, 'dd/MM/yyyy')}</td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border">{format(seriesItem.created_at, 'dd/MM/yyyy')}</td>
+                  <td className="px-4 py-2 border border-border">
                     <div className="flex gap-2">
                       <a href={route('admin.series.edit', seriesItem.id)} className="text-blue-500">Edit</a>
                       <DeleteButton id={seriesItem.id} />

@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/images/android-chrome-192x192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#171a20" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Matrix" />
@@ -30,7 +30,7 @@
           if (meta) {
             meta.setAttribute(
               "content",
-              resolved === "dark" ? "#0a0a0a" : "#dce2e9",
+              resolved === "dark" ? "#171a20" : "#ffffff",
             );
           }
         } catch (e) {

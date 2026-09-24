@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
+use Modules\Sso\Domain\Ports\SsoClientRepository;
+use Modules\Sso\Domain\SsoClientIds;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -59,7 +61,21 @@ class HandleInertiaRequests extends Middleware
             'postAgent' => fn () => $request->user() && $request->is('admin', 'admin/*')
                 ? ['configured' => filled(config('post-agent.cursor_api_key'))]
                 : null,
-            'todoUrl' => config('sso.clients.todo.host'),
+            'todoUrl' => $this->resolveTodoUrl(),
         ];
+    }
+
+    private function resolveTodoUrl(): string
+    {
+        try {
+            $todo = app(SsoClientRepository::class)->findByClientId(SsoClientIds::TODO);
+            if ($todo?->domain !== null && $todo->domain !== '') {
+                return $todo->domain;
+            }
+        } catch (\Throwable) {
+            // Table may not exist yet during migrate / early boot.
+        }
+
+        return (string) config('sso.todo_url_fallback');
     }
 }

@@ -2,6 +2,7 @@ import { Button } from "@/ts/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/ts/components/ui/tooltip";
 import { useTheme } from "@/ts/providers/theme-provider";
@@ -13,7 +14,7 @@ type Props = {
 };
 
 /**
- * Toggles between soft-gray light and dark. Ignores "system" for a clear 1-tap control.
+ * Toggles between bright light and soft charcoal dark (same approach as todo app).
  */
 export const ThemeToggle = ({ className }: Props): React.ReactElement => {
   const { theme, setTheme } = useTheme();
@@ -32,23 +33,23 @@ export const ThemeToggle = ({ className }: Props): React.ReactElement => {
   }, [theme]);
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={className ?? "cursor-pointer"}
-          aria-label={isDark ? "Chuyển light theme" : "Chuyển dark theme"}
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-        >
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        {isDark ? "Light (xám dịu)" : "Dark"}
-      </TooltipContent>
-    </Tooltip>
+    <TooltipProvider delayDuration={250}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={className ?? "cursor-pointer"}
+            aria-label={isDark ? "Chuyển light theme" : "Chuyển dark theme"}
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{isDark ? "Light" : "Dark"}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

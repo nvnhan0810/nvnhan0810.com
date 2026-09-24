@@ -47,7 +47,7 @@ const FormPage = ({ auth, subject, sources }: Props) => {
   return (
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
-      <h1 className="text-2xl font-bold text-gray-100 mb-2">
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         {isEdit ? "Sửa chủ đề" : "Tạo chủ đề"}
       </h1>
       <p className="text-sm text-muted-foreground mb-4">
@@ -78,7 +78,7 @@ const FormPage = ({ auth, subject, sources }: Props) => {
               <p className="text-sm text-muted-foreground">Chưa có nguồn nào — thêm ở mục Nguồn trước.</p>
             )}
             {sources.map((source) => (
-              <label key={source.id} className="flex items-center gap-2 text-gray-300">
+              <label key={source.id} className="flex items-center gap-2 text-foreground">
                 <Checkbox
                   checked={data.source_ids.includes(source.id)}
                   onCheckedChange={() => toggleSource(source.id)}

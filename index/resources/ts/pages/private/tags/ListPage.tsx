@@ -58,7 +58,7 @@ const ListPage = ({ auth, tags }: Props) => {
     <PrivateLayout auth={auth}>
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-100 text-center">
+          <h1 className="text-2xl font-bold text-foreground text-center">
             Quản Lý thẻ
           </h1>
           <Button variant="outline" title="Thêm thẻ" onClick={() => router.get(route('admin.tags.create'))}>
@@ -72,21 +72,21 @@ const ListPage = ({ auth, tags }: Props) => {
 
         <div className="max-w-auto overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-100 text-gray-900 text-center">
+            <thead className="bg-muted/50 text-foreground text-center">
               <tr>
-                <th className="px-4 py-2 border border-gray-400">ID</th>
-                <th className="px-4 py-2 border border-gray-400">Tên</th>
-                <th className="px-4 py-2 border border-gray-400">Số lượng bài viết</th>
-                <th className="px-4 py-2 border border-gray-400">Actions</th>
+                <th className="px-4 py-2 border border-border">ID</th>
+                <th className="px-4 py-2 border border-border">Tên</th>
+                <th className="px-4 py-2 border border-border">Số lượng bài viết</th>
+                <th className="px-4 py-2 border border-border">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-gray-300">
+            <tbody className="text-foreground">
               {tags.data.map((tag) => (
                 <tr key={tag.id}>
-                  <td className="px-4 py-2 border border-gray-300 text-center">{tag.id}</td>
-                  <td className="px-4 py-2 border border-gray-300">{tag.name}</td>
-                  <td className="px-4 py-2 border border-gray-300 text-center">{tag.posts_count}</td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border text-center">{tag.id}</td>
+                  <td className="px-4 py-2 border border-border">{tag.name}</td>
+                  <td className="px-4 py-2 border border-border text-center">{tag.posts_count}</td>
+                  <td className="px-4 py-2 border border-border">
                     <div className="flex gap-2 justify-center items-center">
                       <a href={route('admin.tags.edit', tag.id)} className="text-blue-500">Edit</a>
                       {tag.posts_count === 0 && <DeleteButton id={tag.id} />}

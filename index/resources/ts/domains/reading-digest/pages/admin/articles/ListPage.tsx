@@ -13,13 +13,13 @@ const ListPage = ({ auth, articles }: Props) => {
   return (
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
-      <h1 className="text-2xl font-bold text-gray-100 mb-2">Hộp thư bài viết</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Hộp thư bài viết</h1>
       <p className="text-sm text-muted-foreground mb-4">
         Bài đã lấy từ các nguồn — chỉ hiện tóm tắt. Bấm tiêu đề để đọc trên site gốc.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-gray-900">
+          <thead className="bg-muted/50 text-foreground">
             <tr>
               <th className="px-3 py-2 border">Tiêu đề</th>
               <th className="px-3 py-2 border">Tóm tắt</th>
@@ -27,7 +27,7 @@ const ListPage = ({ auth, articles }: Props) => {
               <th className="px-3 py-2 border">Ngày đăng</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-foreground">
             {articles.data.map((article) => (
               <tr key={article.id}>
                 <td className="px-3 py-2 border align-top max-w-xs">

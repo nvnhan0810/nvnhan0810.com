@@ -61,7 +61,7 @@ const ListPage = ({ auth, posts }: Props) => {
     <PrivateLayout auth={auth}>
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-100 text-center">
+          <h1 className="text-2xl font-bold text-foreground text-center">
             Quản Lý bài viết
           </h1>
           <Button variant="outline" title="Thêm bài viết" onClick={() => router.get(route('admin.posts.create'))}>
@@ -71,24 +71,24 @@ const ListPage = ({ auth, posts }: Props) => {
 
         <div className="mb-4 flex justify-start items-center gap-2">
           <SearchForm onSearch={handleSearch} />
-          <span className="text-sm text-amber-300">
+          <span className="text-sm text-amber-600 dark:text-amber-300">
             Background nền vàng: chưa publish
           </span>
         </div>
 
         <div className="max-w-auto overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-100 text-gray-900">
+            <thead className="bg-muted/50 text-foreground">
               <tr>
-                <th className="px-4 py-2 border border-gray-400">ID</th>
-                <th className="px-4 py-2 border border-gray-400">Title</th>
-                <th className="px-4 py-2 border border-gray-400">Description</th>
-                <th className="px-4 py-2 border border-gray-400">Tags</th>
-                <th className="px-4 py-2 border border-gray-400">Published At</th>
-                <th className="px-4 py-2 border border-gray-400">Actions</th>
+                <th className="px-4 py-2 border border-border">ID</th>
+                <th className="px-4 py-2 border border-border">Title</th>
+                <th className="px-4 py-2 border border-border">Description</th>
+                <th className="px-4 py-2 border border-border">Tags</th>
+                <th className="px-4 py-2 border border-border">Published At</th>
+                <th className="px-4 py-2 border border-border">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-gray-300">
+            <tbody className="text-foreground">
               {posts.data.map((post) => (
                 <tr
                   key={post.id}
@@ -98,28 +98,28 @@ const ListPage = ({ auth, posts }: Props) => {
                       : "bg-amber-500/10 ring-1 ring-inset ring-amber-500/20"
                   }
                 >
-                  <td className="px-4 py-2 border border-gray-300">{post.id}</td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border">{post.id}</td>
+                  <td className="px-4 py-2 border border-border">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-100">{post.title}</span>
+                      <span className="font-medium text-foreground">{post.title}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 border border-gray-300">{post.description}</td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border">{post.description}</td>
+                  <td className="px-4 py-2 border border-border">
                     <div className="flex gap-2">
                       {post.tags.map((tag: Tag) => {
                         return <TagBadge key={tag.id} tag={tag} useLink={false} />
                       })}
                     </div>
                   </td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border">
                     {post.is_published && post.published_at ? (
                       format(parseISO(post.published_at), "dd/MM/yyyy")
                     ) : (
-                      <span className="text-amber-300 font-medium">—</span>
+                      <span className="text-amber-600 dark:text-amber-300 font-medium">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 border border-gray-300">
+                  <td className="px-4 py-2 border border-border">
                     <div className="flex gap-2">
                       <a href={route('admin.posts.edit', post.id)} className="text-blue-500">Edit</a>
                       <DeleteButton id={post.id} />

@@ -29,7 +29,7 @@ const TaxonomyPage = ({ auth, nodes }: Props) => {
   return (
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
-      <h1 className="text-2xl font-bold text-gray-100 mb-4">Taxonomy</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-4">Taxonomy</h1>
       <form onSubmit={submit} className="max-w-xl grid grid-cols-3 gap-2 mb-6">
         <div>
           <Label>Label</Label>
@@ -56,7 +56,7 @@ const TaxonomyPage = ({ auth, nodes }: Props) => {
           <Button type="submit" disabled={processing}>Add node</Button>
         </div>
       </form>
-      <ul className="text-sm text-gray-300 space-y-1 font-mono">
+      <ul className="text-sm text-foreground space-y-1 font-mono">
         {nodes.map((node) => (
           <li key={node.id}>{node.path} — {node.label}</li>
         ))}

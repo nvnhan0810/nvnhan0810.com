@@ -37,7 +37,7 @@ const SettingsPage = ({ auth, settings, recentRuns }: Props) => {
   return (
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
-      <h1 className="text-2xl font-bold text-gray-100 mb-2">Settings</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
       <p className="text-sm text-muted-foreground mb-4 max-w-2xl">
         Mỗi ngày vào giờ bạn chọn, hệ thống lấy bài mới từ các source trong subject, chọn bài phù hợp
         (tự tính phía server) rồi gửi Telegram. Bạn vote sau khi đọc để hệ thống học dần sở thích.
@@ -61,8 +61,8 @@ const SettingsPage = ({ auth, settings, recentRuns }: Props) => {
         </div>
       </form>
 
-      <h2 className="text-lg font-semibold text-gray-200 mb-2">Lần chạy gần đây</h2>
-      <ul className="text-sm text-gray-400 space-y-1">
+      <h2 className="text-lg font-semibold text-foreground mb-2">Lần chạy gần đây</h2>
+      <ul className="text-sm text-muted-foreground space-y-1">
         {recentRuns.map((run) => (
           <li key={run.id}>{run.run_date} — {run.status === "completed" ? "OK" : run.status}</li>
         ))}

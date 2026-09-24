@@ -88,11 +88,11 @@ const PostAgentChat = ({
   };
 
   return (
-    <div className="flex h-[50dvh] max-h-[50dvh] flex-col overflow-hidden rounded-md border border-gray-700 bg-zinc-900">
-      <div className="flex items-center gap-2 border-b border-gray-700 px-4 py-3">
+    <div className="flex h-[50dvh] max-h-[50dvh] flex-col overflow-hidden rounded-md border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <SparklesIcon className="h-4 w-4 text-emerald-400" />
         <div>
-          <p className="text-sm font-medium text-gray-100">Post Agent</p>
+          <p className="text-sm font-medium text-foreground">Post Agent</p>
           <p className="text-xs text-muted-foreground">
             Hỗ trợ chỉnh sửa tiếng Việt — bấm Lưu để ghi DB
           </p>
@@ -113,8 +113,8 @@ const PostAgentChat = ({
             Đang tải lịch sử chat...
           </div>
         ) : messages.length === 0 ? (
-          <div className="rounded-md border border-dashed border-gray-700 p-4 text-sm text-muted-foreground">
-            <p className="flex items-center gap-2 font-medium text-gray-200">
+          <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+            <p className="flex items-center gap-2 font-medium text-foreground">
               <BotIcon className="h-4 w-4" />
               Gợi ý lệnh
             </p>
@@ -133,7 +133,7 @@ const PostAgentChat = ({
                 "rounded-lg px-3 py-2 text-sm",
                 message.role === "user"
                   ? "ml-8 bg-emerald-900/40 text-emerald-50"
-                  : "mr-4 bg-zinc-800 text-gray-100"
+                  : "mr-4 bg-muted text-foreground"
               )}
             >
               <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -150,7 +150,7 @@ const PostAgentChat = ({
         )}
 
         {isLoading && (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-gray-700 bg-zinc-950 px-3 py-2 text-sm text-muted-foreground">
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Loader2Icon className="h-4 w-4 animate-spin" />
               Agent đang xử lý...
@@ -176,7 +176,7 @@ const PostAgentChat = ({
 
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 border-t border-gray-700 p-3"
+        className="shrink-0 border-t border-border p-3"
       >
         <p className="mb-2 text-xs text-muted-foreground">
           Shift+Enter xuống dòng
@@ -185,7 +185,7 @@ const PostAgentChat = ({
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="Nhờ agent viết hoặc chỉnh sửa bài (tiếng Việt)..."
-          className="min-h-[88px] resize-none border-gray-700 bg-zinc-950"
+          className="min-h-[88px] resize-none border-border bg-muted"
           disabled={!configured || isLoading}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {

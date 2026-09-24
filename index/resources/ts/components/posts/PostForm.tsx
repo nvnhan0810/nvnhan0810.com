@@ -184,7 +184,7 @@ const PostForm = ({
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row">
           <div className="flex w-full flex-col gap-2 lg:w-1/2">
-            <div className="space-y-2 rounded-md border border-gray-700 bg-zinc-900 p-3">
+            <div className="space-y-2 rounded-md border border-border bg-card p-3">
               <Label htmlFor="source-url">Source URL</Label>
               <Input
                 id="source-url"
@@ -200,7 +200,7 @@ const PostForm = ({
             <Textarea
               ref={textareaRef}
               placeholder="# Tiêu đề bài viết"
-              className="min-h-[200px] resize-none overflow-y-auto border-gray-700"
+              className="min-h-[200px] resize-none overflow-y-auto border-border"
               value={doc}
               onChange={(e) => handleDocChange(e.target.value)}
             />
@@ -221,7 +221,7 @@ const PostForm = ({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-4 rounded-md border border-gray-700 bg-zinc-900 p-4">
+      <div className="mt-6 flex flex-col gap-4 rounded-md border border-border bg-card p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ const PostForm = ({
 
           <div className="flex flex-col gap-2 md:items-end">
             <Label>Danh sách series</Label>
-            <div className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-md border border-gray-700 p-2">
+            <div className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-md border border-border p-2">
               {series.map((seriesItem) => (
                 <div key={seriesItem.id} className="flex items-center gap-3">
                   <Checkbox
@@ -302,8 +302,8 @@ const PostForm = ({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-gray-700 pt-4">
-          <Button variant="outline" asChild className="text-gray-100">
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <Button variant="outline" asChild className="text-foreground">
             <Link href={route("admin.index")}>Quay Lại</Link>
           </Button>
           <Button

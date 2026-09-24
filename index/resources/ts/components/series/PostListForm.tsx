@@ -74,7 +74,7 @@ const PostListForm = ({
   return (
     <>
       <div className="flex justify-between">
-        <Label className="text-gray-100">Bài viết</Label>
+        <Label className="text-foreground">Bài viết</Label>
         <Button
           variant="outline"
           title="Thêm bài viết"

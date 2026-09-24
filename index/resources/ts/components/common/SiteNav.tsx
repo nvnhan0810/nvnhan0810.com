@@ -1,4 +1,5 @@
 import LocaleSwitcher from "@/ts/components/common/LocaleSwitcher";
+import ThemeToggle from "@/ts/components/ui/theme-toggle";
 import { profile } from "@/ts/constants/profile";
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import { AuthUser } from "@/ts/types/auth";
@@ -89,6 +90,7 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
           )}
 
           <LocaleSwitcher className="shrink-0" />
+          <ThemeToggle />
 
           <span className="hidden h-4 w-px bg-border sm:block" />
 

@@ -33,7 +33,7 @@ const EditPage = ({ auth, initialTag }: Props) => {
     <PrivateLayout auth={auth}>
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-100 text-center">
+          <h1 className="text-2xl font-bold text-foreground text-center">
             Quản Lý thẻ
           </h1>
         </div>

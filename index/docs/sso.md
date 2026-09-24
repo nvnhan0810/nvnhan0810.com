@@ -14,40 +14,41 @@ App con (`wallets.*`, `flc.*`, `todo.*`) redirect tới IdP rồi đổi `code` 
 
 Allowlist: `config/auth.php` → `valid_emails`.
 
+## Quản lý clients (admin)
+
+| Method | Path                          | Mô tả        |
+| ------ | ----------------------------- | ------------ |
+| GET    | `/admin/sso-clients`          | Danh sách    |
+| GET    | `/admin/sso-clients/create`   | Form tạo     |
+| POST   | `/admin/sso-clients`          | Tạo          |
+| GET    | `/admin/sso-clients/{id}/edit`| Form sửa     |
+| PUT    | `/admin/sso-clients/{id}`     | Cập nhật     |
+| DELETE | `/admin/sso-clients/{id}`     | Xóa          |
+
+Trong DB (`sso_clients`): `client_id`, `name`, `domain`, `redirect_uris`, `redirect_uri_patterns`, `enabled`.
+
+**Secret** (`SSO_SECRET`) chỉ ở env — page admin hiện dạng ẩn + nút copy để setup app con.
+
 ## Env cần set
 
 **Một secret chung** (index + wallets + flc + todo):
 
 ```env
 SSO_SECRET=<random-long-string>
-SSO_WALLETS_URL=https://wallets.nvnhan0810.com
-SSO_FLC_URL=https://foreign.nvnhan0810.com
-SSO_TODO_URL=https://todo.nvnhan0810.com
-# Optional: admin Header → Matrix (defaults to SSO_TODO_URL)
-TODO_APP_URL=https://todo.nvnhan0810.com
 ```
 
-Dev:
+Các URL `SSO_WALLETS_URL` / `SSO_FLC_URL` / `SSO_TODO_URL` chỉ dùng khi **migrate seed** lần đầu (điền sẵn clients vào DB). Sau đó sửa qua Admin → SSO clients.
+
+Optional fallback link Todo trên menu:
 
 ```env
-SSO_WALLETS_URL=https://wallets-dev.nvnhan0810.com
-SSO_FLC_URL=https://foreign-dev.nvnhan0810.com
-SSO_TODO_URL=https://todo-dev.nvnhan0810.com
-TODO_APP_URL=https://todo-dev.nvnhan0810.com
+TODO_APP_URL=https://todo.nvnhan0810.com
+# hoặc SSO_TODO_URL nếu chưa set TODO_APP_URL
 ```
 
-Không cần `SSO_CLIENT_ID` / `SSO_REDIRECT_URI` / `SSO_CLIENT_*_REDIRECT_URIS` trên index
-(whitelist nằm trong `config/sso.php`).
+## Setup app con
 
-| App        | `client_id`  | `redirect_uri`                          |
-| ---------- | ------------ | --------------------------------------- |
-| wallets    | `wallets`    | `{SSO_WALLETS_URL}/auth/sso/callback`   |
-| todo       | `todo`       | `{SSO_TODO_URL}/auth/sso/callback`      |
-| flc web    | `flc-web`    | `{SSO_FLC_URL}/auth/sso/callback`       |
-| flc admin  | `flc-admin`  | `{SSO_FLC_URL}/admin/auth/sso/callback` |
-| flc mobile | `flc-mobile` | `flc://oauth-callback` (pattern)        |
-
-Todo:
+Trên page admin SSO clients, copy `SSO_SECRET` rồi set trên từng app:
 
 ```env
 APP_URL=https://todo.nvnhan0810.com
@@ -57,24 +58,12 @@ SSO_CLIENT_ID=todo
 SSO_REDIRECT_URI="${APP_URL}/auth/sso/callback"
 ```
 
-Wallets:
-
-```env
-APP_URL=https://wallets.nvnhan0810.com
-SSO_IDP_URL=https://nvnhan0810.com
-SSO_SECRET=<same as index>
-```
-
-FLC:
-
-```env
-APP_URL=https://foreign.nvnhan0810.com
-SSO_IDP_URL=https://nvnhan0810.com
-SSO_SECRET=<same as index>
-```
+Wallets / FLC tương tự — `SSO_CLIENT_ID` phải khớp `client_id` trong DB.
 
 ## Mobile FLC
 
 1. `GET /api/auth/sso/redirect?redirect_uri=flc://oauth-callback`
 2. Browser → index → Google → `flc://oauth-callback?code&state`
 3. App `POST /api/auth/sso/exchange` → Sanctum token
+
+Client `flc-mobile` dùng `redirect_uri_patterns` (regex), không cần redirect URI cố định.

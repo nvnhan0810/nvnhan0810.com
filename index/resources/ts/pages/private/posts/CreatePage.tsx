@@ -41,7 +41,7 @@ const CreatePage = ({ auth, series }: Props) => {
 
   return (
     <PrivateLayout auth={auth}>
-      <h2 className="text-center text-2xl font-bold text-gray-100">
+      <h2 className="text-center text-2xl font-bold text-foreground">
         Bài viết mới
       </h2>
       <div className="mt-4 flex flex-col gap-4">

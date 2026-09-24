@@ -53,7 +53,7 @@ const EditPage = ({ auth, series, posts }: Props) => {
 
   return (
     <PrivateLayout auth={auth}>
-      <h2 className="text-2xl font-bold text-gray-100 text-center">
+      <h2 className="text-2xl font-bold text-foreground text-center">
         Chỉnh sửa series
       </h2>
       <div className="flex flex-col gap-4 mt-4">

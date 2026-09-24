@@ -3,46 +3,41 @@
 namespace Modules\Sso\Domain;
 
 use Modules\Sso\Domain\Exceptions\UnknownSsoClientException;
+use Modules\Sso\Domain\Ports\SsoClientRepository;
 
 final class SsoClientRegistry
 {
-    /** @var array<string, SsoClient> */
-    private array $clients;
-
-    public function __construct()
-    {
-        $sharedSecret = (string) config('sso.secret', '');
-        $this->clients = [];
-
-        if ($sharedSecret === '') {
-            return;
-        }
-
-        foreach ((array) config('sso.clients', []) as $id => $definition) {
-            if (! is_string($id) || ! is_array($definition)) {
-                continue;
-            }
-
-            $this->clients[$id] = new SsoClient(
-                $id,
-                $sharedSecret,
-                array_values(array_filter((array) ($definition['redirect_uris'] ?? []))),
-                array_values(array_filter((array) ($definition['redirect_uri_patterns'] ?? []))),
-            );
-        }
-    }
+    public function __construct(
+        private readonly SsoClientRepository $repository,
+        private readonly string $sharedSecret,
+    ) {}
 
     public function get(string $clientId): SsoClient
     {
-        if (! isset($this->clients[$clientId])) {
+        if ($this->sharedSecret === '') {
             throw new UnknownSsoClientException($clientId);
         }
 
-        return $this->clients[$clientId];
+        $definition = $this->repository->findEnabledByClientId($clientId);
+
+        if ($definition === null) {
+            throw new UnknownSsoClientException($clientId);
+        }
+
+        return new SsoClient(
+            $definition->clientId,
+            $this->sharedSecret,
+            $definition->redirectUris,
+            $definition->redirectUriPatterns,
+        );
     }
 
     public function has(string $clientId): bool
     {
-        return isset($this->clients[$clientId]);
+        if ($this->sharedSecret === '') {
+            return false;
+        }
+
+        return $this->repository->findEnabledByClientId($clientId) !== null;
     }
 }

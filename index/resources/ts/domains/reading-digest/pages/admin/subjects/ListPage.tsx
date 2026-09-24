@@ -17,14 +17,14 @@ const ListPage = ({ auth, subjects }: Props) => {
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-100">Reading Digest — Subjects</h1>
+        <h1 className="text-2xl font-bold text-foreground">Reading Digest — Subjects</h1>
         <Button variant="outline" onClick={() => router.get(route("admin.reading-digest.subjects.create"))}>
           <Plus className="w-4 h-4 mr-1" /> New
         </Button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-gray-900">
+          <thead className="bg-muted/50 text-foreground">
             <tr>
               <th className="px-3 py-2 border">Name</th>
               <th className="px-3 py-2 border">Sources</th>
@@ -33,7 +33,7 @@ const ListPage = ({ auth, subjects }: Props) => {
               <th className="px-3 py-2 border">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-foreground">
             {subjects.map((subject) => (
               <tr key={subject.id}>
                 <td className="px-3 py-2 border">{subject.name}</td>

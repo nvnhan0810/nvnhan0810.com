@@ -20,8 +20,8 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
-const THEME_COLOR_LIGHT = "#dce2e9"
-const THEME_COLOR_DARK = "#0a0a0a"
+const THEME_COLOR_LIGHT = "#ffffff"
+const THEME_COLOR_DARK = "#171a20"
 
 const resolveTheme = (theme: Theme): "dark" | "light" => {
   if (theme === "system") {

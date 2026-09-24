@@ -39,7 +39,7 @@ const FormPage = ({ auth, source, sourceTypes }: Props) => {
   return (
     <PrivateLayout auth={auth}>
       <ReadingDigestNav />
-      <h1 className="text-2xl font-bold text-gray-100 mb-2">{isEdit ? "Sửa nguồn" : "Thêm nguồn"}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">{isEdit ? "Sửa nguồn" : "Thêm nguồn"}</h1>
       <p className="text-sm text-muted-foreground mb-4 max-w-2xl">
         Website hoặc RSS feed bạn tin cậy. Sau khi lưu, vào <strong>Chủ đề</strong> và tick chọn nguồn này —
         nếu không gắn chủ đề thì digest sẽ không có bài từ nguồn đó.
