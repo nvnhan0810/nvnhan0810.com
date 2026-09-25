@@ -1,16 +1,21 @@
 <?php
 
-namespace App\Http\Requests\Admin;
+namespace Modules\Blog\Presentation\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Modules\Blog\Domain\Enums\PostStatus;
 
-class UpdatePostRequest extends FormRequest
+class CreatePostRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -18,8 +23,8 @@ class UpdatePostRequest extends FormRequest
             'description' => 'nullable|string',
             'content' => 'required|string',
             'source_url' => 'nullable|url|max:2048',
-            'is_published' => 'required|boolean',
-            'published_at' => 'required|date',
+            'status' => ['required', Rule::enum(PostStatus::class)],
+            'published_at' => 'nullable|date',
             'tags' => 'nullable|array',
             'tags.*' => 'required|string',
             'series_ids' => 'nullable|array',
@@ -38,6 +43,7 @@ class UpdatePostRequest extends FormRequest
                 : null,
             'content' => trim((string) $this->input('content', '')),
             'source_url' => $sourceUrl !== '' ? $sourceUrl : null,
+            'status' => $this->input('status', PostStatus::Draft->value),
         ]);
     }
 }

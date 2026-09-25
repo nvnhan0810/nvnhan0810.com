@@ -21,17 +21,22 @@ const PostDetail = ({ post, useTagLink = false }: Props) => {
         </h1>
         
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
-          <time dateTime={post.published_at || post.created_at}>
-            {new Date(post.published_at || post.created_at).toLocaleDateString(
-              dateLocale,
-              {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              }
-            )}
-          </time>
-          {/* Add author if available in Post type, otherwise skip */}
+          {(() => {
+            const dateValue = post.published_at ?? post.created_at;
+            if (!dateValue) {
+              return null;
+            }
+
+            return (
+              <time dateTime={dateValue}>
+                {new Date(dateValue).toLocaleDateString(dateLocale, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+            );
+          })()}
         </div>
 
         {post.public_tags != undefined && post.public_tags?.length > 0 && (

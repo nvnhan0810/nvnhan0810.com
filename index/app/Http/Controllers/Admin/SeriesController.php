@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Helpers\SlugHelpers;
 use App\Http\Controllers\Controller;
 use App\Models\Series;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Post;
-use Illuminate\Support\Str;
-use App\Helpers\SlugHelpers;
+use Modules\Blog\Infrastructure\Persistence\EloquentPost;
 
 class SeriesController extends Controller
 {
@@ -25,7 +24,7 @@ class SeriesController extends Controller
 
     public function create()
     {
-        $posts = Post::orderBy('title', 'ASC')->get();
+        $posts = EloquentPost::orderBy('title', 'ASC')->get();
 
         return Inertia::render('private/series/CreatePage', [
             'posts' => $posts,
@@ -53,7 +52,7 @@ class SeriesController extends Controller
 
         return Inertia::render('private/series/EditPage', [
             'series' => $series,
-            'posts' => Post::orderBy('title', 'ASC')->get(),
+            'posts' => EloquentPost::orderBy('title', 'ASC')->get(),
         ]);
     }
 

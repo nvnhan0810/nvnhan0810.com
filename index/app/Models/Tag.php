@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Blog\Infrastructure\Persistence\EloquentPost;
 
 class Tag extends Model
 {
@@ -13,13 +14,12 @@ class Tag extends Model
     /***** RELATIONSHIPS *****/
     public function posts()
     {
-        return $this->belongsToMany(Post::class, 'post_tag', 'tag_id', 'post_id');
+        return $this->belongsToMany(EloquentPost::class, 'post_tag', 'tag_id', 'post_id');
     }
 
     public function publicPosts()
     {
-        return $this->belongsToMany(Post::class, 'post_tag', 'tag_id', 'post_id')
-            ->where('is_published', true)
-            ->whereDate('published_at', '<=', now());
+        return $this->belongsToMany(EloquentPost::class, 'post_tag', 'tag_id', 'post_id')
+            ->visibleToGuest();
     }
 }

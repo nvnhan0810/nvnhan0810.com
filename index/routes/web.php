@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\AuthController;
@@ -9,10 +8,10 @@ use App\Http\Controllers\Public\AppsController;
 use App\Http\Controllers\Public\AppShowController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\OgImageController;
-use App\Http\Controllers\Public\PostController;
-use App\Models\Post;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
+use Modules\Blog\Application\Query\ListSitemapPosts;
+use Modules\Shared\Application\QueryBus;
 
 Route::prefix('auth')->group(function () {
     Route::get('/login', function () {
@@ -45,9 +44,6 @@ Route::get('/apps/{slug}', AppShowController::class)
     ->where('slug', '[a-z0-9\-]+')
     ->name('apps.show');
 
-Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
-Route::get('/posts/{slug}', [PostController::class, 'show'])->name('posts.show');
-
 Route::get('/robots.txt', function () {
     $content = implode("\n", [
         'User-agent: *',
@@ -60,12 +56,8 @@ Route::get('/robots.txt', function () {
     ]);
 });
 
-Route::get('/sitemap.xml', function () {
-    $posts = Post::query()
-        ->where('is_published', true)
-        ->whereDate('published_at', '<=', now())
-        ->orderByDesc('updated_at')
-        ->get(['slug', 'updated_at']);
+Route::get('/sitemap.xml', function (QueryBus $queries) {
+    $posts = $queries->ask(new ListSitemapPosts);
 
     $urls = collect([
         [
@@ -118,11 +110,6 @@ Route::get('/sitemap.xml', function () {
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
-
-    Route::get('/', [AdminPostController::class, 'index'])->name('index');
-
-    Route::resource('posts', AdminPostController::class)->except(['index', 'show']);
-
     Route::resource('tags', AdminTagController::class)->except(['show', 'create', 'store']);
 
     Route::resource('series', AdminSeriesController::class)->except(['show']);

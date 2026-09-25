@@ -135,6 +135,7 @@ export const buildPreviewPost = (
     content: parsed.content,
     published_at: base?.published_at ?? new Date().toISOString(),
     is_published: base?.is_published ?? false,
+    status: base?.status ?? "draft",
     tags:
       parsed.tags.length > 0
         ? parsed.tags.map((tag, index) => ({

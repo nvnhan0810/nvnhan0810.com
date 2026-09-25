@@ -46,7 +46,7 @@ class AuthController extends Controller
             return redirect()->away($target);
         }
 
-        return redirect()->intended(route('admin.index'));
+        return redirect()->intended(route('posts.index'));
     }
 
     public function logout()

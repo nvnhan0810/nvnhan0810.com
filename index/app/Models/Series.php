@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Blog\Infrastructure\Persistence\EloquentPost;
 
 class Series extends Model
 {
@@ -15,7 +16,7 @@ class Series extends Model
     /***** RELATIONSHIPS *****/
     public function posts()
     {
-        return $this->belongsToMany(Post::class, 'series_posts', 'series_id', 'post_id')
+        return $this->belongsToMany(EloquentPost::class, 'series_posts', 'series_id', 'post_id')
             ->withPivot('order')
             ->orderBy('order');
     }

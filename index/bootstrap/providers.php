@@ -1,8 +1,15 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use Modules\Blog\BlogServiceProvider;
+use Modules\ReadingDigest\ReadingDigestServiceProvider;
+use Modules\Shared\SharedServiceProvider;
+use Modules\Sso\SsoServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    Modules\Shared\SharedServiceProvider::class,
-    Modules\ReadingDigest\ReadingDigestServiceProvider::class,
-    Modules\Sso\SsoServiceProvider::class,
+    AppServiceProvider::class,
+    SharedServiceProvider::class,
+    BlogServiceProvider::class,
+    ReadingDigestServiceProvider::class,
+    SsoServiceProvider::class,
 ];

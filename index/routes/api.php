@@ -1,14 +1,14 @@
 <?php
 
-use App\Http\Controllers\Admin\PostController as AdminPostController;
-use App\Http\Controllers\Public\PostController;
 use App\Http\Controllers\Public\TagController;
 use App\Http\Middleware\OpenIdMiddleware;
 use Illuminate\Support\Facades\Route;
+use Modules\Blog\Presentation\Http\Controllers\AdminPostController;
+use Modules\Blog\Presentation\Http\Controllers\PublicPostController;
 use Modules\Sso\Presentation\Http\Controllers\SsoTokenController;
 
-// Route::get('/posts', [PostController::class, 'index']);
-// Route::get('/posts/{slug}', [PostController::class, 'show']);
+// Route::get('/posts', [PublicPostController::class, 'index']);
+// Route::get('/posts/{slug}', [PublicPostController::class, 'show']);
 
 // Route::get('/tags', [TagController::class, 'index']);
 // Route::get('/tags/{slug}', [TagController::class, 'show']);

@@ -80,7 +80,7 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
 
           {auth && (
             <Link
-              href={route("admin.index")}
+              href={route("posts.index")}
               className="text-muted-foreground transition-colors hover:text-foreground"
               title={t("nav.admin")}
               aria-label={t("nav.admin")}

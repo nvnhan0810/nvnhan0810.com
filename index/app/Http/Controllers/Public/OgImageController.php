@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\Post;
 use App\Services\OgImageGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Modules\Blog\Infrastructure\Persistence\EloquentPost;
 use Symfony\Component\HttpFoundation\Response;
 
 class OgImageController extends Controller
@@ -53,10 +53,9 @@ class OgImageController extends Controller
 
     public function post(Request $request, string $slug): Response
     {
-        $post = Post::query()
+        $post = EloquentPost::query()
             ->where('slug', $slug)
-            ->where('is_published', true)
-            ->whereDate('published_at', '<=', now())
+            ->visibleToGuest()
             ->firstOrFail();
 
         $cachePath = $this->ogImages->cachePath($slug);

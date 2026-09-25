@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\Request;
+use Modules\Blog\Infrastructure\Persistence\EloquentPost;
 
 class TagController extends Controller
 {
@@ -23,7 +23,7 @@ class TagController extends Controller
     {
         $tag = Tag::withCount(['publicPosts'])->where('slug', $slug)->first();
 
-        if (!$tag) {
+        if (! $tag) {
             return response()->json([
                 'message' => 'Tag Not Found',
             ], 404);
@@ -39,7 +39,7 @@ class TagController extends Controller
     {
         $search = $request->search;
 
-        $posts = Post::where('is_published', true)->whereHas('publicTags', function($tagQuery) use ($slug) {
+        $posts = EloquentPost::query()->visibleToGuest()->whereHas('publicTags', function ($tagQuery) use ($slug) {
             $tagQuery->where('slug', $slug);
         })->when($search, function ($searchQuery) use ($search) {
             $searchQuery->where('title', 'LIKE', "%{$search}%");

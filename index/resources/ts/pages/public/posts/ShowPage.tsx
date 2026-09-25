@@ -1,26 +1,82 @@
 import PostDetail from "@/ts/components/posts/PostDetail";
+import PostEditorDialog from "@/ts/components/posts/PostEditorDialog";
 import SeoHead from "@/ts/components/common/SeoHead";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ts/components/ui/alert-dialog";
 import { BLOG_COPY } from "@/ts/constants/blogCopy";
 import PublicLayout, { type RootProps } from "@/ts/layouts/PublicLayout";
-import type { Post } from "@/ts/types/post";
+import type { Post, PostPayload } from "@/ts/types/post";
 import type { Series } from "@/ts/types/series";
 import { cn } from "@/ts/utils";
 import { stripMarkdown, truncateDescription } from "@/ts/utils/seo";
-import { Link } from "@inertiajs/react";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Link, router } from "@inertiajs/react";
+import { format } from "date-fns";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { useState, type JSX } from "react";
 import { useRoute } from "ziggy-js";
 
 type Props = RootProps & {
   post: Post;
   series: Series[];
+  editorSeries?: Series[];
+  selectedSeriesIds?: number[];
+  canManage?: boolean;
 };
 
-const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
+const PostDetailPage = ({
+  post,
+  auth,
+  locale,
+  series = [],
+  editorSeries = [],
+  selectedSeriesIds = [],
+  canManage = false,
+}: Props): JSX.Element => {
   const route = useRoute();
   const sourceUrl = post.source_url?.trim() ?? "";
   const seoDescription = post.description?.trim()
     ? post.description
     : truncateDescription(stripMarkdown(post.content ?? ""));
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = (payload: PostPayload): void => {
+    setSaving(true);
+
+    router.put(
+      route("admin.posts.update", { post: post.id }),
+      {
+        title: payload.title,
+        description: payload.description,
+        content: payload.content,
+        source_url: payload.source_url,
+        tags: payload.tags,
+        published_at: payload.published_at
+          ? format(payload.published_at, "yyyy-MM-dd")
+          : null,
+        status: payload.status,
+        series_ids: payload.series_ids,
+      },
+      {
+        onFinish: () => setSaving(false),
+        onSuccess: () => setEditorOpen(false),
+      }
+    );
+  };
+
+  const confirmDelete = (): void => {
+    router.delete(route("admin.posts.destroy", { post: post.id }));
+  };
 
   return (
     <PublicLayout auth={auth} locale={locale}>
@@ -34,51 +90,59 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
         imageUrl={post.og_image_url}
         imageAlt={post.title}
       />
-      <Link
-        href={route("posts.index")}
-        className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-emerald-500"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {BLOG_COPY.backToBlog}
-      </Link>
+
+      <div className="mb-8">
+        <Link
+          href={route("posts.index")}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-emerald-500"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {BLOG_COPY.backToBlog}
+        </Link>
+      </div>
+
+      {sourceUrl !== "" && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          {BLOG_COPY.sourceOriginal}{" "}
+          <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-emerald-500 underline underline-offset-2 break-all"
+          >
+            {sourceUrl}
+          </a>
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div
-          className={cn("col-span-1", {
+          className={cn("group relative col-span-1 min-w-0", {
             "lg:col-span-8": series.length > 0,
-            "lg:col-span-10 lg:col-start-2": series.length === 0,
+            "lg:col-span-12": series.length === 0,
           })}
         >
-          <article className="rounded-xl border border-border bg-card p-6 md:p-10">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-medium uppercase tracking-widest text-emerald-500">
-                {BLOG_COPY.article}
-              </p>
-              {auth && (
-                <Link
-                  href={route("admin.posts.edit", { post: post.id })}
-                  className="text-muted-foreground transition-colors hover:text-emerald-500"
-                  title={BLOG_COPY.editPost}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Link>
-              )}
+          {canManage && (
+            <div className="absolute right-0 top-0 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+              <button
+                type="button"
+                onClick={() => setEditorOpen(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background/95 text-muted-foreground shadow-sm transition-colors hover:text-emerald-500"
+                title={BLOG_COPY.editPost}
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background/95 text-muted-foreground shadow-sm transition-colors hover:text-red-500"
+                title={BLOG_COPY.deletePost}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
             </div>
-            {sourceUrl !== "" && (
-              <div className="mb-4 rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm text-emerald-400">
-                {BLOG_COPY.sourceOriginal}{" "}
-                <a
-                  href={sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium underline line-clamp-1"
-                >
-                  {sourceUrl}
-                </a>
-              </div>
-            )}
-            <PostDetail post={post} useTagLink={true} />
-          </article>
+          )}
+          <PostDetail post={post} useTagLink={true} />
         </div>
 
         {series.length > 0 && (
@@ -130,6 +194,38 @@ const PostDetailPage = ({ post, auth, locale, series = [] }: Props) => {
           </aside>
         )}
       </div>
+
+      {canManage && (
+        <>
+          <PostEditorDialog
+            open={editorOpen}
+            mode="edit"
+            initialPost={post}
+            series={editorSeries}
+            selectedSeriesIds={selectedSeriesIds}
+            onOpenChange={setEditorOpen}
+            onSave={handleSave}
+            saving={saving}
+          />
+
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{BLOG_COPY.deletePost}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {BLOG_COPY.confirmDelete}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{BLOG_COPY.cancel}</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>
+                  {BLOG_COPY.deletePost}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </PublicLayout>
   );
 };

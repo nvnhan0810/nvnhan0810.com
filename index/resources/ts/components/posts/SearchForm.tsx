@@ -5,10 +5,11 @@ import { Input } from "../ui/input";
 
 type SearchFormProps = {
   onSearch: (search: string) => void;
+  initialSearch?: string;
 };
 
-const SearchForm = ({ onSearch }: SearchFormProps) => {
-  const [search, setSearch] = useState("");
+const SearchForm = ({ onSearch, initialSearch = "" }: SearchFormProps) => {
+  const [search, setSearch] = useState(initialSearch);
 
   const handleSearch = () => {
     onSearch(search);
