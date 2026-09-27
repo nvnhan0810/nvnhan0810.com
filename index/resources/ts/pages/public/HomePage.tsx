@@ -41,6 +41,17 @@ const HomePage = ({ posts }: Props) => {
 		[t],
 	);
 
+	const scrollToSection = (id: string): void => {
+		const prefersReducedMotion = window.matchMedia(
+			"(prefers-reduced-motion: reduce)",
+		).matches;
+		document.getElementById(id)?.scrollIntoView({
+			behavior: prefersReducedMotion ? "auto" : "smooth",
+			block: "start",
+		});
+		window.history.replaceState(null, "", `#${id}`);
+	};
+
 	return (
 		<PortfolioLayout>
 			<SeoHead
@@ -56,6 +67,10 @@ const HomePage = ({ posts }: Props) => {
 					<a
 						href="#top"
 						className="min-w-0 truncate text-sm font-semibold tracking-tight"
+						onClick={(event) => {
+							event.preventDefault();
+							scrollToSection("top");
+						}}
 					>
 						{cv.name}
 					</a>
@@ -65,6 +80,10 @@ const HomePage = ({ posts }: Props) => {
 								key={item.id}
 								href={`#${item.id}`}
 								className="transition-colors hover:text-foreground"
+								onClick={(event) => {
+									event.preventDefault();
+									scrollToSection(item.id);
+								}}
 							>
 								{item.label}
 							</a>
@@ -95,7 +114,7 @@ const HomePage = ({ posts }: Props) => {
 				id="top"
 				className="mx-auto max-w-5xl px-4 pb-8 pt-12 sm:px-6 sm:pt-16 mb-8 md:mb-0"
 			>
-				<section id="about" className="mb-20 text-center sm:text-left">
+				<section id="about" className="mb-20 scroll-mt-20 text-center sm:text-left">
 					<p className="mb-3 text-sm font-medium uppercase tracking-widest text-emerald-500">
 						{t("home.portfolioLabel")}
 					</p>
