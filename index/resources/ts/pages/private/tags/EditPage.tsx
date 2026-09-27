@@ -16,6 +16,26 @@ const EditPage = ({ auth, initialTag }: Props) => {
 
   const [tag, setTag] = useState<Tag>(initialTag);
 
+  if (initialTag.is_protected) {
+    return (
+      <PrivateLayout auth={auth}>
+        <div className="rounded-xl border border-border bg-card p-6 text-center">
+          <p className="text-muted-foreground">
+            Thẻ này được quản lý trong code và không thể chỉnh sửa.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            type="button"
+            onClick={() => router.get(route("admin.tags.index"))}
+          >
+            Quay lại
+          </Button>
+        </div>
+      </PrivateLayout>
+    );
+  }
+
   const handleSave = () => {
 
     router.put(route('admin.tags.update', tag.id), {

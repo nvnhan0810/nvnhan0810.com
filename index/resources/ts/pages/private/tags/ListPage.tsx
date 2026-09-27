@@ -88,8 +88,14 @@ const ListPage = ({ auth, tags }: Props) => {
                   <td className="px-4 py-2 border border-border text-center">{tag.posts_count}</td>
                   <td className="px-4 py-2 border border-border">
                     <div className="flex gap-2 justify-center items-center">
-                      <a href={route('admin.tags.edit', tag.id)} className="text-blue-500">Edit</a>
-                      {tag.posts_count === 0 && <DeleteButton id={tag.id} />}
+                      {tag.is_protected ? (
+                        <span className="text-xs text-muted-foreground">Protected</span>
+                      ) : (
+                        <>
+                          <a href={route('admin.tags.edit', tag.id)} className="text-blue-500">Edit</a>
+                          {tag.posts_count === 0 && <DeleteButton id={tag.id} />}
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

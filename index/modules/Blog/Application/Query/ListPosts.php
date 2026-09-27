@@ -11,6 +11,7 @@ final class ListPosts implements Query
         public readonly string $search = '',
         public readonly string $tag = '',
         public readonly string $statusFilter = '',
+        public readonly bool $includeInstall = false,
         public readonly ?int $editId = null,
     ) {}
 }

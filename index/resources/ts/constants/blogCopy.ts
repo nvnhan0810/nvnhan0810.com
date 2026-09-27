@@ -24,5 +24,7 @@ export const BLOG_COPY = {
   confirmDelete: "Xóa bài viết này? Không thể hoàn tác.",
   cancel: "Hủy",
   allStatuses: "Tất cả",
+  showInstallPosts: "Hiện Install",
+  hideInstallPosts: "Ẩn Install",
   ogLocale: "vi_VN",
 } as const;

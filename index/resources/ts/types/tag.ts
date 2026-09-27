@@ -3,4 +3,6 @@ export type Tag = {
   name: string;
   slug: string;
   public_posts_count?: number;
+  posts_count?: number;
+  is_protected?: boolean;
 };

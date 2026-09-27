@@ -19,6 +19,10 @@ import { BLOG_COPY } from "@/ts/constants/blogCopy";
 import {
   POST_STATUS_OPTIONS,
 } from "@/ts/constants/postStatus";
+import {
+  INCLUDE_INSTALL_QUERY,
+  SPECIAL_TAG,
+} from "@/ts/constants/specialTag";
 import PublicLayout from "@/ts/layouts/PublicLayout";
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import type { AuthUser } from "@/ts/types/auth";
@@ -37,6 +41,7 @@ type Filters = {
   search?: string | null;
   tag?: string | null;
   status?: string | null;
+  include_install?: string | null;
 };
 
 type Props = {
@@ -78,6 +83,16 @@ const ListPage = ({
       : new URLSearchParams(window.location.search).get("tag"));
 
   const currentStatus = filters?.status ?? null;
+  const includeInstall = filters?.include_install === "1";
+  const isOnInstallTag = currentTag === SPECIAL_TAG.Install.slug;
+
+  const listQueryParams = (overrides: Record<string, string | undefined> = {}): Record<string, string | undefined> => ({
+    search: filters?.search || undefined,
+    tag: currentTag || undefined,
+    status: currentStatus || undefined,
+    [INCLUDE_INSTALL_QUERY]: includeInstall ? "1" : undefined,
+    ...overrides,
+  });
 
   useEffect(() => {
     if (!canManage || !editingPost) {
@@ -109,19 +124,19 @@ const ListPage = ({
   };
 
   const handleSearch = (search: string): void => {
-    visitIndex({
-      search: search || undefined,
-      tag: currentTag || undefined,
-      status: currentStatus || undefined,
-    });
+    visitIndex(listQueryParams({ search: search || undefined }));
   };
 
   const handleStatusFilter = (status: string | null): void => {
-    visitIndex({
-      search: filters?.search || undefined,
-      tag: currentTag || undefined,
-      status: status || undefined,
-    });
+    visitIndex(listQueryParams({ status: status || undefined }));
+  };
+
+  const handleInstallFilter = (): void => {
+    visitIndex(
+      listQueryParams({
+        [INCLUDE_INSTALL_QUERY]: includeInstall ? undefined : "1",
+      })
+    );
   };
 
   const openCreate = (): void => {
@@ -136,9 +151,7 @@ const ListPage = ({
       route("posts.index"),
       {
         edit: String(post.id),
-        search: filters?.search || undefined,
-        tag: currentTag || undefined,
-        status: currentStatus || undefined,
+        ...listQueryParams(),
       },
       {
         preserveScroll: true,
@@ -152,12 +165,8 @@ const ListPage = ({
     setEditorOpen(false);
     setActivePost(null);
 
-    if (filters?.search || currentTag || currentStatus || editingPost) {
-      visitIndex({
-        search: filters?.search || undefined,
-        tag: currentTag || undefined,
-        status: currentStatus || undefined,
-      });
+    if (filters?.search || currentTag || currentStatus || includeInstall || editingPost) {
+      visitIndex(listQueryParams());
     }
   };
 
@@ -273,6 +282,22 @@ const ListPage = ({
                 {option.label}
               </button>
             ))}
+            {!isOnInstallTag && (
+              <button
+                type="button"
+                onClick={handleInstallFilter}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  includeInstall
+                    ? "border-amber-600/50 bg-amber-600/20 text-amber-400"
+                    : "border-border text-muted-foreground hover:border-amber-600/40"
+                )}
+              >
+                {includeInstall
+                  ? BLOG_COPY.hideInstallPosts
+                  : BLOG_COPY.showInstallPosts}
+              </button>
+            )}
           </div>
         )}
       </header>

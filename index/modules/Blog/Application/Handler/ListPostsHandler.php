@@ -29,11 +29,15 @@ final class ListPostsHandler implements QueryHandler
             ? $query->statusFilter
             : null;
 
+        $includeInstall = $query->authenticated && $query->includeInstall;
+        $excludeInstallTag = $query->tag === '' && ! $includeInstall;
+
         $paginator = $this->posts->paginateVisible(
             $query->authenticated,
             $query->search,
             $query->tag,
             $statusFilter,
+            $excludeInstallTag,
         );
 
         $editingPost = null;
@@ -55,6 +59,7 @@ final class ListPostsHandler implements QueryHandler
                 'status' => $query->authenticated && $query->statusFilter !== ''
                     ? $query->statusFilter
                     : null,
+                'include_install' => $includeInstall ? '1' : null,
             ],
             series: $query->authenticated ? $this->series->allForEditor() : [],
             editingPost: $editingPost,

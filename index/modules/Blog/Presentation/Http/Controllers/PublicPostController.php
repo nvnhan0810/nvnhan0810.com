@@ -11,6 +11,7 @@ use Modules\Blog\Application\DTOs\PostListResult;
 use Modules\Blog\Application\DTOs\PostShowResult;
 use Modules\Blog\Application\Query\GetPostBySlug;
 use Modules\Blog\Application\Query\ListPosts;
+use Modules\Blog\Domain\Enums\SpecialTag;
 use Modules\Shared\Application\QueryBus;
 
 final class PublicPostController extends Controller
@@ -27,6 +28,7 @@ final class PublicPostController extends Controller
             search: $request->string('search')->toString(),
             tag: $request->string('tag')->toString(),
             statusFilter: $request->string('status')->toString(),
+            includeInstall: $request->string(SpecialTag::INCLUDE_QUERY)->toString() === '1',
             editId: $request->integer('edit') ?: null,
         ));
 

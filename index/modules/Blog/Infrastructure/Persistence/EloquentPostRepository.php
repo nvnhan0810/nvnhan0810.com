@@ -5,6 +5,7 @@ namespace Modules\Blog\Infrastructure\Persistence;
 use App\Models\Series;
 use Illuminate\Support\Facades\DB;
 use Modules\Blog\Domain\Enums\PostStatus;
+use Modules\Blog\Domain\Enums\SpecialTag;
 use Modules\Blog\Domain\Exceptions\PostNotFoundException;
 use Modules\Blog\Domain\Ports\PostRepository;
 use Modules\Blog\Domain\Ports\TagRepository;
@@ -20,6 +21,7 @@ final class EloquentPostRepository implements PostRepository
         string $search,
         string $tag,
         ?string $statusFilter,
+        bool $excludeInstallTag = true,
         int $perPage = 50,
     ): mixed {
         return EloquentPost::query()
@@ -35,6 +37,11 @@ final class EloquentPostRepository implements PostRepository
                 $relation = $authenticated ? 'tags' : 'publicTags';
                 $tagQuery->whereHas($relation, function ($inner) use ($tag) {
                     $inner->where('slug', $tag);
+                });
+            })
+            ->when($excludeInstallTag, function ($query) {
+                $query->whereDoesntHave('tags', function ($inner) {
+                    $inner->where('slug', SpecialTag::Install->value);
                 });
             })
             ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
@@ -67,6 +74,9 @@ final class EloquentPostRepository implements PostRepository
         return EloquentPost::query()
             ->with(['publicTags'])
             ->visibleToGuest()
+            ->whereDoesntHave('tags', function ($inner) {
+                $inner->where('slug', SpecialTag::Install->value);
+            })
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->limit($limit)

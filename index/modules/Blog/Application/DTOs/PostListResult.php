@@ -6,7 +6,7 @@ final class PostListResult
 {
     /**
      * @param  mixed  $posts  LengthAwarePaginator
-     * @param  array{search: string|null, tag: string|null, status: string|null}  $filters
+     * @param  array{search: string|null, tag: string|null, status: string|null, include_install: string|null}  $filters
      * @param  list<int>  $selectedSeriesIds
      */
     public function __construct(

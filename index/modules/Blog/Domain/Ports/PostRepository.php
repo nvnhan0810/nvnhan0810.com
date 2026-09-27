@@ -14,6 +14,7 @@ interface PostRepository
         string $search,
         string $tag,
         ?string $statusFilter,
+        bool $excludeInstallTag = true,
         int $perPage = 50,
     ): mixed;
 
