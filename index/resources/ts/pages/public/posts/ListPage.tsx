@@ -281,7 +281,7 @@ const ListPage = ({
         <div className="min-w-0 flex-1">
           {data.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 justify-items-stretch gap-5 sm:[grid-template-columns:repeat(auto-fill,minmax(min(100%,18rem),20rem))]">
+              <div className="grid grid-cols-1 gap-5 sm:[grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
                 {data.map((post: Post) => (
                   <PostListItem
                     key={post.id}
