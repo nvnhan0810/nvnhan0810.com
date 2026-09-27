@@ -30,7 +30,9 @@ final class ListPostsHandler implements QueryHandler
             : null;
 
         $includeInstall = $query->authenticated && $query->includeInstall;
-        $excludeInstallTag = $query->tag === '' && ! $includeInstall;
+        $excludeInstallTag = $query->tag === ''
+            && $query->search === ''
+            && ! $includeInstall;
 
         $paginator = $this->posts->paginateVisible(
             $query->authenticated,
