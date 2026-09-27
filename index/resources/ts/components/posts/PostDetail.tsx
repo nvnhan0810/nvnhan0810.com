@@ -1,26 +1,43 @@
+import { BLOG_COPY } from "@/ts/constants/blogCopy";
+import {
+  postStatusDetailClass,
+  postStatusLabel,
+  postStatusMetaClass,
+} from "@/ts/constants/postStatus";
 import { useTranslation } from "@/ts/providers/i18n-provider";
 import { Post } from "@/ts/types/post";
 import { Tag } from "@/ts/types/tag";
+import { cn } from "@/ts/utils";
 import TagBadge from "../tags/TagBadge";
 import PostContent from "./PostContent";
 
 type Props = {
   post: Post;
   useTagLink?: boolean;
+  showStatus?: boolean;
 };
 
-const PostDetail = ({ post, useTagLink = false }: Props) => {
+const PostDetail = ({
+  post,
+  useTagLink = false,
+  showStatus = false,
+}: Props) => {
   const { locale } = useTranslation();
   const dateLocale = locale === "vi" ? "vi-VN" : "en-US";
 
   return (
-    <article className="prose prose-slate dark:prose-invert max-w-none">
+    <article
+      className={cn(
+        "prose prose-slate dark:prose-invert max-w-none",
+        showStatus && postStatusDetailClass(post.status),
+      )}
+    >
       <header className="mb-8 not-prose">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground mb-4">
           {post.title}
         </h1>
-        
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-6">
           {(() => {
             const dateValue = post.published_at ?? post.created_at;
             if (!dateValue) {
@@ -37,6 +54,12 @@ const PostDetail = ({ post, useTagLink = false }: Props) => {
               </time>
             );
           })()}
+
+          {showStatus && (
+            <span className={cn("font-medium", postStatusMetaClass(post.status))}>
+              {BLOG_COPY.status}: {postStatusLabel(post.status)}
+            </span>
+          )}
         </div>
 
         {post.public_tags != undefined && post.public_tags?.length > 0 && (

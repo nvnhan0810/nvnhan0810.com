@@ -1,8 +1,5 @@
 import { BLOG_COPY } from "@/ts/constants/blogCopy";
-import {
-  POST_STATUS_OPTIONS,
-  type PostStatusValue,
-} from "@/ts/constants/postStatus";
+import { postStatusCardClass } from "@/ts/constants/postStatus";
 import type { Post } from "@/ts/types/post";
 import type { Tag } from "@/ts/types/tag";
 import { cn } from "@/ts/utils";
@@ -20,13 +17,6 @@ type Props = {
   onDelete?: (post: Post) => void;
 };
 
-const statusLabel = (status: PostStatusValue): string => {
-  return (
-    POST_STATUS_OPTIONS.find((option) => option.value === status)?.label ??
-    status
-  );
-};
-
 const PostListItem = ({
   post,
   canManage = false,
@@ -36,7 +26,12 @@ const PostListItem = ({
   const routes = useRoute();
 
   return (
-    <div className="group relative flex h-full flex-col rounded-xl border border-border bg-card transition-all duration-300 hover:border-emerald-600/40 hover:bg-emerald-600/5">
+    <div
+      className={cn(
+        "group relative flex h-full flex-col rounded-xl border transition-all duration-300",
+        postStatusCardClass(post.status),
+      )}
+    >
       {canManage && (
         <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Button
@@ -75,20 +70,6 @@ const PostListItem = ({
         className="flex h-full flex-col p-5"
       >
         <div className="flex-grow">
-          {canManage && (
-            <span
-              className={cn(
-                "mb-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
-                {
-                  "bg-emerald-600/15 text-emerald-500": post.status === "public",
-                  "bg-amber-500/15 text-amber-500": post.status === "private",
-                  "bg-muted text-muted-foreground": post.status === "draft",
-                }
-              )}
-            >
-              {statusLabel(post.status)}
-            </span>
-          )}
           <h2 className="mb-3 line-clamp-2 text-xl font-bold text-foreground transition-colors group-hover:text-emerald-500">
             {post.title}
           </h2>

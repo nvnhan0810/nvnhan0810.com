@@ -23,7 +23,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 const THEME_COLOR_LIGHT = "#ffffff"
 const THEME_COLOR_DARK = "#171a20"
 
-const resolveTheme = (theme: Theme): "dark" | "light" => {
+export const resolveTheme = (theme: Theme): "dark" | "light" => {
   if (theme === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
@@ -32,7 +32,7 @@ const resolveTheme = (theme: Theme): "dark" | "light" => {
   return theme
 }
 
-const applyDomTheme = (resolved: "dark" | "light"): void => {
+export const applyDomTheme = (resolved: "dark" | "light"): void => {
   const root = window.document.documentElement
   root.classList.remove("light", "dark")
   root.classList.add(resolved)
@@ -60,6 +60,12 @@ export function ThemeProvider({
   })
 
   useEffect(() => {
+    const path = window.location.pathname.replace(/\/+$/, "") || "/"
+    if (path === "/") {
+      applyDomTheme("dark")
+      return
+    }
+
     applyDomTheme(resolveTheme(theme))
 
     if (theme !== "system") {
@@ -98,4 +104,16 @@ export const useTheme = () => {
     throw new Error("useTheme must be used within a ThemeProvider")
 
   return context
+}
+
+/** Force document dark while mounted; restore saved preference on leave. */
+export function useForcedDarkTheme(): void {
+  const { theme } = useTheme()
+
+  useEffect(() => {
+    applyDomTheme("dark")
+    return () => {
+      applyDomTheme(resolveTheme(theme))
+    }
+  }, [theme])
 }

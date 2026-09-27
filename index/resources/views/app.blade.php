@@ -18,9 +18,12 @@
       (function () {
         try {
           var key = "vite-ui-theme";
+          var path = window.location.pathname.replace(/\/+$/, "") || "/";
+          var forceDark = path === "/";
           var stored = localStorage.getItem(key) || "dark";
-          var resolved =
-            stored === "system"
+          var resolved = forceDark
+            ? "dark"
+            : stored === "system"
               ? window.matchMedia("(prefers-color-scheme: dark)").matches
                 ? "dark"
                 : "light"

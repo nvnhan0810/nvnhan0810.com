@@ -117,32 +117,34 @@ const PostDetailPage = ({
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div
-          className={cn("group relative col-span-1 min-w-0", {
+          className={cn("relative col-span-1 min-w-0", {
             "lg:col-span-8": series.length > 0,
             "lg:col-span-12": series.length === 0,
           })}
         >
           {canManage && (
-            <div className="absolute right-0 top-0 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+            <div className="fixed bottom-5 right-5 z-40 flex gap-2 sm:bottom-auto sm:top-24 sm:right-6">
               <button
                 type="button"
                 onClick={() => setEditorOpen(true)}
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background/95 text-muted-foreground shadow-sm transition-colors hover:text-emerald-500"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-emerald-500/50 hover:text-emerald-500"
                 title={BLOG_COPY.editPost}
+                aria-label={BLOG_COPY.editPost}
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteOpen(true)}
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background/95 text-muted-foreground shadow-sm transition-colors hover:text-red-500"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-red-500/50 hover:text-red-500"
                 title={BLOG_COPY.deletePost}
+                aria-label={BLOG_COPY.deletePost}
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           )}
-          <PostDetail post={post} useTagLink={true} />
+          <PostDetail post={post} useTagLink={true} showStatus={canManage} />
         </div>
 
         {series.length > 0 && (
