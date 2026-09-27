@@ -79,7 +79,7 @@ final class AdminPostController extends Controller
                 seriesIds: $validated['series_ids'] ?? null,
             ));
 
-            return redirect()->route('posts.index');
+            return back();
         } catch (PostNotFoundException) {
             return redirect()->route('posts.index')->withErrors(['form' => 'Post Not Found']);
         } catch (Throwable $e) {

@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
+type SiteModule = "home" | "blog" | "apps" | "news";
+
 type SiteNavProps = {
   auth: AuthUser | null;
-  active?: "home" | "blog" | "apps" | "news";
+  active?: SiteModule;
 };
 
 const linkClass = (isActive: boolean) =>
@@ -30,14 +32,39 @@ const SiteNav = ({ auth, active = "blog" }: SiteNavProps) => {
   const route = useRoute();
   const { cv, t } = useTranslation();
 
+  const brandByModule: Record<
+    SiteModule,
+    { href: string; title: string }
+  > = {
+    home: {
+      href: route("home"),
+      title: cv.name,
+    },
+    blog: {
+      href: route("posts.index"),
+      title: `${cv.name} - ${t("nav.blog")}`,
+    },
+    news: {
+      href: route("news.index"),
+      title: `${cv.name} - ${t("nav.news")}`,
+    },
+    apps: {
+      href: route("apps.index"),
+      title: `${cv.name} - ${t("nav.apps")}`,
+    },
+  };
+
+  const brand = brandByModule[active];
+
   return (
     <nav className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-hidden border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
         <Link
-          href={route("home")}
+          href={brand.href}
           className="min-w-0 truncate text-sm font-semibold tracking-tight"
+          title={brand.title}
         >
-          {cv.name}
+          {brand.title}
         </Link>
 
         <div className="flex shrink-0 items-center gap-1.5 text-sm sm:gap-3">

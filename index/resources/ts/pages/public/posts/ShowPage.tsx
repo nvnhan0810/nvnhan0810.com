@@ -79,7 +79,7 @@ const PostDetailPage = ({
   };
 
   return (
-    <PublicLayout auth={auth} locale={locale}>
+    <PublicLayout auth={auth} locale={locale} active="blog">
       <SeoHead
         title={`${post.title} | Blog`}
         description={seoDescription}

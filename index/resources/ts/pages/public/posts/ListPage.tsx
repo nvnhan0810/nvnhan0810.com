@@ -204,7 +204,7 @@ const ListPage = ({
   };
 
   return (
-    <PublicLayout auth={auth} locale={locale} wide>
+    <PublicLayout auth={auth} locale={locale} active="blog" wide>
       <SeoHead
         title={
           currentTag
