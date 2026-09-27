@@ -3,6 +3,8 @@
   font-family: inherit !important;
   background-color: transparent !important;
   color: hsl(var(--foreground)) !important;
+  --mermaid-bg: hsl(var(--muted) / 0.45);
+  --mermaid-border: hsl(var(--border));
 }
 
 // Ensure markdown content respects the theme
@@ -100,5 +102,72 @@
   hr {
     background-color: hsl(var(--border)) !important;
     height: 1px !important;
+  }
+
+  // Mermaid: isolate from list/link/code overrides above
+  .mermaid {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: auto;
+    margin: 1.25rem 0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--mermaid-border);
+    background: var(--mermaid-bg);
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    li {
+      list-style: none !important;
+      position: static !important;
+      padding-left: 0 !important;
+      margin: 0 !important;
+      color: inherit !important;
+    }
+
+    li::before,
+    li::after {
+      content: none !important;
+      display: none !important;
+    }
+
+    a,
+    p,
+    span,
+    div,
+    code {
+      color: inherit !important;
+      background: transparent !important;
+      text-decoration: none !important;
+      font-weight: inherit !important;
+      border: 0 !important;
+      box-shadow: none !important;
+    }
+  }
+
+  .mermaid-loading {
+    margin: 1.25rem 0;
+    padding: 1rem;
+    text-align: center;
+    font-style: italic;
+    color: hsl(var(--muted-foreground));
+    border: 1px dashed hsl(var(--border));
+    border-radius: 0.5rem;
+    background: var(--mermaid-bg);
+  }
+
+  .mermaid-error {
+    margin: 1.25rem 0;
+    padding: 1rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: #f87171 !important;
+    background: var(--mermaid-bg) !important;
+    border: 1px solid #f87171 !important;
+    border-radius: 0.5rem;
   }
 }
