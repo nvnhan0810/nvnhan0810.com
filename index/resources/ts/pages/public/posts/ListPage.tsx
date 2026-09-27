@@ -191,6 +191,7 @@ const ListPage = ({
       onSuccess: () => {
         setEditorOpen(false);
         setActivePost(null);
+        setActiveSeriesIds([]);
       },
     };
 

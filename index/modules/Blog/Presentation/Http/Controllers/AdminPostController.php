@@ -79,7 +79,7 @@ final class AdminPostController extends Controller
                 seriesIds: $validated['series_ids'] ?? null,
             ));
 
-            return back();
+            return $this->redirectAfterWrite();
         } catch (PostNotFoundException) {
             return redirect()->route('posts.index')->withErrors(['form' => 'Post Not Found']);
         } catch (Throwable $e) {
@@ -108,5 +108,30 @@ final class AdminPostController extends Controller
 
             return back()->withErrors(['form' => 'Delete Post Failed']);
         }
+    }
+
+    /**
+     * After write from blog list (?edit=), drop editor query so the modal stays closed.
+     * Detail page (and other referers) keep return-back behavior.
+     */
+    private function redirectAfterWrite(): RedirectResponse
+    {
+        $previous = url()->previous();
+        $indexPath = parse_url(route('posts.index'), PHP_URL_PATH) ?: '/blog';
+        $previousPath = parse_url($previous, PHP_URL_PATH) ?: '';
+
+        if ($previousPath !== $indexPath) {
+            return back();
+        }
+
+        $query = [];
+        $queryString = parse_url($previous, PHP_URL_QUERY);
+        if (is_string($queryString) && $queryString !== '') {
+            parse_str($queryString, $query);
+        }
+
+        unset($query['edit'], $query['create']);
+
+        return redirect()->route('posts.index', $query);
     }
 }
