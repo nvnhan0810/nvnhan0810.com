@@ -64,7 +64,7 @@ Config:
 - `DIGEST_TIMEZONE=Asia/Ho_Chi_Minh`
 - `DIGEST_CONTENT_RETENTION_DAYS=30` — xoá bài **không có tương tác/view** sau N ngày
 
-Production Docker đã chạy `schedule:work` qua Supervisor (xem secret.env.example k3s). Local: `php artisan schedule:work` hoặc cron `* * * * * php artisan schedule:run`.
+Production (k3s): CronJob `nvnhan0810-com-scheduler` chạy `php artisan schedule:run` mỗi phút. Local: `php artisan schedule:work` hoặc cron `* * * * * php artisan schedule:run`.
 
 ### 2.3. Fetch một source riêng
 
@@ -92,7 +92,7 @@ Tất cả nằm trong `app/Jobs/ReadingDigest/`.
 | **`PurgeStaleArticlesJob`** | `PurgeStaleArticlesHandler` | Xoá bài không tương tác sau `DIGEST_CONTENT_RETENTION_DAYS` (mặc định 30) |
 
 Queue: `config('reading-digest.queue')` / env `DIGEST_QUEUE` (mặc định `default`).  
-Worker cần chạy: `php artisan queue:work` (hoặc supervisor trong k8s).
+Worker cần chạy: `php artisan queue:work` (k3s: Deployment `nvnhan0810-com-queue`).
 
 ---
 
@@ -297,7 +297,7 @@ Thứ tự **không đảm bảo**:
 3. Env AI: `DIGEST_AI_BASE_URL`, `DIGEST_AI_API_KEY` (service `ai.nvnhan0810.com` healthy).
 4. Optional ranking: `GEMINI_API_KEY`.
 5. Subject đã **link** ít nhất 1 source enabled.
-6. Scheduler đã đăng ký (`reading-digest:daily` @ 07:00 Asia/Ho_Chi_Minh); production cần `schedule:work` / cron đang chạy.
+6. Scheduler đã đăng ký (`reading-digest:daily` @ 07:00 Asia/Ho_Chi_Minh); production cần CronJob `schedule:run` (k3s) hoặc local `schedule:work`.
 
 ---
 

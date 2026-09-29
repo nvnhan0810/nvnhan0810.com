@@ -26,4 +26,12 @@ if [ "$APP_ENV" = "production" ]; then
   php artisan view:cache
 fi
 
+# K8s: use `args` (Docker CMD) to run one-shot / worker processes while keeping
+# this ENTRYPOINT (storage + config cache). Example:
+#   args: ["php", "artisan", "queue:work", "redis", ...]
+# Bare web Deployment (no args) → supervisord (php-fpm + nginx + inertia-ssr).
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+
 exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf

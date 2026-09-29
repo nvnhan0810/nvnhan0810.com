@@ -49,7 +49,8 @@ COPY --from=vendor /app /app
 RUN npm run build --ignore-scripts
 
 # -----------------------------------------------------------------------------
-# Production runtime (nginx + php-fpm + inertia SSR + queue)
+# Production runtime (nginx + php-fpm + inertia SSR)
+# Queue / scheduler: separate K8s Deployment + CronJob (override via container args).
 # -----------------------------------------------------------------------------
 FROM php:8.4-fpm-bookworm AS runtime
 
