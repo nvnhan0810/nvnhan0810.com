@@ -115,7 +115,14 @@ COPY --from=assets /app/public/build ./public/build
 COPY --from=assets /app/bootstrap/ssr ./bootstrap/ssr
 COPY public ./public
 
-RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs storage/app/og-cache bootstrap/cache \
+# dash (Docker /bin/sh) has no brace expansion — list dirs explicitly.
+RUN mkdir -p \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        storage/app/og-cache \
+        bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwX storage bootstrap/cache
 
