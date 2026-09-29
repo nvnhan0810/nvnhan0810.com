@@ -50,7 +50,8 @@ RUN npm run build --ignore-scripts
 
 # -----------------------------------------------------------------------------
 # Production runtime (nginx + php-fpm + inertia SSR)
-# Queue / scheduler: separate K8s Deployment + CronJob (override via container args).
+# Default CMD = web (config:cache once at start, then supervisord).
+# Queue / scheduler / migrate: K8s `args` replaces this entire CMD (they never hit config:cache).
 # -----------------------------------------------------------------------------
 FROM php:8.4-fpm-bookworm AS runtime
 
@@ -95,8 +96,6 @@ RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default \
     && rm -f /etc/nginx/sites-enabled/default.bak
 
 COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /var/www/html
 
@@ -120,9 +119,23 @@ RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs storage/app/o
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwX storage bootstrap/cache
 
+# route/view caches are env-independent enough to bake at build (dummy APP_KEY only for this RUN).
+# Do NOT config:cache here — K8s injects real secrets at runtime; baking would freeze wrong env.
+ARG APP_URL
+RUN APP_ENV=production \
+    APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    APP_URL=${APP_URL} \
+    php artisan route:cache \
+ && APP_ENV=production \
+    APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    APP_URL=${APP_URL} \
+    php artisan view:cache
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8080/up || exit 1
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Web default CMD. Queue / scheduler / migrate override via K8s `args` (replaces this whole CMD).
+# config:cache only runs on web pod start (secrets already injected); one-shot jobs never see it.
+CMD ["sh", "-c", "php artisan config:cache && exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf"]
