@@ -17,7 +17,7 @@ final class GetTodayDigestHandler implements QueryHandler
         $run = RdDigestRun::query()
             ->where('user_id', $query->userId)
             ->whereDate('run_date', $query->date)
-            ->with(['items.article.source', 'items.subject'])
+            ->with(['items.article.source', 'items.article.taxonomyNodes', 'items.subject'])
             ->first();
 
         $groups = [];
@@ -49,6 +49,10 @@ final class GetTodayDigestHandler implements QueryHandler
                         'image_url' => $article->image_url,
                         'published_at' => $article->published_at,
                         'source' => $article->source?->only(['id', 'name']),
+                        'taxonomy_nodes' => $article->taxonomyNodes
+                            ->map(fn ($node) => $node->only(['id', 'label', 'path']))
+                            ->values()
+                            ->all(),
                     ],
                 ];
             }

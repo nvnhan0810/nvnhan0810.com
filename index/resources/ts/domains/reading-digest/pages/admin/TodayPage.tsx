@@ -35,6 +35,19 @@ const TodayPage = ({ auth, run }: Props) => {
             {item.subject?.name}
             {item.article?.source?.name ? ` · ${item.article.source.name}` : ""}
           </p>
+          {item.article?.taxonomy_nodes && item.article.taxonomy_nodes.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {item.article.taxonomy_nodes.map((node) => (
+                <span
+                  key={node.id}
+                  className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                  title={node.path}
+                >
+                  {node.label}
+                </span>
+              ))}
+            </div>
+          )}
           {item.article?.summary && (
             <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{item.article.summary}</p>
           )}
@@ -42,6 +55,8 @@ const TodayPage = ({ auth, run }: Props) => {
             {item.tracking_token && (
               <a
                 href={route("news.open", item.tracking_token)}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-blue-400 hover:underline"
               >
                 Xem bài gốc

@@ -4,6 +4,12 @@ import { Link, router } from "@inertiajs/react";
 import { ExternalLink, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useRoute } from "ziggy-js";
 
+type NewsTaxonomyNode = {
+  id: string;
+  label: string;
+  path: string;
+};
+
 type NewsArticle = {
   id: string;
   title: string;
@@ -12,6 +18,7 @@ type NewsArticle = {
   image_url?: string | null;
   published_at?: string | null;
   source?: { id: string; name: string } | null;
+  taxonomy_nodes?: NewsTaxonomyNode[];
 };
 
 type DigestItem = {
@@ -103,6 +110,8 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
                   {article.image_url ? (
                     <a
                       href={route("news.open", item.tracking_token)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="block max-w-[180px] overflow-hidden rounded-lg bg-muted"
                     >
                       <img
@@ -125,11 +134,26 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
                     <h3 className="break-words text-xl font-bold tracking-tight text-foreground">
                       <a
                         href={route("news.open", item.tracking_token)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hover:text-emerald-500"
                       >
                         {article.title}
                       </a>
                     </h3>
+                    {article.taxonomy_nodes && article.taxonomy_nodes.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {article.taxonomy_nodes.map((node) => (
+                          <span
+                            key={node.id}
+                            className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                            title={node.path}
+                          >
+                            {node.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {article.summary && (
                       <p className="mt-2 line-clamp-4 break-words text-sm text-muted-foreground">
                         {article.summary}
@@ -139,6 +163,8 @@ const NewsTodayPage = ({ auth, locale, run, groups }: Props) => {
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <a
                         href={route("news.open", item.tracking_token)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
                       >
                         Xem bài gốc

@@ -50,6 +50,10 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/taxonomy', [TaxonomyController::class, 'index'])->name('taxonomy.index');
         Route::post('/taxonomy', [TaxonomyController::class, 'store'])->name('taxonomy.store');
+        Route::post('/taxonomy/priority', [TaxonomyController::class, 'addPriority'])->name('taxonomy.priority.store');
+        Route::delete('/taxonomy/priority', [TaxonomyController::class, 'removePriority'])->name('taxonomy.priority.destroy');
+        Route::post('/taxonomy/restricted', [TaxonomyController::class, 'addRestricted'])->name('taxonomy.restricted.store');
+        Route::delete('/taxonomy/restricted', [TaxonomyController::class, 'removeRestricted'])->name('taxonomy.restricted.destroy');
 
         Route::get('/articles', [ArticleInboxController::class, 'index'])->name('articles.index');
         Route::patch('/articles/{id}', [ArticleInboxController::class, 'update'])->name('articles.update');

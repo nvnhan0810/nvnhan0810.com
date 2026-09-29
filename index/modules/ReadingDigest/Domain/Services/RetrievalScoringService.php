@@ -10,6 +10,7 @@ class RetrievalScoringService
      * @param  array<string, float>  $favoriteTopics
      * @param  array<string, float>  $interestScores
      * @param  array<int, string>  $ignoredTaxonomyIds
+     * @param  array<int, string>  $ignoredTopics
      */
     public function score(
         RdArticle $article,
@@ -22,6 +23,7 @@ class RetrievalScoringService
         ?string $preferredDifficulty = null,
         array $preferredArticleTypes = [],
         float $contextBoost = 0,
+        array $ignoredTopics = [],
     ): float {
         if ($article->force_exclude) {
             return -999;
@@ -37,6 +39,12 @@ class RetrievalScoringService
 
         foreach ($taxonomyIds as $taxonomyId) {
             if (in_array($taxonomyId, $ignoredTaxonomyIds, true)) {
+                return -999;
+            }
+        }
+
+        foreach ($taxonomyPaths as $path) {
+            if ($this->pathMatchesIgnoredTopic($path, $ignoredTopics)) {
                 return -999;
             }
         }
@@ -76,6 +84,24 @@ class RetrievalScoringService
         $score -= count($negativeSignals) * 2;
 
         return round($score, 4);
+    }
+
+    /**
+     * @param  array<int, string>  $ignoredTopics
+     */
+    private function pathMatchesIgnoredTopic(string $path, array $ignoredTopics): bool
+    {
+        foreach ($ignoredTopics as $ignored) {
+            if ($ignored === '') {
+                continue;
+            }
+
+            if ($path === $ignored || str_starts_with($path, $ignored.'.')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function cosineSimilarity(array $a, array $b): float

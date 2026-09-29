@@ -31,6 +31,7 @@ class RetrievalService
         $preferences = $profile->preferences ?? DefaultPreferences::make();
         $favoriteTopics = $preferences['favorite_topics'] ?? [];
         $ignoredTaxonomyIds = $preferences['ignored_taxonomy_ids'] ?? [];
+        $ignoredTopics = $preferences['ignored_topics'] ?? [];
         $preferredSources = $preferences['preferred_sources'] ?? [];
         $preferredDifficulty = $preferences['preferred_difficulty'] ?? null;
         $preferredArticleTypes = $preferences['preferred_article_types'] ?? [];
@@ -94,6 +95,7 @@ class RetrievalService
             $favoriteTopics,
             $interestScores,
             $ignoredTaxonomyIds,
+            $ignoredTopics,
             $userEmbedding,
             $preferredSources,
             $preferredDifficulty,
@@ -110,6 +112,8 @@ class RetrievalService
                 $preferredSources,
                 $preferredDifficulty,
                 $preferredArticleTypes,
+                0,
+                $ignoredTopics,
             );
 
             return ['article' => $article, 'score' => $score];

@@ -17,7 +17,7 @@ class TodayDigestController extends Controller
         $run = RdDigestRun::query()
             ->where('user_id', $userId)
             ->whereDate('run_date', $today)
-            ->with(['items.article.source', 'items.subject'])
+            ->with(['items.article.source', 'items.article.taxonomyNodes', 'items.subject'])
             ->first();
 
         return Inertia::render('domains/reading-digest/pages/admin/TodayPage', [

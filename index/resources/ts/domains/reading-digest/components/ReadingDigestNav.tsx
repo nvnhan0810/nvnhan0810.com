@@ -6,6 +6,7 @@ const links = [
   { route: "admin.reading-digest.subjects.index", label: "Chủ đề" },
   { route: "admin.reading-digest.sources.index", label: "Nguồn" },
   { route: "admin.reading-digest.articles.index", label: "Hộp thư" },
+  { route: "admin.reading-digest.taxonomy.index", label: "Tag" },
   { route: "admin.reading-digest.settings.index", label: "Cài đặt" },
 ];
 
