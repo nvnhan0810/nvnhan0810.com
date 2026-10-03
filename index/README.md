@@ -14,7 +14,7 @@ Tài liệu nội bộ của site (không phải Laravel generic):
 - [Central SSO](docs/sso.md)
 - [Reading Digest flow](docs/reading-digest-flow.md)
 - [Web Push / Pomodoro](docs/web-push.md) — VAPID, PWA, server-authoritative timer, focus global
-- Production: `QUEUE_CONNECTION=redis` + `CACHE_STORE=redis` (Redis ngoài Pod; image có `ext-redis`). Web pod = Dockerfile `CMD` (`config:cache` + supervisord; `route`/`view` cache lúc build). Queue / scheduler / migrate = K8s `args` thay cả CMD (`queue:work` / `schedule:run` / `migrate`) — không chạy `config:cache` lẫn supervisord.
+- Production: `QUEUE_CONNECTION=redis` + `CACHE_STORE=redis` (Redis ngoài Pod; image có `ext-redis`). Web pod = Dockerfile `CMD` (`config:cache` + supervisord; `route`/`view` cache lúc build). Queue / scheduler / migrate = K8s `args` thay cả CMD (`queue:work` / `reading-digest:*` / `migrate`) — không chạy `config:cache` lẫn supervisord.
 
 ## About Laravel
 

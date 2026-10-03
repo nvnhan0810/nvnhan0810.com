@@ -64,7 +64,7 @@ Config:
 - `DIGEST_TIMEZONE=Asia/Ho_Chi_Minh`
 - `DIGEST_CONTENT_RETENTION_DAYS=30` — xoá bài **không có tương tác/view** sau N ngày
 
-Production (k3s): CronJob `nvnhan0810-com-scheduler` chạy `php artisan schedule:run` mỗi phút. Local: `php artisan schedule:work` hoặc cron `* * * * * php artisan schedule:run`.
+Production (k3s): bốn CronJob trong `k3s/apps/nvnhan0810.com/jobs/` gọi trực tiếp artisan (`reading-digest:purge-stale`, `decay-interest`, `rebuild-embeddings`, `run-daily`) — không qua `schedule:run`. Local: `php artisan schedule:work` (dùng lịch trong `bootstrap/app.php`) hoặc gọi từng command.
 
 ### 2.3. Fetch một source riêng
 
@@ -297,7 +297,7 @@ Thứ tự **không đảm bảo**:
 3. Env AI: `DIGEST_AI_BASE_URL`, `DIGEST_AI_API_KEY` (service `ai.nvnhan0810.com` healthy).
 4. Optional ranking: `GEMINI_API_KEY`.
 5. Subject đã **link** ít nhất 1 source enabled.
-6. Scheduler đã đăng ký (`reading-digest:daily` @ 07:00 Asia/Ho_Chi_Minh); production cần CronJob `schedule:run` (k3s) hoặc local `schedule:work`.
+6. Scheduler đã đăng ký (`reading-digest:run-daily` @ 07:00 Asia/Ho_Chi_Minh); production cần 4 CronJob artisan (k3s `jobs/`) hoặc local `schedule:work`.
 
 ---
 
