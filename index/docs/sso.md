@@ -71,3 +71,5 @@ Client `flc-mobile` dùng `redirect_uri_patterns` (regex), không cần redirect
 ## Apple Reader (iOS)
 
 Spec sync PDF + annotation (SeaweedFS, Sanctum Reader API): [apple-reader-sync-api.md](./apple-reader-sync-api.md).
+
+Reader API sống trong `modules/Reader` (prefix `/api/v1`). App đổi code qua `POST /api/v1/auth/sso/exchange` (server gọi lại `POST /api/auth/sso/token`). Cần tạo SSO client `apple-reader` trong Admin (xem checklist §18 trong spec).

@@ -99,7 +99,7 @@ Dùng chung `SSO_SECRET` (đã có trên index).
 
 Base: `https://reader-api.nvnhan0810.com` (placeholder).
 
-#### `POST /v1/auth/sso/exchange`
+#### `POST /api/v1/auth/sso/exchange`
 
 App đổi authorization code lấy Bearer token.
 
@@ -129,11 +129,11 @@ App đổi authorization code lấy Bearer token.
 }
 ```
 
-#### `GET /v1/me`
+#### `GET /api/v1/me`
 
 Header: `Authorization: Bearer {token}`
 
-#### `POST /v1/auth/logout`
+#### `POST /api/v1/auth/logout`
 
 Revoke current Sanctum token.
 
@@ -141,27 +141,19 @@ Revoke current Sanctum token.
 
 ## 4. Data model (Postgres)
 
-### 4.1. `users` (Reader API local)
+### 4.1. `users` (shared site table)
 
-Map từ IdP `sub` (int trên index).
+Reader **không** có bảng user riêng. Dùng `users` của index.  
+IdP claims.`sub` = `users.id` (int). Sanctum PAT gắn trên `User`.
 
-| Column | Type | Note |
-|--------|------|------|
-| `id` | uuid PK | |
-| `idp_sub` | bigint unique | claims.`sub` từ IdP |
-| `email` | string unique | |
-| `name` | string | |
-| `avatar_url` | string nullable | |
-| `created_at` / `updated_at` | timestamptz | |
-
-### 4.2. `documents`
+### 4.2. `documents` (`reader_documents`)
 
 Khớp gần với `DocumentItem` trên iOS.
 
 | Column | Type | Note |
 |--------|------|------|
 | `id` | uuid PK | Client có thể generate UUID khi import offline rồi sync |
-| `user_id` | uuid FK | owner |
+| `user_id` | bigint FK → `users.id` | owner |
 | `title` | string | |
 | `page_count` | int | |
 | `content_type` | string | `application/pdf` |
@@ -219,35 +211,33 @@ Một row / (document, page). Binary nằm SeaweedFS.
 
 ## 5. SeaweedFS layout
 
-Dùng **S3-compatible API** của SeaweedFS (Laravel disk `s3`).
-
-Bucket ví dụ: `reader`
+SeaweedFS = S3 API → Laravel disk `s3` (`AWS_*`). Prefix object `reader/`.
 
 ```text
-reader/
-  users/{user_id}/
-    documents/{document_id}/
-      original.pdf
-      thumb.jpg
-      drawings/
-        page-0.drawing
-        page-12.drawing
+{AWS_BUCKET}/
+  reader/
+    users/{user_id}/
+      documents/{document_id}/
+        original.pdf
+        thumb.jpg
+        drawings/
+          page-0.drawing
+          page-12.drawing
 ```
 
 ### Object key helpers
 
-- PDF: `users/{userId}/documents/{docId}/original.pdf`
-- Thumb: `users/{userId}/documents/{docId}/thumb.jpg`
-- Drawing: `users/{userId}/documents/{docId}/drawings/page-{n}.drawing`
+- PDF: `reader/users/{userId}/documents/{docId}/original.pdf`
+- Thumb: `reader/users/{userId}/documents/{docId}/thumb.jpg`
+- Drawing: `reader/users/{userId}/documents/{docId}/drawings/page-{n}.drawing`
 
 ### Env Reader API
 
 ```env
-FILESYSTEM_DISK=seaweed
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=reader
+AWS_BUCKET=nvnhan0810-app-dev
 AWS_ENDPOINT=https://seaweedfs.example:8333
 AWS_USE_PATH_STYLE_ENDPOINT=true
 ```
@@ -293,7 +283,7 @@ PKDrawing.dataRepresentation() → file page-{n}.drawing
 
 ### 7.2. Pull changes
 
-#### `GET /v1/sync/changes?since={ISO8601 or cursor}`
+#### `GET /api/v1/sync/changes?since={ISO8601 or cursor}`
 
 Trả về delta metadata (không blob lớn).
 
@@ -308,6 +298,7 @@ Trả về delta metadata (không blob lớn).
       "page_count": 120,
       "revision": 3,
       "updated_at": "…",
+      "deleted": false,
       "deleted_at": null,
       "byte_size": 1234567,
       "content_sha256": "…",
@@ -333,18 +324,21 @@ Trả về delta metadata (không blob lớn).
 
 Client sau đó:
 
-- Download PDF nếu thiếu / `content_sha256` khác: `GET /v1/documents/{id}/file`
-- Download drawing nếu revision local thấp hơn: `GET /v1/documents/{id}/annotations/{page}`
-- Download thumb optional: `GET /v1/documents/{id}/thumbnail`
+- **Tombstone (bắt buộc):** nếu `deleted === true` hoặc `status === "deleted"` hoặc `deleted_at != null` → xóa hẳn bản local (file + metadata + annotations/progress). **Không** `POST /documents` lại cùng `id`, **không** upload file lại.
+- Download PDF nếu thiếu / `content_sha256` khác (và chưa deleted): `GET /api/v1/documents/{id}/file`
+- Download drawing nếu revision local thấp hơn: `GET /api/v1/documents/{id}/annotations/{page}`
+- Download thumb optional: `GET /api/v1/documents/{id}/thumbnail`
 
 ### 7.3. Push
 
 Thứ tự khuyến nghị:
 
-1. Tạo/ensure document metadata  
+1. Tạo/ensure document metadata (skip nếu server đã tombstone)  
 2. Upload PDF (nếu mới / đổi content)  
 3. Upload annotations từng trang đã dirty  
 4. Push reading progress  
+
+Nếu `POST /api/v1/documents` với `id` đã soft-delete → `409` + `deleted: true`; client phải bỏ local, không recreate.
 
 ---
 
@@ -357,13 +351,23 @@ Authorization: Bearer {token}
 Accept: application/json
 ```
 
-### `GET /v1/documents`
+### `GET /api/v1/documents`
 
 Query: `?cursor=&limit=50`
 
-Danh sách documents của user (không gồm soft-deleted, trừ `?include_deleted=1`).
+Danh sách documents của user (không gồm soft-deleted, trừ `?include_deleted=1`).  
+Order: **lượt đọc gần nhất** (`last_opened_at DESC NULLS LAST`, rồi `updated_at`).  
+Mỗi item có `is_favorite`. Vùng yêu thích UI dùng API riêng bên dưới — **không** đổi order list này.
 
-### `POST /v1/documents`
+### `GET /api/v1/favorites`
+
+Toàn bộ documents đang favorite (không phân trang). Order: `last_opened_at` rồi `title`.
+
+### `PUT /api/v1/documents/{id}/favorite`
+
+Body: `{ "favorite": true | false }`
+
+### `POST /api/v1/documents`
 
 Tạo metadata trước khi upload file (hoặc kèm multipart một shot).
 
@@ -379,7 +383,7 @@ Tạo metadata trước khi upload file (hoặc kèm multipart một shot).
 
 **Response `201`:** document object + `upload` hints.
 
-### `POST /v1/documents/{id}/file`
+### `POST /api/v1/documents/{id}/file`
 
 `multipart/form-data`:
 
@@ -389,33 +393,65 @@ Tạo metadata trước khi upload file (hoặc kèm multipart một shot).
 
 Server: validate PDF, store SeaweedFS, update `byte_size`, `content_sha256`, `page_count`, `revision++`, `status=ready`.
 
-### `GET /v1/documents/{id}`
+### `GET /api/v1/documents/{id}`
 
 Metadata only.
 
-### `GET /v1/documents/{id}/file`
+### `GET /api/v1/documents/{id}/file`
 
 Stream PDF (`application/pdf`) hoặc **302** sang signed Seaweed URL (TTL ngắn, ví dụ 15 phút).
 
-### `PUT /v1/documents/{id}`
+### `PUT /api/v1/documents/{id}`
 
-Đổi title / metadata. Body có `base_revision`.
+Đổi **tên document** (edit title).
 
-### `DELETE /v1/documents/{id}`
+```json
+{ "title": "New name", "base_revision": 3 }
+```
 
-Soft delete + (async job) xóa objects SeaweedFS.
+`base_revision` optional — nếu gửi mà lệch server → `409`. Bỏ qua thì LWW.
 
-### `POST /v1/documents/{id}/thumbnail`
+### `DELETE /api/v1/documents/{id}`
+
+Soft delete (đưa vào thùng rác). **Giữ** object Seaweed để restore. Sync trả `deleted: true` / `purge_at` (= `deleted_at` + 60 ngày).
+
+### Trash
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `GET` | `/api/v1/trash` | Danh sách soft-deleted (`?limit=&cursor=`) |
+| `POST` | `/api/v1/trash/{id}/restore` | Khôi phục khỏi thùng rác |
+| `DELETE` | `/api/v1/trash/{id}` | Xóa vĩnh viễn 1 doc (Seaweed + annotations + progress + row) |
+| `DELETE` | `/api/v1/trash` | Empty trash (purge tất cả của user) |
+
+Retention: mặc định **60 ngày** (`READER_TRASH_RETENTION_DAYS`). Cron `reader:purge-expired-trash` chạy **23:30** `Asia/Ho_Chi_Minh` mỗi ngày.
+
+### Collections
+
+Xóa collection **không** xóa document. Gỡ document khỏi collection **không** soft-delete document.
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `GET` | `/api/v1/collections` | List (không phân trang), có `document_count` |
+| `POST` | `/api/v1/collections` | Tạo `{ "name", "id?" }` |
+| `GET` | `/api/v1/collections/{id}` | Chi tiết |
+| `PUT` | `/api/v1/collections/{id}` | Đổi tên `{ "name" }` |
+| `DELETE` | `/api/v1/collections/{id}` | Xóa collection (+ pivot); documents giữ nguyên |
+| `GET` | `/api/v1/collections/{id}/documents` | Docs trong collection |
+| `POST` | `/api/v1/collections/{id}/documents` | Thêm `{ "document_id" }` |
+| `DELETE` | `/api/v1/collections/{id}/documents/{documentId}` | Gỡ khỏi collection |
+
+### `POST /api/v1/documents/{id}/thumbnail`
 
 Upload JPEG thumbnail (app đã generate sẵn — khớp `ThumbnailService`).
 
-### `GET /v1/documents/{id}/thumbnail`
+### `GET /api/v1/documents/{id}/thumbnail`
 
 ---
 
 ## 9. REST API — Annotations
 
-### `GET /v1/documents/{id}/annotations`
+### `GET /api/v1/documents/{id}/annotations`
 
 Manifest mọi trang có nét:
 
@@ -429,14 +465,14 @@ Manifest mọi trang có nét:
 }
 ```
 
-### `GET /v1/documents/{id}/annotations/{pageIndex}`
+### `GET /api/v1/documents/{id}/annotations/{pageIndex}`
 
 Binary `application/octet-stream` (`pencilkit.pkdrawing`).  
 `404` nếu empty/không có.
 
 Headers hữu ích: `ETag: "{revision}"`, `X-Content-SHA256: …`
 
-### `PUT /v1/documents/{id}/annotations/{pageIndex}`
+### `PUT /api/v1/documents/{id}/annotations/{pageIndex}`
 
 Body: raw binary drawing.
 
@@ -457,7 +493,7 @@ Empty body hoặc header `X-Empty: 1` → xóa nét trang đó.
 
 **`409 Conflict`** nếu `If-Match` không khớp.
 
-### `PUT /v1/documents/{id}/annotations:batch` (optional v1.1)
+### `PUT /api/v1/documents/{id}/annotations:batch` (optional v1.1)
 
 Nhiều trang trong một request (multipart) để giảm round-trip khi sync.
 
@@ -465,13 +501,13 @@ Nhiều trang trong một request (multipart) để giảm round-trip khi sync.
 
 ## 10. REST API — Reading progress
 
-### `GET /v1/documents/{id}/progress`
+### `GET /api/v1/documents/{id}/progress`
 
 ```json
 { "document_id": "…", "page_index": 10, "revision": 2, "updated_at": "…" }
 ```
 
-### `PUT /v1/documents/{id}/progress`
+### `PUT /api/v1/documents/{id}/progress`
 
 ```json
 { "page_index": 11, "base_revision": 2 }
@@ -511,9 +547,9 @@ LWW theo `updated_at`/`revision`. Conflict hiếm — có thể luôn accept n�
 
 - [ ] Đăng ký SSO client `apple-reader` + redirect pattern trên IdP
 - [ ] Scaffold Reader API (Laravel) + Sanctum
-- [ ] Env: `SSO_IDP_URL`, `SSO_SECRET`, `SSO_CLIENT_ID=apple-reader`
-- [ ] `POST /v1/auth/sso/exchange` (server-side gọi IdP `/api/auth/sso/token`)
-- [ ] `GET /v1/me`, `POST /v1/auth/logout`
+- [ ] Env: `SSO_SECRET` (IdP URL / client_id / Seaweed disk đã default trong config; reuse `AWS_*`)
+- [ ] `POST /api/v1/auth/sso/exchange` (server-side gọi IdP `/api/auth/sso/token`)
+- [ ] `GET /api/v1/me`, `POST /api/v1/auth/logout`
 - [ ] Test: Postman/curl với code thật từ authorize URL
 
 ### Phase B — Storage
@@ -525,7 +561,7 @@ LWW theo `updated_at`/`revision`. Conflict hiếm — có thể luôn accept n�
 
 ### Phase C — Documents
 
-- [ ] Migrations `users`, `documents`
+- [ ] Migrations `reader_documents` (FK `users.id`; không tạo `reader_users`)
 - [ ] CRUD metadata + upload/download PDF + thumbnail
 - [ ] Soft delete + ownership checks
 - [ ] SHA-256 integrity
@@ -540,7 +576,7 @@ LWW theo `updated_at`/`revision`. Conflict hiếm — có thể luôn accept n�
 
 ### Phase E — Sync cursor
 
-- [ ] `GET /v1/sync/changes?since=`
+- [ ] `GET /api/v1/sync/changes?since=`
 - [ ] Đảm bảo index `(user_id, updated_at)` đủ nhanh
 - [ ] Document rate limits cơ bản
 
@@ -600,28 +636,83 @@ Nếu muốn DX giống FLC:
 ## 17. OpenAPI skeleton (paths)
 
 ```text
-POST   /v1/auth/sso/exchange
-GET    /v1/me
-POST   /v1/auth/logout
+POST   /api/v1/auth/sso/exchange
+GET    /api/v1/me
+POST   /api/v1/auth/logout
 
-GET    /v1/documents
-POST   /v1/documents
-GET    /v1/documents/{id}
-PUT    /v1/documents/{id}
-DELETE /v1/documents/{id}
-POST   /v1/documents/{id}/file
-GET    /v1/documents/{id}/file
-POST   /v1/documents/{id}/thumbnail
-GET    /v1/documents/{id}/thumbnail
+GET    /api/v1/documents
+POST   /api/v1/documents
+GET    /api/v1/favorites
+GET    /api/v1/documents/{id}
+PUT    /api/v1/documents/{id}
+PUT    /api/v1/documents/{id}/favorite
+DELETE /api/v1/documents/{id}
+POST   /api/v1/documents/{id}/file
+GET    /api/v1/documents/{id}/file
+POST   /api/v1/documents/{id}/thumbnail
+GET    /api/v1/documents/{id}/thumbnail
 
-GET    /v1/documents/{id}/annotations
-GET    /v1/documents/{id}/annotations/{pageIndex}
-PUT    /v1/documents/{id}/annotations/{pageIndex}
+GET    /api/v1/documents/{id}/annotations
+GET    /api/v1/documents/{id}/annotations/{pageIndex}
+PUT    /api/v1/documents/{id}/annotations/{pageIndex}
 
-GET    /v1/documents/{id}/progress
-PUT    /v1/documents/{id}/progress
+GET    /api/v1/documents/{id}/progress
+PUT    /api/v1/documents/{id}/progress
 
-GET    /v1/sync/changes
+GET    /api/v1/sync/changes
+
+GET    /api/v1/trash
+DELETE /api/v1/trash
+POST   /api/v1/trash/{id}/restore
+DELETE /api/v1/trash/{id}
+
+GET    /api/v1/collections
+POST   /api/v1/collections
+GET    /api/v1/collections/{id}
+PUT    /api/v1/collections/{id}
+DELETE /api/v1/collections/{id}
+GET    /api/v1/collections/{id}/documents
+POST   /api/v1/collections/{id}/documents
+DELETE /api/v1/collections/{id}/documents/{documentId}
 ```
 
 Khi implement xong Phase A–E, iOS mới cần: SSO session + sync client. App code hiện tại **chưa** cần sửa cho đến khi BE sẵn sàng.
+
+---
+
+## 18. Implementation status (index `modules/Reader`)
+
+Code đã scaffold trên **cùng app IdP** (`Modules\Reader`), Sanctum PAT.
+
+**Base path (chỉ một):** `/api/v1/*`
+
+| Build | Base URL |
+|--------|----------|
+| Debug | `https://dev.nvnhan0810.com/api/v1` |
+| Release | `https://nvnhan0810.com/api/v1` |
+
+### Bạn cần làm tiếp (ops / config)
+
+1. **Commit + deploy** module `Reader`.
+
+2. **SSO client trên IdP (Admin → SSO clients)**  
+   - `client_id`: `apple-reader`  
+   - `enabled`: true  
+   - `redirect_uri_patterns` (mỗi dòng):  
+     ```text
+     /^nvnhan0810:\/\/oauth-callback(\/|\?|$)/
+     /^nvnhan0810-dev:\/\/oauth-callback(\/|\?|$)/
+     ```  
+   - Secret: dùng chung `SSO_SECRET`
+
+3. **Migrate DB** — `personal_access_tokens` (morphs → `users`) + `reader_documents` / progress / annotations. Không có `reader_users`.
+
+4. **Env** — chỉ cần `SSO_SECRET` (+ `AWS_*` sẵn có). Defaults: IdP=`APP_URL`, client=`apple-reader`, disk=`s3`, keys `reader/*`.
+
+5. **Smoke test (sau deploy)**  
+   - `POST /api/v1/auth/sso/exchange`  
+   - `GET /api/v1/me` + Bearer token
+
+### Endpoints đã có
+
+Khớp section 17 dưới prefix `/api/v1`.

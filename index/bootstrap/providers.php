@@ -4,6 +4,7 @@ use App\Providers\AppServiceProvider;
 use Modules\Blog\BlogServiceProvider;
 use Modules\ReadingDigest\ReadingDigestServiceProvider;
 use Modules\Shared\SharedServiceProvider;
+use Modules\Reader\ReaderServiceProvider;
 use Modules\Sso\SsoServiceProvider;
 
 return [
@@ -12,4 +13,5 @@ return [
     BlogServiceProvider::class,
     ReadingDigestServiceProvider::class,
     SsoServiceProvider::class,
+    ReaderServiceProvider::class,
 ];

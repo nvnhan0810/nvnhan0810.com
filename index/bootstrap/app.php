@@ -2,10 +2,16 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Modules\Reader\Domain\Enums\ApiErrorCode;
+use Modules\Reader\Domain\Exceptions\ReaderDomainException;
+use Modules\Reader\Presentation\Http\Responses\ApiErrorResponse;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,7 +21,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->redirectGuestsTo(fn () => route('google.login'));
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('api/v1/*') || $request->expectsJson()) {
+                return null;
+            }
+
+            return route('google.login');
+        });
 
         $middleware->web(append: [
             SetLocale::class,
@@ -52,7 +64,40 @@ return Application::configure(basePath: dirname(__DIR__))
             ->timezone($timezone)
             ->name('reading-digest:rebuild-embeddings')
             ->withoutOverlapping();
+
+        $schedule->command('reader:purge-expired-trash')
+            ->dailyAt('23:30')
+            ->timezone($timezone)
+            ->name('reader:purge-expired-trash')
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            if ($request->is('api/v1/*') || $request->expectsJson()) {
+                return ApiErrorResponse::unauthenticated();
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (ReaderDomainException $exception, Request $request) {
+            if ($request->is('api/v1/*') || $request->expectsJson()) {
+                return ApiErrorResponse::fromDomain($exception);
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (ValidationException $exception, Request $request) {
+            if (! $request->is('api/v1/*')) {
+                return null;
+            }
+
+            return ApiErrorResponse::make(
+                ApiErrorCode::VALIDATION_ERROR,
+                $exception->getMessage(),
+                422,
+                ['errors' => $exception->errors()],
+            );
+        });
     })->create();
