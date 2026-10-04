@@ -67,3 +67,7 @@ Wallets / FLC tương tự — `SSO_CLIENT_ID` phải khớp `client_id` trong D
 3. App `POST /api/auth/sso/exchange` → Sanctum token
 
 Client `flc-mobile` dùng `redirect_uri_patterns` (regex), không cần redirect URI cố định.
+
+## Apple Reader (iOS)
+
+Spec sync PDF + annotation (SeaweedFS, Sanctum Reader API): [apple-reader-sync-api.md](./apple-reader-sync-api.md).
