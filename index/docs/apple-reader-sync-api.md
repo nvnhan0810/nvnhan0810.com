@@ -78,7 +78,7 @@ Admin → SSO clients (đã có UI), tạo client:
 | `name` | Apple Reader |
 | `enabled` | true |
 | `redirect_uris` | (có thể để trống nếu dùng pattern) |
-| `redirect_uri_patterns` | regex cho deep link, ví dụ: `^nvnhan0810://oauth-callback$` và/hoặc `^com\\.nvnhan0810\\.NhanApp(\\.)?.*://oauth-callback$` |
+| `redirect_uri_patterns` | Allow **cả hai** app cài song song: `^nvnhan0810://oauth-callback$` (Release) và `^nvnhan0810-dev://oauth-callback$` (Debug). Không dùng chung một scheme. |
 
 Dùng chung `SSO_SECRET` (đã có trên index).
 
@@ -99,7 +99,7 @@ Dùng chung `SSO_SECRET` (đã có trên index).
 
 Base: `https://reader-api.nvnhan0810.com` (placeholder).
 
-#### `POST /v1/auth/sso/exchange`
+#### `POST /api/v1/auth/sso/exchange`
 
 App đổi authorization code lấy Bearer token.
 
@@ -129,11 +129,11 @@ App đổi authorization code lấy Bearer token.
 }
 ```
 
-#### `GET /v1/me`
+#### `GET /api/v1/me`
 
 Header: `Authorization: Bearer {token}`
 
-#### `POST /v1/auth/logout`
+#### `POST /api/v1/auth/logout`
 
 Revoke current Sanctum token.
 
@@ -293,7 +293,7 @@ PKDrawing.dataRepresentation() → file page-{n}.drawing
 
 ### 7.2. Pull changes
 
-#### `GET /v1/sync/changes?since={ISO8601 or cursor}`
+#### `GET /api/v1/sync/changes?since={ISO8601 or cursor}`
 
 Trả về delta metadata (không blob lớn).
 
@@ -333,9 +333,9 @@ Trả về delta metadata (không blob lớn).
 
 Client sau đó:
 
-- Download PDF nếu thiếu / `content_sha256` khác: `GET /v1/documents/{id}/file`
-- Download drawing nếu revision local thấp hơn: `GET /v1/documents/{id}/annotations/{page}`
-- Download thumb optional: `GET /v1/documents/{id}/thumbnail`
+- Download PDF nếu thiếu / `content_sha256` khác: `GET /api/v1/documents/{id}/file`
+- Download drawing nếu revision local thấp hơn: `GET /api/v1/documents/{id}/annotations/{page}`
+- Download thumb optional: `GET /api/v1/documents/{id}/thumbnail`
 
 ### 7.3. Push
 
@@ -357,13 +357,13 @@ Authorization: Bearer {token}
 Accept: application/json
 ```
 
-### `GET /v1/documents`
+### `GET /api/v1/documents`
 
 Query: `?cursor=&limit=50`
 
 Danh sách documents của user (không gồm soft-deleted, trừ `?include_deleted=1`).
 
-### `POST /v1/documents`
+### `POST /api/v1/documents`
 
 Tạo metadata trước khi upload file (hoặc kèm multipart một shot).
 
@@ -379,7 +379,7 @@ Tạo metadata trước khi upload file (hoặc kèm multipart một shot).
 
 **Response `201`:** document object + `upload` hints.
 
-### `POST /v1/documents/{id}/file`
+### `POST /api/v1/documents/{id}/file`
 
 `multipart/form-data`:
 
@@ -389,33 +389,33 @@ Tạo metadata trước khi upload file (hoặc kèm multipart một shot).
 
 Server: validate PDF, store SeaweedFS, update `byte_size`, `content_sha256`, `page_count`, `revision++`, `status=ready`.
 
-### `GET /v1/documents/{id}`
+### `GET /api/v1/documents/{id}`
 
 Metadata only.
 
-### `GET /v1/documents/{id}/file`
+### `GET /api/v1/documents/{id}/file`
 
 Stream PDF (`application/pdf`) hoặc **302** sang signed Seaweed URL (TTL ngắn, ví dụ 15 phút).
 
-### `PUT /v1/documents/{id}`
+### `PUT /api/v1/documents/{id}`
 
 Đổi title / metadata. Body có `base_revision`.
 
-### `DELETE /v1/documents/{id}`
+### `DELETE /api/v1/documents/{id}`
 
 Soft delete + (async job) xóa objects SeaweedFS.
 
-### `POST /v1/documents/{id}/thumbnail`
+### `POST /api/v1/documents/{id}/thumbnail`
 
 Upload JPEG thumbnail (app đã generate sẵn — khớp `ThumbnailService`).
 
-### `GET /v1/documents/{id}/thumbnail`
+### `GET /api/v1/documents/{id}/thumbnail`
 
 ---
 
 ## 9. REST API — Annotations
 
-### `GET /v1/documents/{id}/annotations`
+### `GET /api/v1/documents/{id}/annotations`
 
 Manifest mọi trang có nét:
 
@@ -429,14 +429,14 @@ Manifest mọi trang có nét:
 }
 ```
 
-### `GET /v1/documents/{id}/annotations/{pageIndex}`
+### `GET /api/v1/documents/{id}/annotations/{pageIndex}`
 
 Binary `application/octet-stream` (`pencilkit.pkdrawing`).  
 `404` nếu empty/không có.
 
 Headers hữu ích: `ETag: "{revision}"`, `X-Content-SHA256: …`
 
-### `PUT /v1/documents/{id}/annotations/{pageIndex}`
+### `PUT /api/v1/documents/{id}/annotations/{pageIndex}`
 
 Body: raw binary drawing.
 
@@ -457,7 +457,7 @@ Empty body hoặc header `X-Empty: 1` → xóa nét trang đó.
 
 **`409 Conflict`** nếu `If-Match` không khớp.
 
-### `PUT /v1/documents/{id}/annotations:batch` (optional v1.1)
+### `PUT /api/v1/documents/{id}/annotations:batch` (optional v1.1)
 
 Nhiều trang trong một request (multipart) để giảm round-trip khi sync.
 
@@ -465,13 +465,13 @@ Nhiều trang trong một request (multipart) để giảm round-trip khi sync.
 
 ## 10. REST API — Reading progress
 
-### `GET /v1/documents/{id}/progress`
+### `GET /api/v1/documents/{id}/progress`
 
 ```json
 { "document_id": "…", "page_index": 10, "revision": 2, "updated_at": "…" }
 ```
 
-### `PUT /v1/documents/{id}/progress`
+### `PUT /api/v1/documents/{id}/progress`
 
 ```json
 { "page_index": 11, "base_revision": 2 }
@@ -507,14 +507,45 @@ LWW theo `updated_at`/`revision`. Conflict hiếm — có thể luôn accept n�
 
 ## 12. Checklist implement BE (thứ tự)
 
-### Phase A — Auth bridge
+### Phase A — Auth bridge (**đang thiếu — nguyên nhân app báo 401 sau SSO**)
 
-- [ ] Đăng ký SSO client `apple-reader` + redirect pattern trên IdP
-- [ ] Scaffold Reader API (Laravel) + Sanctum
-- [ ] Env: `SSO_IDP_URL`, `SSO_SECRET`, `SSO_CLIENT_ID=apple-reader`
-- [ ] `POST /v1/auth/sso/exchange` (server-side gọi IdP `/api/auth/sso/token`)
-- [ ] `GET /v1/me`, `POST /v1/auth/logout`
-- [ ] Test: Postman/curl với code thật từ authorize URL
+Hiện IdP `index` **chỉ có**:
+- `GET /auth/sso/authorize`
+- `POST /api/auth/sso/token` (cần `client_secret`)
+
+App iOS gọi tiếp:
+- `POST {API_BASE}/api/v1/auth/sso/exchange` ← **chưa có trên BE** → HTTP 401/404
+
+Checklist tối thiểu để login mobile chạy:
+
+- [ ] Đăng ký SSO client `apple-reader`
+- [ ] Allow redirect patterns:
+  - `^nvnhan0810://oauth-callback$` (Release)
+  - `^nvnhan0810-dev://oauth-callback$` (Debug)
+- [ ] Trên **cùng host** app đang gọi (`dev.nvnhan0810.com` / `nvnhan0810.com`) implement:
+  - `POST /api/v1/auth/sso/exchange` (public, **không** auth)
+  - Body: `{ code, redirect_uri, device_name, client_id }`
+  - Server dùng `SSO_SECRET` gọi nội bộ `POST /api/auth/sso/token`
+  - Upsert user + cấp Sanctum PAT
+  - Response: `{ token, token_type, user: { id, email, name, avatar } }`
+- [ ] `GET /api/v1/me` + `POST /api/v1/auth/logout` (Bearer)
+- [ ] CORS không cần cho native app; chỉ cần route thật sự tồn tại (không bị auth middleware chặn)
+- [ ] Test curl:
+
+```bash
+# Sau khi có code từ authorize callback:
+curl -i -X POST "https://dev.nvnhan0810.com/api/v1/auth/sso/exchange" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "code":"PASTE_CODE",
+    "redirect_uri":"nvnhan0810-dev://oauth-callback",
+    "device_name":"iPad",
+    "client_id":"apple-reader"
+  }'
+```
+
+Expect `200` + `token`. Nếu `401/404` → route chưa sẵn hoặc middleware chặn.
 
 ### Phase B — Storage
 
@@ -540,7 +571,7 @@ LWW theo `updated_at`/`revision`. Conflict hiếm — có thể luôn accept n�
 
 ### Phase E — Sync cursor
 
-- [ ] `GET /v1/sync/changes?since=`
+- [ ] `GET /api/v1/sync/changes?since=`
 - [ ] Đảm bảo index `(user_id, updated_at)` đủ nhanh
 - [ ] Document rate limits cơ bản
 
@@ -600,28 +631,28 @@ Nếu muốn DX giống FLC:
 ## 17. OpenAPI skeleton (paths)
 
 ```text
-POST   /v1/auth/sso/exchange
-GET    /v1/me
-POST   /v1/auth/logout
+POST   /api/v1/auth/sso/exchange
+GET    /api/v1/me
+POST   /api/v1/auth/logout
 
-GET    /v1/documents
-POST   /v1/documents
-GET    /v1/documents/{id}
-PUT    /v1/documents/{id}
-DELETE /v1/documents/{id}
-POST   /v1/documents/{id}/file
-GET    /v1/documents/{id}/file
-POST   /v1/documents/{id}/thumbnail
-GET    /v1/documents/{id}/thumbnail
+GET    /api/v1/documents
+POST   /api/v1/documents
+GET    /api/v1/documents/{id}
+PUT    /api/v1/documents/{id}
+DELETE /api/v1/documents/{id}
+POST   /api/v1/documents/{id}/file
+GET    /api/v1/documents/{id}/file
+POST   /api/v1/documents/{id}/thumbnail
+GET    /api/v1/documents/{id}/thumbnail
 
-GET    /v1/documents/{id}/annotations
-GET    /v1/documents/{id}/annotations/{pageIndex}
-PUT    /v1/documents/{id}/annotations/{pageIndex}
+GET    /api/v1/documents/{id}/annotations
+GET    /api/v1/documents/{id}/annotations/{pageIndex}
+PUT    /api/v1/documents/{id}/annotations/{pageIndex}
 
-GET    /v1/documents/{id}/progress
-PUT    /v1/documents/{id}/progress
+GET    /api/v1/documents/{id}/progress
+PUT    /api/v1/documents/{id}/progress
 
-GET    /v1/sync/changes
+GET    /api/v1/sync/changes
 ```
 
 Khi implement xong Phase A–E, iOS mới cần: SSO session + sync client. App code hiện tại **chưa** cần sửa cho đến khi BE sẵn sàng.
