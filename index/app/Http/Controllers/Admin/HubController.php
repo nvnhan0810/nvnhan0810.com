@@ -47,6 +47,13 @@ final class HubController extends Controller
                     'path' => '/admin/sso-clients',
                     'route' => 'admin.sso-clients.index',
                 ],
+                [
+                    'key' => 'reader',
+                    'label' => 'Reader',
+                    'description' => 'Documents, collections, trash (PDF Reader).',
+                    'path' => '/admin/reader/documents',
+                    'route' => 'admin.reader.documents.index',
+                ],
             ],
         ]);
     }

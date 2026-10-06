@@ -30,13 +30,15 @@ final class GetDocumentFileHandler implements QueryHandler
         }
 
         $ttl = (int) config('reader.signed_url_ttl_seconds', 900);
-        $url = $this->storage->temporaryUrl(
-            $document->seaweedPdfKey,
-            new DateTimeImmutable('+'.$ttl.' seconds'),
-        );
+        if (! $query->preferBinary) {
+            $url = $this->storage->temporaryUrl(
+                $document->seaweedPdfKey,
+                new DateTimeImmutable('+'.$ttl.' seconds'),
+            );
 
-        if ($url !== null) {
-            return new StoredObjectResult($url, null, ContentType::PDF, $document->revision, $document->contentSha256);
+            if ($url !== null) {
+                return new StoredObjectResult($url, null, ContentType::PDF, $document->revision, $document->contentSha256);
+            }
         }
 
         return new StoredObjectResult(

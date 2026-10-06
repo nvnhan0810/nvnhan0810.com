@@ -13,6 +13,8 @@ use Modules\Reader\Application\Command\DeleteCollection;
 use Modules\Reader\Application\Command\DeleteDocument;
 use Modules\Reader\Application\Command\EmptyTrash;
 use Modules\Reader\Application\Command\ExchangeSsoCode;
+use Modules\Reader\Application\Command\ImportDocumentFromUrl;
+use Modules\Reader\Application\Command\IngestUploadedDocument;
 use Modules\Reader\Application\Command\Logout;
 use Modules\Reader\Application\Command\PurgeDocument;
 use Modules\Reader\Application\Command\PurgeExpiredTrash;
@@ -22,6 +24,7 @@ use Modules\Reader\Application\Command\RemoveDocumentFromCollection;
 use Modules\Reader\Application\Command\RenameCollection;
 use Modules\Reader\Application\Command\RestoreDocument;
 use Modules\Reader\Application\Command\SetDocumentFavorite;
+use Modules\Reader\Application\Command\SyncDocumentCollections;
 use Modules\Reader\Application\Command\UpdateDocument;
 use Modules\Reader\Application\Command\UploadDocumentFile;
 use Modules\Reader\Application\Command\UploadThumbnail;
@@ -40,9 +43,12 @@ use Modules\Reader\Application\Handler\GetPageAnnotationHandler;
 use Modules\Reader\Application\Handler\GetReadingProgressHandler;
 use Modules\Reader\Application\Handler\GetSyncChangesHandler;
 use Modules\Reader\Application\Handler\GetThumbnailHandler;
+use Modules\Reader\Application\Handler\ImportDocumentFromUrlHandler;
+use Modules\Reader\Application\Handler\IngestUploadedDocumentHandler;
 use Modules\Reader\Application\Handler\ListAnnotationsHandler;
 use Modules\Reader\Application\Handler\ListCollectionDocumentsHandler;
 use Modules\Reader\Application\Handler\ListCollectionsHandler;
+use Modules\Reader\Application\Handler\ListDocumentCollectionIdsHandler;
 use Modules\Reader\Application\Handler\ListDocumentsHandler;
 use Modules\Reader\Application\Handler\ListFavoritesHandler;
 use Modules\Reader\Application\Handler\ListTrashHandler;
@@ -55,6 +61,7 @@ use Modules\Reader\Application\Handler\RemoveDocumentFromCollectionHandler;
 use Modules\Reader\Application\Handler\RenameCollectionHandler;
 use Modules\Reader\Application\Handler\RestoreDocumentHandler;
 use Modules\Reader\Application\Handler\SetDocumentFavoriteHandler;
+use Modules\Reader\Application\Handler\SyncDocumentCollectionsHandler;
 use Modules\Reader\Application\Handler\UpdateDocumentHandler;
 use Modules\Reader\Application\Handler\UploadDocumentFileHandler;
 use Modules\Reader\Application\Handler\UploadThumbnailHandler;
@@ -69,10 +76,12 @@ use Modules\Reader\Application\Query\GetThumbnail;
 use Modules\Reader\Application\Query\ListAnnotations;
 use Modules\Reader\Application\Query\ListCollectionDocuments;
 use Modules\Reader\Application\Query\ListCollections;
+use Modules\Reader\Application\Query\ListDocumentCollectionIds;
 use Modules\Reader\Application\Query\ListDocuments;
 use Modules\Reader\Application\Query\ListFavorites;
 use Modules\Reader\Application\Query\ListTrash;
 use Modules\Reader\Application\Service\DocumentHardDeleter;
+use Modules\Reader\Application\Service\DocumentIngester;
 use Modules\Reader\Domain\Ports\AccessTokenIssuer;
 use Modules\Reader\Domain\Ports\CollectionRepository;
 use Modules\Reader\Domain\Ports\DocumentRepository;
@@ -81,8 +90,10 @@ use Modules\Reader\Domain\Ports\ObjectStorage;
 use Modules\Reader\Domain\Ports\PageAnnotationRepository;
 use Modules\Reader\Domain\Ports\ReaderUserRepository;
 use Modules\Reader\Domain\Ports\ReadingProgressRepository;
+use Modules\Reader\Domain\Ports\RemotePdfFetcher;
 use Modules\Reader\Infrastructure\Auth\SanctumAccessTokenIssuer;
 use Modules\Reader\Infrastructure\Http\HttpIdpTokenClient;
+use Modules\Reader\Infrastructure\Http\HttpRemotePdfFetcher;
 use Modules\Reader\Infrastructure\Persistence\EloquentCollectionRepository;
 use Modules\Reader\Infrastructure\Persistence\EloquentDocumentRepository;
 use Modules\Reader\Infrastructure\Persistence\EloquentPageAnnotationRepository;
@@ -108,7 +119,9 @@ final class ReaderServiceProvider extends ServiceProvider
         $this->app->bind(ObjectStorage::class, SeaweedObjectStorage::class);
         $this->app->bind(IdpTokenClient::class, HttpIdpTokenClient::class);
         $this->app->bind(AccessTokenIssuer::class, SanctumAccessTokenIssuer::class);
+        $this->app->bind(RemotePdfFetcher::class, HttpRemotePdfFetcher::class);
         $this->app->singleton(DocumentHardDeleter::class);
+        $this->app->singleton(DocumentIngester::class);
 
         $this->callAfterResolving(CommandBus::class, function (CommandBus $bus): void {
             if (! $bus instanceof LaravelCommandBus) {
@@ -134,6 +147,9 @@ final class ReaderServiceProvider extends ServiceProvider
             $bus->register(DeleteCollection::class, DeleteCollectionHandler::class);
             $bus->register(AddDocumentToCollection::class, AddDocumentToCollectionHandler::class);
             $bus->register(RemoveDocumentFromCollection::class, RemoveDocumentFromCollectionHandler::class);
+            $bus->register(IngestUploadedDocument::class, IngestUploadedDocumentHandler::class);
+            $bus->register(ImportDocumentFromUrl::class, ImportDocumentFromUrlHandler::class);
+            $bus->register(SyncDocumentCollections::class, SyncDocumentCollectionsHandler::class);
         });
 
         $this->callAfterResolving(QueryBus::class, function (QueryBus $bus): void {
@@ -148,6 +164,7 @@ final class ReaderServiceProvider extends ServiceProvider
             $bus->register(ListCollections::class, ListCollectionsHandler::class);
             $bus->register(GetCollection::class, GetCollectionHandler::class);
             $bus->register(ListCollectionDocuments::class, ListCollectionDocumentsHandler::class);
+            $bus->register(ListDocumentCollectionIds::class, ListDocumentCollectionIdsHandler::class);
             $bus->register(GetDocument::class, GetDocumentHandler::class);
             $bus->register(GetDocumentFile::class, GetDocumentFileHandler::class);
             $bus->register(GetThumbnail::class, GetThumbnailHandler::class);
@@ -161,5 +178,6 @@ final class ReaderServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Route::middleware('api')->group(base_path('modules/Reader/routes/api.php'));
+        Route::middleware('web')->group(base_path('modules/Reader/routes/web.php'));
     }
 }

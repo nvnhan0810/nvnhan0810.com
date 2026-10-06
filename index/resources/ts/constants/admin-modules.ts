@@ -36,4 +36,10 @@ export const ADMIN_MODULES = [
     title: "SSO clients",
     route: "admin.sso-clients.index",
   },
+  {
+    key: "reader",
+    label: "Reader",
+    title: "Reader documents",
+    route: "admin.reader.documents.index",
+  },
 ] as const;

@@ -29,4 +29,7 @@ interface CollectionRepository
 
     /** Non-trashed documents in collection. @return list<Document> */
     public function listDocuments(string $collectionId, string $userId): array;
+
+    /** Collection ids that contain the document (owned by user). @return list<string> */
+    public function listCollectionIdsForDocument(string $documentId, string $userId): array;
 }

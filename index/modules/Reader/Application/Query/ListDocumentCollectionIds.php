@@ -6,11 +6,10 @@ namespace Modules\Reader\Application\Query;
 
 use Modules\Shared\Application\Query;
 
-final class GetDocumentFile implements Query
+final class ListDocumentCollectionIds implements Query
 {
     public function __construct(
         public readonly string $userId,
         public readonly string $documentId,
-        public readonly bool $preferBinary = false,
     ) {}
 }

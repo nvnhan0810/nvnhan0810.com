@@ -126,6 +126,19 @@ final class EloquentCollectionRepository implements CollectionRepository
         );
     }
 
+    public function listCollectionIdsForDocument(string $documentId, string $userId): array
+    {
+        $ids = ReaderCollectionModel::query()
+            ->where('user_id', $userId)
+            ->whereHas('documents', static fn ($query) => $query->whereKey($documentId))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        return array_map(static fn (mixed $id): string => (string) $id, $ids);
+    }
+
     private function toDomain(ReaderCollectionModel $model, ?int $documentCount = null): Collection
     {
         $count = $documentCount ?? (int) ($model->document_count ?? 0);
