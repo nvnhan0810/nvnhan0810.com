@@ -47,7 +47,7 @@ const ListPage = ({ auth, tags }: Props) => {
   }
 
   const handleSearch = (search: string) => {
-    router.get(route('admin.index'), { search: search }, {
+    router.get(route('admin.tags.index'), { search: search }, {
       preserveUrl: true,
       preserveScroll: true,
       replace: true,
