@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
 use Modules\Sso\Domain\Ports\SsoClientRepository;
-use Modules\Sso\Domain\SsoClientIds;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -65,7 +64,7 @@ class HandleInertiaRequests extends Middleware
     private function resolveTodoUrl(): string
     {
         try {
-            $todo = app(SsoClientRepository::class)->findByClientId(SsoClientIds::TODO);
+            $todo = app(SsoClientRepository::class)->findByClientId('todo');
             if ($todo?->domain !== null && $todo->domain !== '') {
                 return $todo->domain;
             }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\HubController as AdminHubController;
 use App\Http\Controllers\Admin\SeriesController as AdminSeriesController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\AuthController;
@@ -110,6 +111,8 @@ Route::get('/sitemap.xml', function (QueryBus $queries) {
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminHubController::class, 'index'])->name('index');
+
     Route::resource('tags', AdminTagController::class)->except(['show', 'create', 'store']);
 
     Route::resource('series', AdminSeriesController::class)->except(['show']);

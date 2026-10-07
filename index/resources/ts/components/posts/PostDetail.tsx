@@ -37,6 +37,12 @@ const PostDetail = ({
           {post.title}
         </h1>
 
+        {post.description?.trim() && (
+          <p className="mb-5 max-w-2xl text-sm leading-relaxed italic text-muted-foreground md:text-[0.95rem]">
+            {post.description.trim()}
+          </p>
+        )}
+
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-6">
           {(() => {
             const dateValue = post.published_at ?? post.created_at;
@@ -73,13 +79,7 @@ const PostDetail = ({
         <hr className="border-border" />
       </header>
 
-      {post.description && (
-        <div className="mb-8 border-l-4 border-emerald-600 bg-muted/30 py-2 pl-4 text-xl italic text-muted-foreground">
-          {post.description}
-        </div>
-      )}
-
-      <div className="mt-8">
+      <div className="mt-8 not-prose">
         <PostContent doc={post.content ?? ""} />
       </div>
     </article>

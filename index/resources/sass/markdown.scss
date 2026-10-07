@@ -3,13 +3,31 @@
   font-family: inherit !important;
   background-color: transparent !important;
   color: hsl(var(--foreground)) !important;
+  // Align package GHCSS vars with app theme (blockquote uses --borderColor-default)
+  --borderColor-default: hsl(var(--border));
+  --borderColor-muted: hsl(var(--border));
+  --fgColor-muted: hsl(var(--muted-foreground));
   --mermaid-bg: hsl(var(--muted) / 0.45);
   --mermaid-border: hsl(var(--border));
+  --mermaid-node-bg: hsl(var(--card));
+  --mermaid-node-border: hsl(var(--border));
+  --mermaid-text: hsl(var(--foreground));
+  --mermaid-line: hsl(var(--muted-foreground));
+  --mermaid-cluster: hsl(var(--muted) / 0.6);
+  --mermaid-label-bg: hsl(var(--background));
 }
 
 // Ensure markdown content respects the theme
 .dark .markdown-body {
   color-scheme: dark;
+  --mermaid-bg: hsl(220 16% 12% / 0.9);
+  --mermaid-border: hsl(220 12% 28%);
+  --mermaid-node-bg: hsl(220 16% 18%);
+  --mermaid-node-border: hsl(220 12% 42%);
+  --mermaid-text: hsl(210 20% 92%);
+  --mermaid-line: hsl(215 12% 58%);
+  --mermaid-cluster: hsl(220 16% 14%);
+  --mermaid-label-bg: hsl(220 16% 12%);
 }
 
 .light .markdown-body {
@@ -80,10 +98,24 @@
     }
   }
 
+  // `>` blockquote — neutral border (no emerald / accent), light + dark via tokens
   blockquote {
-    border-left-color: hsl(var(--border)) !important;
-    background-color: hsl(var(--muted) / 0.5) !important;
+    margin: 0 0 1rem !important;
+    padding: 0.25rem 0 0.25rem 1em !important;
+    border-left: 0.25em solid hsl(var(--border)) !important;
+    border-top: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    background-color: hsl(var(--muted) / 0.35) !important;
     color: hsl(var(--muted-foreground)) !important;
+  }
+
+  blockquote > :first-child {
+    margin-top: 0 !important;
+  }
+
+  blockquote > :last-child {
+    margin-bottom: 0 !important;
   }
 
   table {
@@ -119,6 +151,78 @@
     svg {
       max-width: 100%;
       height: auto;
+    }
+
+    // Node boxes / shapes (default Mermaid light fills look broken on dark UI)
+    .node rect,
+    .node circle,
+    .node ellipse,
+    .node polygon,
+    .node path,
+    .basic.label-container,
+    .label-container,
+    .classGroup rect,
+    .statediagram-state rect,
+    .stateGroup rect,
+    .er.entityBox,
+    rect.actor,
+    .note,
+    .quadrant {
+      fill: var(--mermaid-node-bg) !important;
+      stroke: var(--mermaid-node-border) !important;
+    }
+
+    .cluster rect {
+      fill: var(--mermaid-cluster) !important;
+      stroke: var(--mermaid-node-border) !important;
+    }
+
+    .edgePath .path,
+    .flowchart-link,
+    .transition,
+    .actor-line,
+    .messageLine0,
+    .messageLine1,
+    line,
+    .divider {
+      stroke: var(--mermaid-line) !important;
+    }
+
+    marker path,
+    .arrowheadPath,
+    .marker {
+      fill: var(--mermaid-line) !important;
+      stroke: var(--mermaid-line) !important;
+    }
+
+    .edgeLabel rect,
+    .labelBkg {
+      fill: var(--mermaid-label-bg) !important;
+    }
+
+    .label,
+    .nodeLabel,
+    .edgeLabel,
+    .cluster-label,
+    .actor,
+    .messageText,
+    .loopText,
+    .noteText,
+    .titleText,
+    .sectionTitle,
+    text {
+      fill: var(--mermaid-text) !important;
+      color: var(--mermaid-text) !important;
+    }
+
+    foreignObject,
+    foreignObject div,
+    foreignObject span,
+    foreignObject p,
+    foreignObject a {
+      color: var(--mermaid-text) !important;
+      background-color: transparent !important;
+      background: transparent !important;
     }
 
     li {
