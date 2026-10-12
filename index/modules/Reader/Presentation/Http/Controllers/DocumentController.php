@@ -6,6 +6,7 @@ namespace Modules\Reader\Presentation\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\Reader\Application\Command\CreateDocument;
@@ -232,7 +233,7 @@ final class DocumentController extends Controller
         return response()->json(['document' => DocumentPresenter::toArray($document)]);
     }
 
-    public function downloadFile(Request $request, string $id, QueryBus $queryBus): JsonResponse|Response|StreamedResponse
+    public function downloadFile(Request $request, string $id, QueryBus $queryBus): JsonResponse|Response|StreamedResponse|RedirectResponse
     {
         $userId = $this->userId($request);
         if ($userId === null) {
@@ -293,7 +294,7 @@ final class DocumentController extends Controller
         return response()->json(['document' => DocumentPresenter::toArray($document)]);
     }
 
-    public function downloadThumbnail(Request $request, string $id, QueryBus $queryBus): JsonResponse|Response
+    public function downloadThumbnail(Request $request, string $id, QueryBus $queryBus): JsonResponse|Response|RedirectResponse
     {
         $userId = $this->userId($request);
         if ($userId === null) {
