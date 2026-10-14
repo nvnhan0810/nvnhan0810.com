@@ -238,7 +238,10 @@ AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 AWS_DEFAULT_REGION=us-east-1
 AWS_BUCKET=nvnhan0810-app-dev
-AWS_ENDPOINT=https://seaweedfs.example:8333
+# In-cluster S3 API (BE upload / get / delete)
+AWS_ENDPOINT=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+# Public base for presigned URLs (admin viewer / browser redirects)
+AWS_URL=https://s3.nvnhan0810.com
 AWS_USE_PATH_STYLE_ENDPOINT=true
 ```
 

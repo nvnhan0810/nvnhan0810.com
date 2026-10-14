@@ -51,7 +51,10 @@ return [
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
             'bucket' => env('AWS_BUCKET'),
+            // Public base (browser / admin viewer). Prefer over AWS_ENDPOINT for presigned URLs.
             'url' => env('AWS_URL'),
+            'temporary_url' => env('AWS_URL'),
+            // In-cluster S3 API for upload / get / delete from BE (e.g. seaweedfs…svc.cluster.local).
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
