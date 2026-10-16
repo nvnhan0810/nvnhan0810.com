@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminCollectionController;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminDocumentController;
+use Modules\Reader\Presentation\Http\Controllers\Admin\AdminProgressController;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminTrashController;
 
 Route::middleware('auth')->prefix('admin/reader')->name('admin.reader.')->group(function (): void {
@@ -14,6 +15,8 @@ Route::middleware('auth')->prefix('admin/reader')->name('admin.reader.')->group(
     Route::get('/documents/create', [AdminDocumentController::class, 'create'])->name('documents.create');
     Route::post('/documents', [AdminDocumentController::class, 'store'])->name('documents.store');
     Route::get('/documents/{id}/file', [AdminDocumentController::class, 'file'])->name('documents.file');
+    Route::get('/documents/{id}/progress', [AdminProgressController::class, 'show'])->name('documents.progress.show');
+    Route::put('/documents/{id}/progress', [AdminProgressController::class, 'upsert'])->name('documents.progress.upsert');
     Route::get('/documents/{id}/edit', [AdminDocumentController::class, 'edit'])->name('documents.edit');
     Route::put('/documents/{id}', [AdminDocumentController::class, 'update'])->name('documents.update');
     Route::delete('/documents/{id}', [AdminDocumentController::class, 'destroy'])->name('documents.destroy');

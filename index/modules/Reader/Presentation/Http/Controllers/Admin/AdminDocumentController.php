@@ -26,12 +26,15 @@ use Modules\Reader\Application\DTOs\DocumentPresenter;
 use Modules\Reader\Application\DTOs\StoredObjectResult;
 use Modules\Reader\Application\Query\GetDocument;
 use Modules\Reader\Application\Query\GetDocumentFile;
+use Modules\Reader\Application\Query\GetReadingProgress;
 use Modules\Reader\Application\Query\ListCollections;
 use Modules\Reader\Application\Query\ListDocumentCollectionIds;
 use Modules\Reader\Application\Query\ListDocuments;
 use Modules\Reader\Application\Service\ReaderUploadLimits;
 use Modules\Reader\Domain\Entities\Collection;
 use Modules\Reader\Domain\Entities\Document;
+use Modules\Reader\Domain\Entities\ReadingProgress;
+use Modules\Reader\Domain\Enums\ApiErrorCode;
 use Modules\Reader\Domain\Exceptions\ReaderDomainException;
 use Modules\Shared\Application\CommandBus;
 use Modules\Shared\Application\QueryBus;
@@ -250,11 +253,16 @@ final class AdminDocumentController extends Controller
 
         $fileAccess = $this->fileAccess($userId, $id);
         $openUrl = route('admin.reader.documents.file', $id);
+        // pdf.js should use the Seaweed temporary URL (CORS enabled). Streaming
+        // the whole object through PHP hits Traefik/gateway timeouts on large PDFs.
+        $streamUrl = route('admin.reader.documents.file', ['id' => $id, 'stream' => 1]);
 
         return Inertia::render('domains/reader/pages/admin/documents/ViewPage', [
             'document' => DocumentPresenter::toArray($document),
             'fileUrl' => $fileAccess->temporaryUrl ?? $openUrl,
             'fileOpenUrl' => $openUrl,
+            'fileStreamUrl' => $streamUrl,
+            'progress' => $this->progressPayload($userId, $id),
         ]);
     }
 
@@ -262,13 +270,21 @@ final class AdminDocumentController extends Controller
     {
         $userId = $this->userId($request);
 
+        // Prefer 302 → Seaweed temporary URL. Only stream through PHP when
+        // explicitly requested and no temporary URL can be minted (dev/local).
         try {
             $fileAccess = $this->fileAccess($userId, $id);
         } catch (ReaderDomainException) {
             abort(404);
         }
 
-        if ($fileAccess->temporaryUrl !== null) {
+        $forceStream = $request->boolean('stream');
+        if (! $forceStream && $fileAccess->temporaryUrl !== null) {
+            return redirect()->away($fileAccess->temporaryUrl);
+        }
+
+        if ($forceStream && $fileAccess->temporaryUrl !== null) {
+            // Large files must not pass through PHP — still redirect.
             return redirect()->away($fileAccess->temporaryUrl);
         }
 
@@ -303,6 +319,30 @@ final class AdminDocumentController extends Controller
             ],
             'inline',
         );
+    }
+
+    /**
+     * @return array{document_id: string, page_index: int, revision: int, updated_at: string|null}|null
+     */
+    private function progressPayload(string $userId, string $documentId): ?array
+    {
+        try {
+            /** @var ReadingProgress $progress */
+            $progress = $this->queries->ask(new GetReadingProgress($userId, $documentId));
+        } catch (ReaderDomainException $exception) {
+            if ($exception->errorCode === ApiErrorCode::NOT_FOUND) {
+                return null;
+            }
+
+            throw $exception;
+        }
+
+        return [
+            'document_id' => $progress->documentId,
+            'page_index' => $progress->pageIndex,
+            'revision' => $progress->revision,
+            'updated_at' => $progress->updatedAt->format(DATE_ATOM),
+        ];
     }
 
     private function fileAccess(string $userId, string $documentId): StoredObjectResult
