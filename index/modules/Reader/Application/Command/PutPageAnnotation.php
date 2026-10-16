@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Reader\Application\Command;
 
+use Modules\Reader\Domain\Enums\AnnotationFormat;
 use Modules\Shared\Application\Command;
 
 final class PutPageAnnotation implements Command
@@ -12,6 +13,7 @@ final class PutPageAnnotation implements Command
         public readonly string $userId,
         public readonly string $documentId,
         public readonly int $pageIndex,
+        public readonly AnnotationFormat $format,
         public readonly bool $empty,
         public readonly ?string $binary,
         public readonly ?int $baseRevision,

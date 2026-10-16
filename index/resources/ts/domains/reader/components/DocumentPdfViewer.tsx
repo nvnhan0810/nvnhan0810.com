@@ -4,16 +4,30 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Highlighter,
   Maximize2,
   Minimize2,
+  MousePointer2,
+  StickyNote,
 } from "lucide-react";
 import {
   getDocument,
+  TextLayer,
   type PDFDocumentProxy,
+  type PDFPageProxy,
   type RenderTask,
 } from "pdfjs-dist";
-import { useEffect, useRef, useState } from "react";
+import "pdfjs-dist/web/pdf_viewer.css";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { createSyncPageMarkups } from "../application/sync-page-markups";
 import { createSyncReadingProgress } from "../application/sync-reading-progress";
+import {
+  emptyPageMarkup,
+  MarkupTool,
+  type MarkupItem,
+  type MarkupTool as Tool,
+  type PageMarkup,
+} from "../domain/page-markup";
 import {
   pageIndexToPdfPageNumber,
   pdfPageNumberToPageIndex,
@@ -21,8 +35,10 @@ import {
   type ProgressSyncStatus as SyncStatus,
   type ReadingProgress,
 } from "../domain/reading-progress";
+import { createPageMarkupHttp } from "../infrastructure/page-markup-http";
 import { ensurePdfWorker } from "../infrastructure/pdf-worker";
 import type { ReadingProgressHttp } from "../infrastructure/reading-progress-http";
+import PageMarkupLayer from "./PageMarkupLayer";
 
 type Props = {
   documentId: string;
@@ -33,7 +49,11 @@ type Props = {
   progressHttp: ReadingProgressHttp;
 };
 
-const SCALE = 1.25;
+const BASE_SCALE = 1.35;
+/** How many pages around the viewport to keep rendered. */
+const RENDER_RADIUS = 2;
+const PLACEHOLDER_HEIGHT_PX = 1100;
+const markupHttp = createPageMarkupHttp();
 
 const DocumentPdfViewer = ({
   documentId,
@@ -45,12 +65,25 @@ const DocumentPdfViewer = ({
 }: Props) => {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const pageShellRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const pageRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const textLayerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pageRootRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const renderTasksRef = useRef<Map<number, RenderTask>>(new Map());
+  const textLayersRef = useRef<Map<number, TextLayer>>(new Map());
+  const renderedPagesRef = useRef<Set<number>>(new Set());
+  const renderingPagesRef = useRef<Set<number>>(new Set());
+  const wantedPagesRef = useRef<Set<number>>(new Set());
+  const pageSizeCacheRef = useRef<Map<number, { width: number; height: number }>>(new Map());
+  const defaultPageSizeRef = useRef<{ width: number; height: number } | null>(null);
   const syncRef = useRef<ReturnType<typeof createSyncReadingProgress> | null>(null);
+  const markupSyncRef = useRef<ReturnType<typeof createSyncPageMarkups> | null>(null);
   const restoredRef = useRef(false);
   const initialPageRef = useRef(pageIndexToPdfPageNumber(initialProgress?.pageIndex ?? 0));
+  const requestPagesRef = useRef<(pages: Set<number>) => void>(() => {
+    // set by render effect
+  });
 
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -59,10 +92,17 @@ const DocumentPdfViewer = ({
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(ProgressSyncStatus.Idle);
   const [pdfReady, setPdfReady] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [tool, setTool] = useState<Tool>(MarkupTool.Navigate);
+  const [markupsByPage, setMarkupsByPage] = useState<Map<number, PageMarkup>>(new Map());
+  const [markupsReady, setMarkupsReady] = useState(false);
+  const [renderedPages, setRenderedPages] = useState<Set<number>>(() => new Set());
+  const [pageHeights, setPageHeights] = useState<Map<number, number>>(() => new Map());
 
   const isSaving = syncStatus === ProgressSyncStatus.Saving;
   const isSaved = syncStatus === ProgressSyncStatus.Saved;
   const isError = syncStatus === ProgressSyncStatus.Error;
+  const isTextTool = tool === MarkupTool.HighlightText;
+  const isNoteTool = tool === MarkupTool.NoteRegion;
 
   useEffect(() => {
     initialPageRef.current = pageIndexToPdfPageNumber(initialProgress?.pageIndex ?? 0);
@@ -88,6 +128,7 @@ const DocumentPdfViewer = ({
     const onVisibility = (): void => {
       if (document.visibilityState === "hidden") {
         void sync.flush();
+        void markupSyncRef.current?.flush();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -103,12 +144,71 @@ const DocumentPdfViewer = ({
 
   useEffect(() => {
     let cancelled = false;
+
+    const loadMarkups = async (): Promise<void> => {
+      setMarkupsReady(false);
+      try {
+        const initial = await markupHttp.list(documentId);
+        if (cancelled) {
+          return;
+        }
+        const sync = createSyncPageMarkups({
+          documentId,
+          http: markupHttp,
+          initial,
+          onChange: (state) => setMarkupsByPage(state.byPage),
+        });
+        markupSyncRef.current?.destroy();
+        markupSyncRef.current = sync;
+        const map = new Map<number, PageMarkup>();
+        for (const snapshot of initial) {
+          map.set(snapshot.pageIndex, snapshot.markup);
+        }
+        setMarkupsByPage(map);
+        setMarkupsReady(true);
+      } catch {
+        if (!cancelled) {
+          const sync = createSyncPageMarkups({
+            documentId,
+            http: markupHttp,
+            initial: [],
+            onChange: (state) => setMarkupsByPage(state.byPage),
+          });
+          markupSyncRef.current?.destroy();
+          markupSyncRef.current = sync;
+          setMarkupsByPage(new Map());
+          setMarkupsReady(true);
+        }
+      }
+    };
+
+    void loadMarkups();
+
+    return () => {
+      cancelled = true;
+      const sync = markupSyncRef.current;
+      markupSyncRef.current = null;
+      if (sync) {
+        void sync.flush().finally(() => sync.destroy());
+      }
+    };
+  }, [documentId]);
+
+  useEffect(() => {
+    let cancelled = false;
     let loadingTask: ReturnType<typeof getDocument> | null = null;
 
     const load = async (): Promise<void> => {
       setLoading(true);
       setFailed(false);
       restoredRef.current = false;
+      renderedPagesRef.current.clear();
+      renderingPagesRef.current.clear();
+      wantedPagesRef.current.clear();
+      pageSizeCacheRef.current.clear();
+      defaultPageSizeRef.current = null;
+      setRenderedPages(new Set());
+      setPageHeights(new Map());
       setPdfReady(0);
 
       try {
@@ -117,8 +217,6 @@ const DocumentPdfViewer = ({
           return;
         }
 
-        // Presigned Seaweed URLs are cross-origin; cookies must not be sent
-        // (CORS is * + credentials would fail). Same-origin proxy needs cookies.
         let withCredentials = false;
         try {
           withCredentials =
@@ -127,9 +225,12 @@ const DocumentPdfViewer = ({
           withCredentials = false;
         }
 
+        // Range requests: jump to mid-doc without waiting for full download.
         loadingTask = getDocument({
           url,
           withCredentials,
+          disableAutoFetch: true,
+          disableStream: false,
         });
         const pdf = await loadingTask.promise;
         if (cancelled) {
@@ -157,6 +258,10 @@ const DocumentPdfViewer = ({
         task.cancel();
       }
       renderTasksRef.current.clear();
+      for (const layer of textLayersRef.current.values()) {
+        layer.cancel();
+      }
+      textLayersRef.current.clear();
       pdfRef.current = null;
       if (loadingTask !== null) {
         void loadingTask.destroy();
@@ -172,103 +277,227 @@ const DocumentPdfViewer = ({
 
     let cancelled = false;
 
-    const renderPage = async (pageNumber: number): Promise<void> => {
+    const fitScaleFor = (pageWidthAtBase: number): number => {
+      const containerWidth = containerRef.current?.clientWidth ?? pageWidthAtBase;
+      const usable = Math.max(280, containerWidth - 32);
+      return Math.min(BASE_SCALE, (usable / pageWidthAtBase) * BASE_SCALE);
+    };
+
+    const viewportForPage = async (
+      page: PDFPageProxy,
+    ): Promise<{ width: number; height: number; viewport: ReturnType<PDFPageProxy["getViewport"]> }> => {
+      const baseViewport = page.getViewport({ scale: BASE_SCALE });
+      const scale = fitScaleFor(baseViewport.width);
+      const viewport = page.getViewport({ scale });
+      return { width: viewport.width, height: viewport.height, viewport };
+    };
+
+    const markRendered = (pageNumber: number): void => {
+      renderedPagesRef.current.add(pageNumber);
+      setRenderedPages(new Set(renderedPagesRef.current));
+    };
+
+    const releasePage = (pageNumber: number): void => {
+      renderTasksRef.current.get(pageNumber)?.cancel();
+      renderTasksRef.current.delete(pageNumber);
+      textLayersRef.current.get(pageNumber)?.cancel();
+      textLayersRef.current.delete(pageNumber);
+      renderingPagesRef.current.delete(pageNumber);
+      renderedPagesRef.current.delete(pageNumber);
+
       const canvas = pageRefs.current.get(pageNumber);
-      if (!canvas || cancelled) {
+      if (canvas) {
+        const context = canvas.getContext("2d");
+        context?.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      const textLayerDiv = textLayerRefs.current.get(pageNumber);
+      textLayerDiv?.replaceChildren();
+
+      setRenderedPages(new Set(renderedPagesRef.current));
+    };
+
+    const renderPage = async (pageNumber: number): Promise<void> => {
+      if (
+        cancelled ||
+        renderedPagesRef.current.has(pageNumber) ||
+        renderingPagesRef.current.has(pageNumber)
+      ) {
         return;
       }
 
-      const existing = renderTasksRef.current.get(pageNumber);
-      if (existing) {
-        existing.cancel();
-        renderTasksRef.current.delete(pageNumber);
-      }
-
-      const page = await pdf.getPage(pageNumber);
-      if (cancelled) {
+      const canvas = pageRefs.current.get(pageNumber);
+      const textLayerDiv = textLayerRefs.current.get(pageNumber);
+      if (!canvas || !textLayerDiv) {
         return;
       }
 
-      const viewport = page.getViewport({ scale: SCALE });
-      const context = canvas.getContext("2d");
-      if (!context) {
-        return;
-      }
+      renderingPagesRef.current.add(pageNumber);
 
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      const task = page.render({
-        canvasContext: context,
-        viewport,
-        canvas,
-      });
-      renderTasksRef.current.set(pageNumber, task);
       try {
-        await task.promise;
-      } catch {
-        // Cancelled render is expected when the document unloads.
+        const page = await pdf.getPage(pageNumber);
+        if (cancelled || !wantedPagesRef.current.has(pageNumber)) {
+          return;
+        }
+
+        const { width, height, viewport } = await viewportForPage(page);
+        pageSizeCacheRef.current.set(pageNumber, { width, height });
+        if (defaultPageSizeRef.current === null) {
+          defaultPageSizeRef.current = { width, height };
+        }
+        setPageHeights((prev) => {
+          const next = new Map(prev);
+          next.set(pageNumber, height);
+          return next;
+        });
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          return;
+        }
+
+        canvas.height = height;
+        canvas.width = width;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const existing = renderTasksRef.current.get(pageNumber);
+        if (existing) {
+          existing.cancel();
+          renderTasksRef.current.delete(pageNumber);
+        }
+        textLayersRef.current.get(pageNumber)?.cancel();
+
+        const task = page.render({
+          canvasContext: context,
+          viewport,
+          canvas,
+        });
+        renderTasksRef.current.set(pageNumber, task);
+        try {
+          await task.promise;
+        } catch {
+          return;
+        } finally {
+          renderTasksRef.current.delete(pageNumber);
+        }
+
+        if (cancelled || !wantedPagesRef.current.has(pageNumber)) {
+          return;
+        }
+
+        textLayerDiv.replaceChildren();
+        textLayerDiv.style.width = `${width}px`;
+        textLayerDiv.style.height = `${height}px`;
+
+        const textContent = await page.getTextContent();
+        if (cancelled || !wantedPagesRef.current.has(pageNumber)) {
+          return;
+        }
+
+        const textLayer = new TextLayer({
+          textContentSource: textContent,
+          container: textLayerDiv,
+          viewport,
+        });
+        textLayersRef.current.set(pageNumber, textLayer);
+        try {
+          await textLayer.render();
+        } catch {
+          // cancelled ok
+        }
+
+        if (!cancelled && wantedPagesRef.current.has(pageNumber)) {
+          markRendered(pageNumber);
+        }
       } finally {
-        renderTasksRef.current.delete(pageNumber);
+        renderingPagesRef.current.delete(pageNumber);
       }
     };
 
-    const run = async (): Promise<void> => {
+    const syncWantedPages = (wanted: Set<number>): void => {
+      wantedPagesRef.current = wanted;
+
+      for (const pageNumber of [...renderedPagesRef.current]) {
+        if (!wanted.has(pageNumber)) {
+          releasePage(pageNumber);
+        }
+      }
+
+      for (const pageNumber of wanted) {
+        void renderPage(pageNumber);
+      }
+    };
+
+    requestPagesRef.current = syncWantedPages;
+
+    const pagesAround = (center: number): Set<number> => {
+      const wanted = new Set<number>();
+      for (let page = center - RENDER_RADIUS; page <= center + RENDER_RADIUS; page += 1) {
+        if (page >= 1 && page <= numPages) {
+          wanted.add(page);
+        }
+      }
+      return wanted;
+    };
+
+    const jumpToSavedPage = async (): Promise<void> => {
+      const target = Math.min(Math.max(initialPageRef.current, 1), numPages);
+      setCurrentPage(target);
+
+      // Measure page 1 once so placeholders match real aspect before we scroll.
+      try {
+        const probePage = await pdf.getPage(Math.min(target, numPages));
+        if (!cancelled) {
+          const { width, height } = await viewportForPage(probePage);
+          defaultPageSizeRef.current = { width, height };
+          setPageHeights((prev) => {
+            const next = new Map(prev);
+            next.set(target, height);
+            if (!next.has(1)) {
+              next.set(1, height);
+            }
+            return next;
+          });
+        }
+      } catch {
+        // keep default placeholder
+      }
+
+      // Wait until page shells are in the DOM.
       await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => resolve());
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
       if (cancelled) {
         return;
       }
 
-      const concurrency = 3;
-      let next = 1;
-      const workers: Promise<void>[] = [];
-
-      const worker = async (): Promise<void> => {
-        while (next <= numPages && !cancelled) {
-          const pageNumber = next;
-          next += 1;
-          await renderPage(pageNumber);
-        }
-      };
-
-      for (let i = 0; i < concurrency; i += 1) {
-        workers.push(worker());
+      // Jump to placeholder immediately — do not wait for full PDF paint.
+      const shell = pageShellRefs.current.get(target);
+      if (shell && !restoredRef.current) {
+        restoredRef.current = true;
+        shell.scrollIntoView({ block: "start" });
       }
-      await Promise.all(workers);
 
-      if (!cancelled && !restoredRef.current) {
-        const target = Math.min(Math.max(initialPageRef.current, 1), numPages);
-        const canvas = pageRefs.current.get(target);
-        if (canvas) {
-          restoredRef.current = true;
-          canvas.scrollIntoView({ block: "start" });
-          setCurrentPage(target);
-        }
-      }
+      syncWantedPages(pagesAround(target));
     };
 
-    void run();
+    void jumpToSavedPage();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [pdfReady, numPages, loading, failed]);
-
-  useEffect(() => {
     const root = containerRef.current;
-    if (!root || numPages <= 0 || loading) {
-      return;
+    if (!root) {
+      return () => {
+        cancelled = true;
+      };
     }
 
-    const observer = new IntersectionObserver(
+    const visibilityObserver = new IntersectionObserver(
       (entries) => {
         let best: { page: number; ratio: number } | null = null;
+        const visible = new Set<number>();
+
         for (const entry of entries) {
-          if (!entry.isIntersecting) {
-            continue;
-          }
           const pageAttr = entry.target.getAttribute("data-page");
           if (pageAttr === null) {
             continue;
@@ -277,36 +506,66 @@ const DocumentPdfViewer = ({
           if (!Number.isFinite(page)) {
             continue;
           }
-          if (best === null || entry.intersectionRatio > best.ratio) {
-            best = { page, ratio: entry.intersectionRatio };
+          if (entry.isIntersecting) {
+            visible.add(page);
+            if (best === null || entry.intersectionRatio > best.ratio) {
+              best = { page, ratio: entry.intersectionRatio };
+            }
           }
         }
-        if (best === null) {
-          return;
+
+        if (best !== null) {
+          setCurrentPage(best.page);
+          syncRef.current?.notifyPageIndex(pdfPageNumberToPageIndex(best.page));
+          syncWantedPages(pagesAround(best.page));
+        } else if (visible.size > 0) {
+          const firstVisible = Math.min(...visible);
+          syncWantedPages(pagesAround(firstVisible));
         }
-        setCurrentPage(best.page);
-        syncRef.current?.notifyPageIndex(pdfPageNumberToPageIndex(best.page));
       },
       {
         root,
-        threshold: [0.35, 0.55, 0.75],
+        // Prefetch a bit outside the viewport so scroll feels instant.
+        rootMargin: "800px 0px",
+        threshold: [0, 0.15, 0.35, 0.55, 0.75],
       },
     );
 
-    const nodes = root.querySelectorAll("[data-page]");
-    nodes.forEach((node) => observer.observe(node));
+    const observeAll = (): void => {
+      for (const shell of pageShellRefs.current.values()) {
+        visibilityObserver.observe(shell);
+      }
+    };
 
-    return () => observer.disconnect();
-  }, [numPages, loading, pdfReady]);
+    // Shells mount with numPages; observe on next frame.
+    const observeRaf = requestAnimationFrame(() => {
+      observeAll();
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(observeRaf);
+      visibilityObserver.disconnect();
+    };
+  }, [pdfReady, numPages, loading, failed]);
 
   const goToPage = (pageNumber: number): void => {
     if (pageNumber < 1 || (numPages > 0 && pageNumber > numPages)) {
       return;
     }
-    const canvas = pageRefs.current.get(pageNumber);
-    canvas?.scrollIntoView({ block: "start", behavior: "smooth" });
     setCurrentPage(pageNumber);
     syncRef.current?.notifyPageIndex(pdfPageNumberToPageIndex(pageNumber));
+
+    const wanted = new Set<number>();
+    for (let page = pageNumber - RENDER_RADIUS; page <= pageNumber + RENDER_RADIUS; page += 1) {
+      if (page >= 1 && page <= numPages) {
+        wanted.add(page);
+      }
+    }
+    requestPagesRef.current(wanted);
+
+    const shell = pageShellRefs.current.get(pageNumber);
+    shell?.scrollIntoView({ block: "start", behavior: "smooth" });
   };
 
   const toggleFullscreen = async (): Promise<void> => {
@@ -321,11 +580,28 @@ const DocumentPdfViewer = ({
         await shell.requestFullscreen();
       }
     } catch {
-      // Browser denied fullscreen — ignore.
+      // ignore
     }
   };
 
+  const upsertMarkupItem = (pageIndex: number, item: MarkupItem): void => {
+    markupSyncRef.current?.upsertItem(pageIndex, item);
+  };
+
+  const removeMarkupItem = (pageIndex: number, itemId: string): void => {
+    markupSyncRef.current?.removeItem(pageIndex, itemId);
+  };
+
+  const pageRootRefFor = (pageNumber: number): RefObject<HTMLDivElement | null> => {
+    return {
+      get current() {
+        return pageRootRefs.current.get(pageNumber) ?? null;
+      },
+    };
+  };
+
   const pages = numPages > 0 ? Array.from({ length: numPages }, (_, i) => i + 1) : [];
+  const defaultHeight = defaultPageSizeRef.current?.height ?? PLACEHOLDER_HEIGHT_PX;
   const statusText = isSaving
     ? "Đang lưu…"
     : isError
@@ -333,12 +609,14 @@ const DocumentPdfViewer = ({
       : isSaved
         ? "Đã đồng bộ"
         : "";
+  const toolHint = isTextTool
+    ? "Bôi đen chữ để highlight"
+    : isNoteTool
+      ? "Kéo vùng rồi gõ trực tiếp trong đó"
+      : statusText;
 
   return (
-    <div
-      ref={shellRef}
-      className="flex h-dvh w-full flex-col bg-background text-foreground"
-    >
+    <div ref={shellRef} className="flex h-dvh w-full flex-col bg-background text-foreground">
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background/95 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button
           type="button"
@@ -349,6 +627,44 @@ const DocumentPdfViewer = ({
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
+
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant={tool === MarkupTool.Navigate ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTool(MarkupTool.Navigate)}
+            aria-label="Xem / cuộn"
+            aria-pressed={tool === MarkupTool.Navigate}
+            title="Xem"
+          >
+            <MousePointer2 className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={isTextTool ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTool(MarkupTool.HighlightText)}
+            aria-label="Highlight từ"
+            aria-pressed={isTextTool}
+            title="Highlight từ (bôi đen chữ)"
+            disabled={!markupsReady || loading || failed}
+          >
+            <Highlighter className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={isNoteTool ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setTool(MarkupTool.NoteRegion)}
+            aria-label="Ghi chú vùng"
+            aria-pressed={isNoteTool}
+            title="Kéo vùng và gõ nội dung"
+            disabled={!markupsReady || loading || failed}
+          >
+            <StickyNote className="h-4 w-4" />
+          </Button>
+        </div>
 
         <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
           <Button
@@ -377,10 +693,10 @@ const DocumentPdfViewer = ({
         </div>
 
         <p
-          className={`hidden text-xs sm:block ${isError ? "text-red-400" : "text-muted-foreground"}`}
+          className={`hidden max-w-[14rem] truncate text-xs sm:block ${isError ? "text-red-400" : "text-muted-foreground"}`}
           aria-live="polite"
         >
-          {statusText}
+          {toolHint}
         </p>
 
         <Button
@@ -392,22 +708,18 @@ const DocumentPdfViewer = ({
           }}
           aria-label={isFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
         >
-          {isFullscreen ? (
-            <Minimize2 className="h-4 w-4" />
-          ) : (
-            <Maximize2 className="h-4 w-4" />
-          )}
+          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </Button>
       </header>
 
       <div
         ref={containerRef}
-        className="relative min-h-0 flex-1 overflow-y-auto bg-muted/30"
+        className="relative min-h-0 flex-1 overflow-auto bg-muted/30"
         aria-label={title}
       >
         {loading && (
           <p className="px-4 py-16 text-center text-sm text-muted-foreground">
-            Đang tải PDF… (file lớn có thể mất vài phút)
+            Đang tải PDF…
           </p>
         )}
         {failed && (
@@ -422,24 +734,86 @@ const DocumentPdfViewer = ({
         )}
         {!loading &&
           !failed &&
-          pages.map((pageNumber) => (
-            <div
-              key={pageNumber}
-              data-page={pageNumber}
-              className="flex justify-center border-b border-border/40 py-3"
-            >
-              <canvas
+          pages.map((pageNumber) => {
+            const pageIndex = pdfPageNumberToPageIndex(pageNumber);
+            const markup = markupsByPage.get(pageIndex) ?? emptyPageMarkup();
+            const isRendered = renderedPages.has(pageNumber);
+            const height = pageHeights.get(pageNumber) ?? defaultHeight;
+            const cachedSize = pageSizeCacheRef.current.get(pageNumber) ?? defaultPageSizeRef.current;
+
+            return (
+              <div
+                key={pageNumber}
                 ref={(el) => {
                   if (el) {
-                    pageRefs.current.set(pageNumber, el);
+                    pageShellRefs.current.set(pageNumber, el);
                   } else {
-                    pageRefs.current.delete(pageNumber);
+                    pageShellRefs.current.delete(pageNumber);
                   }
                 }}
-                className="max-w-full shadow-sm"
-              />
-            </div>
-          ))}
+                data-page={pageNumber}
+                className="flex justify-center border-b border-border/40 py-3"
+              >
+                <div
+                  ref={(el) => {
+                    if (el) {
+                      pageRootRefs.current.set(pageNumber, el);
+                    } else {
+                      pageRootRefs.current.delete(pageNumber);
+                    }
+                  }}
+                  className="relative shadow-sm"
+                  style={{
+                    minHeight: `${height}px`,
+                    width: cachedSize !== null ? `${cachedSize.width}px` : undefined,
+                    maxWidth: "100%",
+                  }}
+                >
+                  {!isRendered && (
+                    <div
+                      className="flex items-center justify-center text-xs text-muted-foreground"
+                      style={{ height: `${height}px` }}
+                    >
+                      Trang {pageNumber}
+                    </div>
+                  )}
+                  <canvas
+                    ref={(el) => {
+                      if (el) {
+                        pageRefs.current.set(pageNumber, el);
+                      } else {
+                        pageRefs.current.delete(pageNumber);
+                      }
+                    }}
+                    className={`block ${isRendered ? "" : "hidden"}`}
+                  />
+                  <div
+                    ref={(el) => {
+                      if (el) {
+                        textLayerRefs.current.set(pageNumber, el);
+                      } else {
+                        textLayerRefs.current.delete(pageNumber);
+                      }
+                    }}
+                    className={`textLayer absolute left-0 top-0 z-10 ${
+                      isRendered ? "" : "hidden"
+                    } ${isTextTool ? "select-text" : "pointer-events-none select-none"}`}
+                  />
+                  {markupsReady && isRendered && (
+                    <PageMarkupLayer
+                      pageIndex={pageIndex}
+                      pageRootRef={pageRootRefFor(pageNumber)}
+                      items={markup.items}
+                      tool={tool}
+                      canInteract={!loading && !failed}
+                      onUpsert={upsertMarkupItem}
+                      onRemove={removeMarkupItem}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

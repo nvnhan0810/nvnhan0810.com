@@ -8,5 +8,6 @@ final class ContentType
 {
     public const PDF = 'application/pdf';
     public const JPEG = 'image/jpeg';
+    public const JSON = 'application/json';
     public const OCTET_STREAM = 'application/octet-stream';
 }

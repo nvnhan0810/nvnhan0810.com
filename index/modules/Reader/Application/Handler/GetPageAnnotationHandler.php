@@ -6,6 +6,7 @@ namespace Modules\Reader\Application\Handler;
 
 use Modules\Reader\Application\DTOs\StoredObjectResult;
 use Modules\Reader\Application\Query\GetPageAnnotation;
+use Modules\Reader\Domain\Enums\AnnotationFormat;
 use Modules\Reader\Domain\Enums\ContentType;
 use Modules\Reader\Domain\Exceptions\ReaderDomainException;
 use Modules\Reader\Domain\Ports\DocumentRepository;
@@ -30,15 +31,23 @@ final class GetPageAnnotationHandler implements QueryHandler
             throw ReaderDomainException::notFound('Document not found');
         }
 
-        $annotation = $this->annotations->findByDocumentAndPage($document->id, $query->pageIndex);
+        $annotation = $this->annotations->findByDocumentPageAndFormat(
+            $document->id,
+            $query->pageIndex,
+            $query->format,
+        );
         if ($annotation === null || $annotation->isEmpty() || $annotation->seaweedKey === null) {
             throw ReaderDomainException::notFound('Annotation not found');
         }
 
+        $contentType = $query->format === AnnotationFormat::ReaderMarkupV1
+            ? ContentType::JSON
+            : ContentType::OCTET_STREAM;
+
         return new StoredObjectResult(
             null,
             $this->storage->get($annotation->seaweedKey),
-            ContentType::OCTET_STREAM,
+            $contentType,
             $annotation->revision,
             $annotation->contentSha256,
         );

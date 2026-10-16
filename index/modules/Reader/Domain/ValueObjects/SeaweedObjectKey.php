@@ -28,4 +28,15 @@ final class SeaweedObjectKey
             $pageIndex,
         );
     }
+
+    public static function markup(string $userId, string $documentId, int $pageIndex): string
+    {
+        return sprintf(
+            '%s/users/%s/documents/%s/markups/page-%d.json',
+            self::PREFIX,
+            $userId,
+            $documentId,
+            $pageIndex,
+        );
+    }
 }

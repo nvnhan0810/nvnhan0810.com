@@ -12,11 +12,15 @@ use Modules\Reader\Infrastructure\Persistence\Eloquent\ReaderPageAnnotationModel
 
 final class EloquentPageAnnotationRepository implements PageAnnotationRepository
 {
-    public function findByDocumentAndPage(string $documentId, int $pageIndex): ?PageAnnotation
-    {
+    public function findByDocumentPageAndFormat(
+        string $documentId,
+        int $pageIndex,
+        AnnotationFormat $format,
+    ): ?PageAnnotation {
         $model = ReaderPageAnnotationModel::query()
             ->where('document_id', $documentId)
             ->where('page_index', $pageIndex)
+            ->where('format', $format->value)
             ->first();
 
         return $model === null ? null : $this->toDomain($model);
@@ -26,6 +30,21 @@ final class EloquentPageAnnotationRepository implements PageAnnotationRepository
     {
         $models = ReaderPageAnnotationModel::query()
             ->where('document_id', $documentId)
+            ->orderBy('page_index')
+            ->orderBy('format')
+            ->get();
+
+        return array_map(
+            fn (ReaderPageAnnotationModel $model): PageAnnotation => $this->toDomain($model),
+            $models->all(),
+        );
+    }
+
+    public function listByDocumentAndFormat(string $documentId, AnnotationFormat $format): array
+    {
+        $models = ReaderPageAnnotationModel::query()
+            ->where('document_id', $documentId)
+            ->where('format', $format->value)
             ->orderBy('page_index')
             ->get();
 

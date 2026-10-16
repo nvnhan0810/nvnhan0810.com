@@ -39,7 +39,11 @@ final class PutPageAnnotationHandler implements CommandHandler
             throw ReaderDomainException::validation('page_index must be >= 0');
         }
 
-        $existing = $this->annotations->findByDocumentAndPage($document->id, $command->pageIndex);
+        $existing = $this->annotations->findByDocumentPageAndFormat(
+            $document->id,
+            $command->pageIndex,
+            $command->format,
+        );
         if ($existing !== null && $command->baseRevision !== null && $existing->revision !== $command->baseRevision) {
             throw ReaderDomainException::conflict('Annotation revision mismatch', [
                 'server_revision' => $existing->revision,
@@ -61,7 +65,7 @@ final class PutPageAnnotationHandler implements CommandHandler
                 documentId: $document->id,
                 userId: $command->userId,
                 pageIndex: $command->pageIndex,
-                format: AnnotationFormat::PencilKitDrawing,
+                format: $command->format,
                 seaweedKey: null,
                 byteSize: 0,
                 contentSha256: null,
@@ -72,22 +76,32 @@ final class PutPageAnnotationHandler implements CommandHandler
             return $this->annotations->save($annotation);
         }
 
+        if ($command->format === AnnotationFormat::ReaderMarkupV1) {
+            $this->assertValidMarkupJson($command->binary);
+        }
+
         if (strlen($command->binary) > $maxBytes) {
-            throw ReaderDomainException::payloadTooLarge('Drawing exceeds size limit', [
+            throw ReaderDomainException::payloadTooLarge('Annotation exceeds size limit', [
                 'max_bytes' => $maxBytes,
             ]);
         }
 
         $sha = $command->contentSha256 ?? hash('sha256', $command->binary);
-        $key = SeaweedObjectKey::drawing($command->userId, $document->id, $command->pageIndex);
-        $this->storage->put($key, $command->binary, ContentType::OCTET_STREAM);
+        $contentType = $command->format === AnnotationFormat::ReaderMarkupV1
+            ? ContentType::JSON
+            : ContentType::OCTET_STREAM;
+        $key = $command->format === AnnotationFormat::ReaderMarkupV1
+            ? SeaweedObjectKey::markup($command->userId, $document->id, $command->pageIndex)
+            : SeaweedObjectKey::drawing($command->userId, $document->id, $command->pageIndex);
+
+        $this->storage->put($key, $command->binary, $contentType);
 
         $annotation = new PageAnnotation(
             id: $id,
             documentId: $document->id,
             userId: $command->userId,
             pageIndex: $command->pageIndex,
-            format: AnnotationFormat::PencilKitDrawing,
+            format: $command->format,
             seaweedKey: $key,
             byteSize: strlen($command->binary),
             contentSha256: $sha,
@@ -96,5 +110,27 @@ final class PutPageAnnotationHandler implements CommandHandler
         );
 
         return $this->annotations->save($annotation);
+    }
+
+    private function assertValidMarkupJson(string $binary): void
+    {
+        try {
+            $decoded = json_decode($binary, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw ReaderDomainException::validation('markup must be valid JSON');
+        }
+
+        if (! is_array($decoded)) {
+            throw ReaderDomainException::validation('markup root must be an object');
+        }
+
+        $version = $decoded['version'] ?? null;
+        $items = $decoded['items'] ?? null;
+        if ($version !== 1) {
+            throw ReaderDomainException::validation('markup.version must be 1');
+        }
+        if (! is_array($items)) {
+            throw ReaderDomainException::validation('markup.items must be an array');
+        }
     }
 }
