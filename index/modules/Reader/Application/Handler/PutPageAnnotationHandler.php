@@ -79,6 +79,9 @@ final class PutPageAnnotationHandler implements CommandHandler
         if ($command->format === AnnotationFormat::ReaderMarkupV1) {
             $this->assertValidMarkupJson($command->binary);
         }
+        if ($command->format === AnnotationFormat::ReaderInkV1) {
+            $this->assertValidInkJson($command->binary);
+        }
 
         if (strlen($command->binary) > $maxBytes) {
             throw ReaderDomainException::payloadTooLarge('Annotation exceeds size limit', [
@@ -87,12 +90,10 @@ final class PutPageAnnotationHandler implements CommandHandler
         }
 
         $sha = $command->contentSha256 ?? hash('sha256', $command->binary);
-        $contentType = $command->format === AnnotationFormat::ReaderMarkupV1
+        $contentType = $command->format->usesJsonPayload()
             ? ContentType::JSON
             : ContentType::OCTET_STREAM;
-        $key = $command->format === AnnotationFormat::ReaderMarkupV1
-            ? SeaweedObjectKey::markup($command->userId, $document->id, $command->pageIndex)
-            : SeaweedObjectKey::drawing($command->userId, $document->id, $command->pageIndex);
+        $key = $this->objectKey($command->format, $command->userId, $document->id, $command->pageIndex);
 
         $this->storage->put($key, $command->binary, $contentType);
 
@@ -110,6 +111,19 @@ final class PutPageAnnotationHandler implements CommandHandler
         );
 
         return $this->annotations->save($annotation);
+    }
+
+    private function objectKey(
+        AnnotationFormat $format,
+        string $userId,
+        string $documentId,
+        int $pageIndex,
+    ): string {
+        return match ($format) {
+            AnnotationFormat::ReaderMarkupV1 => SeaweedObjectKey::markup($userId, $documentId, $pageIndex),
+            AnnotationFormat::ReaderInkV1 => SeaweedObjectKey::ink($userId, $documentId, $pageIndex),
+            AnnotationFormat::PencilKitDrawing => SeaweedObjectKey::drawing($userId, $documentId, $pageIndex),
+        };
     }
 
     private function assertValidMarkupJson(string $binary): void
@@ -131,6 +145,28 @@ final class PutPageAnnotationHandler implements CommandHandler
         }
         if (! is_array($items)) {
             throw ReaderDomainException::validation('markup.items must be an array');
+        }
+    }
+
+    private function assertValidInkJson(string $binary): void
+    {
+        try {
+            $decoded = json_decode($binary, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw ReaderDomainException::validation('ink must be valid JSON');
+        }
+
+        if (! is_array($decoded)) {
+            throw ReaderDomainException::validation('ink root must be an object');
+        }
+
+        $version = $decoded['version'] ?? null;
+        $strokes = $decoded['strokes'] ?? null;
+        if ($version !== 1) {
+            throw ReaderDomainException::validation('ink.version must be 1');
+        }
+        if (! is_array($strokes)) {
+            throw ReaderDomainException::validation('ink.strokes must be an array');
         }
     }
 }

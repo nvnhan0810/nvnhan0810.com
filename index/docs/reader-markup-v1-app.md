@@ -1,7 +1,9 @@
 # Reader Markup v1 — tích hợp app (PDFKit + SwiftUI)
 
 Web đã ship format portable **`reader.markup.v1`** (highlight vùng + ghi chú).  
-PencilKit (`pencilkit.pkdrawing`) **giữ nguyên** — hai format **cùng tồn tại trên một trang**.
+PencilKit (`pencilkit.pkdrawing`) **giữ nguyên**. Freehand portable cho web: **`reader.ink.v1`** (app xuất, web chỉ xem) — xem [reader-ink-v1-app.md](./reader-ink-v1-app.md).
+
+Ba format **cùng tồn tại trên một trang** (unique `(document_id, page_index, format)`).
 
 Tài liệu này mô tả phần app cần làm để **xem / sửa / sync** markup từ web (và ngược lại).
 
@@ -14,9 +16,10 @@ Tài liệu này mô tả phần app cần làm để **xem / sửa / sync** mar
 | Hiển thị highlight + note tạo trên web | Overlay trên `PDFView` / `PDFPage` |
 | Tạo / sửa / xóa highlight + note trên app | Cùng schema JSON, PUT lên API |
 | Freehand PencilKit | Không đổi — vẫn `pencilkit.pkdrawing` |
-| Sync 2 chiều | Dùng revision + `X-Annotation-Format` |
+| Freehand trên web | App xuất thêm `reader.ink.v1` (derived); web chỉ display |
+| Sync 2 chiều (markup) | Dùng revision + `X-Annotation-Format` |
 
-**Không** cố parse / render PKDrawing trên web. Markup JSON là lớp dùng chung.
+**Không** cố parse / render PKDrawing trên web. Markup JSON là lớp highlight/note dùng chung; ink JSON là lớp freehand display.
 
 ---
 
@@ -75,7 +78,7 @@ Base: `/api/v1` + Sanctum token (như annotations hiện tại).
 ### List metadata (mọi format)
 
 `GET /documents/{id}/annotations`  
-→ mỗi phần tử có `format` (`pencilkit.pkdrawing` | `reader.markup.v1`).
+→ mỗi phần tử có `format` (`pencilkit.pkdrawing` | `reader.markup.v1` | `reader.ink.v1`).
 
 ### Download / upload theo format
 
@@ -112,7 +115,7 @@ Conflict `409` + `details.server_revision` → refetch GET rồi merge / LWW (we
 
 ### DB uniqueness
 
-`(document_id, page_index, format)` — một trang có thể có **cả** drawing PencilKit **và** markup JSON.
+`(document_id, page_index, format)` — một trang có thể có drawing PencilKit, ink JSON, **và** markup JSON.
 
 ---
 
@@ -123,7 +126,7 @@ Conflict `409` + `details.server_revision` → refetch GET rồi merge / LWW (we
 - [ ] `struct ReaderMarkupV1: Codable` (`version`, `items`)
 - [ ] `struct MarkupItem` / `MarkupRect` (map `created_at` ↔ `createdAt` bằng `CodingKeys`)
 - [ ] Store local: song song với `page-N.drawing` → ví dụ `page-N.markup.json`
-- [ ] `enum AnnotationFormat: String` gồm `.pencilKit`, `.readerMarkupV1`
+- [ ] `enum AnnotationFormat: String` gồm `.pencilKit`, `.readerMarkupV1`, `.readerInkV1`
 
 ### Sync
 
@@ -153,12 +156,13 @@ Conflict `409` + `details.server_revision` → refetch GET rồi merge / LWW (we
 - Format enum + unique `(doc, page, format)`
 - API `X-Annotation-Format` trên GET/PUT annotations
 - Admin JSON: `GET/PUT /admin/reader/documents/{id}/markups[/{pageIndex}]`
-- Viewer web (không phải PencilKit freehand):
+- Viewer web:
   - **Highlight từ**: bôi đen chữ trên text layer PDF → tạo `rects[]`
   - **Ghi chú vùng**: kéo vùng trên trang → **gõ trực tiếp trong vùng** (không popup tách)
   - Sync debounce qua `reader.markup.v1`
+  - **Freehand**: render `reader.ink.v1` read-only (dưới markup); không UI pencil
 
-Web **không** render `pencilkit.pkdrawing` (nét Apple Pencil). Freehand trên web = phase sau nếu cần (stroke JSON riêng).
+Web **không** render `pencilkit.pkdrawing`. Freehand trên web = `reader.ink.v1` (app derived).
 
 ---
 
@@ -187,5 +191,6 @@ Web **không** render `pencilkit.pkdrawing` (nét Apple Pencil). Freehand trên 
 1. Web: highlight + note trang 3 → sync  
 2. App: mở doc → thấy overlay đúng vị trí + note  
 3. App: sửa note → web reload thấy  
-4. App: vẽ PencilKit cùng trang → drawing vẫn sync, không đè markup  
-5. Xóa hết markup trang (`items: []` / `X-Empty: 1`) → web hết highlight, drawing còn  
+4. App: vẽ PencilKit cùng trang → drawing + ink sync; không đè markup  
+5. Web: thấy freehand từ `reader.ink.v1` dưới highlight  
+6. Xóa hết markup trang (`items: []` / `X-Empty: 1`) → web hết highlight, drawing/ink còn  

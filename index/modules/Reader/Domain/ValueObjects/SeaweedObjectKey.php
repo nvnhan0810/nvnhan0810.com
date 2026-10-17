@@ -39,4 +39,15 @@ final class SeaweedObjectKey
             $pageIndex,
         );
     }
+
+    public static function ink(string $userId, string $documentId, int $pageIndex): string
+    {
+        return sprintf(
+            '%s/users/%s/documents/%s/inks/page-%d.json',
+            self::PREFIX,
+            $userId,
+            $documentId,
+            $pageIndex,
+        );
+    }
 }

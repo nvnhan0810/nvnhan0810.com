@@ -21,6 +21,7 @@ import "pdfjs-dist/web/pdf_viewer.css";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createSyncPageMarkups } from "../application/sync-page-markups";
 import { createSyncReadingProgress } from "../application/sync-reading-progress";
+import { emptyPageInk, type PageInk } from "../domain/page-ink";
 import {
   emptyPageMarkup,
   MarkupTool,
@@ -35,9 +36,11 @@ import {
   type ProgressSyncStatus as SyncStatus,
   type ReadingProgress,
 } from "../domain/reading-progress";
+import { createPageInkHttp } from "../infrastructure/page-ink-http";
 import { createPageMarkupHttp } from "../infrastructure/page-markup-http";
 import { ensurePdfWorker } from "../infrastructure/pdf-worker";
 import type { ReadingProgressHttp } from "../infrastructure/reading-progress-http";
+import PageInkLayer from "./PageInkLayer";
 import PageMarkupLayer from "./PageMarkupLayer";
 
 type Props = {
@@ -54,6 +57,7 @@ const BASE_SCALE = 1.35;
 const RENDER_RADIUS = 2;
 const PLACEHOLDER_HEIGHT_PX = 1100;
 const markupHttp = createPageMarkupHttp();
+const inkHttp = createPageInkHttp();
 
 const DocumentPdfViewer = ({
   documentId,
@@ -95,6 +99,8 @@ const DocumentPdfViewer = ({
   const [tool, setTool] = useState<Tool>(MarkupTool.Navigate);
   const [markupsByPage, setMarkupsByPage] = useState<Map<number, PageMarkup>>(new Map());
   const [markupsReady, setMarkupsReady] = useState(false);
+  const [inksByPage, setInksByPage] = useState<Map<number, PageInk>>(new Map());
+  const [inksReady, setInksReady] = useState(false);
   const [renderedPages, setRenderedPages] = useState<Set<number>>(() => new Set());
   const [pageHeights, setPageHeights] = useState<Map<number, number>>(() => new Map());
 
@@ -191,6 +197,37 @@ const DocumentPdfViewer = ({
       if (sync) {
         void sync.flush().finally(() => sync.destroy());
       }
+    };
+  }, [documentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInks = async (): Promise<void> => {
+      setInksReady(false);
+      try {
+        const snapshots = await inkHttp.list(documentId);
+        if (cancelled) {
+          return;
+        }
+        const map = new Map<number, PageInk>();
+        for (const snapshot of snapshots) {
+          map.set(snapshot.pageIndex, snapshot.ink);
+        }
+        setInksByPage(map);
+        setInksReady(true);
+      } catch {
+        if (!cancelled) {
+          setInksByPage(new Map());
+          setInksReady(true);
+        }
+      }
+    };
+
+    void loadInks();
+
+    return () => {
+      cancelled = true;
     };
   }, [documentId]);
 
@@ -737,9 +774,12 @@ const DocumentPdfViewer = ({
           pages.map((pageNumber) => {
             const pageIndex = pdfPageNumberToPageIndex(pageNumber);
             const markup = markupsByPage.get(pageIndex) ?? emptyPageMarkup();
+            const ink = inksByPage.get(pageIndex) ?? emptyPageInk();
             const isRendered = renderedPages.has(pageNumber);
             const height = pageHeights.get(pageNumber) ?? defaultHeight;
             const cachedSize = pageSizeCacheRef.current.get(pageNumber) ?? defaultPageSizeRef.current;
+            const inkWidth = cachedSize?.width ?? 0;
+            const inkHeight = cachedSize?.height ?? height;
 
             return (
               <div
@@ -799,6 +839,9 @@ const DocumentPdfViewer = ({
                       isRendered ? "" : "hidden"
                     } ${isTextTool ? "select-text" : "pointer-events-none select-none"}`}
                   />
+                  {inksReady && isRendered && (
+                    <PageInkLayer ink={ink} width={inkWidth} height={inkHeight} />
+                  )}
                   {markupsReady && isRendered && (
                     <PageMarkupLayer
                       pageIndex={pageIndex}

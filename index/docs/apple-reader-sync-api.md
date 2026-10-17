@@ -189,13 +189,13 @@ Một row / (document, page). Binary nằm SeaweedFS.
 | `document_id` | uuid FK | |
 | `user_id` | uuid | |
 | `page_index` | int | 0-based |
-| `format` | string | v1: `pencilkit.pkdrawing` |
+| `format` | string | `pencilkit.pkdrawing` \| `reader.markup.v1` \| `reader.ink.v1` |
 | `seaweed_key` | string nullable | null = trang không còn nét |
 | `byte_size` | int | |
 | `content_sha256` | char(64) nullable | |
 | `revision` | bigint | tăng mỗi lần ghi trang |
 | `updated_at` | timestamptz | |
-| Unique | `(document_id, page_index)` | |
+| Unique | `(document_id, page_index, format)` | |
 
 ### 4.5. (Optional) `sync_devices`
 
@@ -223,6 +223,10 @@ SeaweedFS = S3 API → Laravel disk `s3` (`AWS_*`). Prefix object `reader/`.
         drawings/
           page-0.drawing
           page-12.drawing
+        markups/
+          page-0.json
+        inks/
+          page-0.json
 ```
 
 ### Object key helpers
@@ -230,6 +234,8 @@ SeaweedFS = S3 API → Laravel disk `s3` (`AWS_*`). Prefix object `reader/`.
 - PDF: `reader/users/{userId}/documents/{docId}/original.pdf`
 - Thumb: `reader/users/{userId}/documents/{docId}/thumb.jpg`
 - Drawing: `reader/users/{userId}/documents/{docId}/drawings/page-{n}.drawing`
+- Markup: `reader/users/{userId}/documents/{docId}/markups/page-{n}.json` (`reader.markup.v1`)
+- Ink: `reader/users/{userId}/documents/{docId}/inks/page-{n}.json` (`reader.ink.v1`)
 
 ### Env Reader API
 
@@ -257,19 +263,24 @@ Giới hạn v1 đề xuất: PDF ≤ 200MB; drawing/page ≤ 5MB.
 
 ## 6. Annotation format (quan trọng)
 
-App hiện lưu:
+Một trang có thể có nhiều format (unique theo `format`):
+
+| `format` | Ai ghi | Content-Type | Ghi chú |
+|----------|--------|--------------|---------|
+| `pencilkit.pkdrawing` | App | `application/octet-stream` | Opaque `PKDrawing` binary |
+| `reader.ink.v1` | App (derived khi lưu drawing) | `application/json` | Freehand portable; web **chỉ display** |
+| `reader.markup.v1` | App + Web | `application/json` | Highlight + note |
 
 ```text
-PKDrawing.dataRepresentation() → file page-{n}.drawing
+PKDrawing.dataRepresentation() → page-{n}.drawing
+(+ derive strokes JSON)         → page-{n}.json   // reader.ink.v1
 ```
 
-**BE v1 phải giữ nguyên binary này** (opaque blob). Không cố parse PencilKit phía server.
+**BE giữ nguyên** PencilKit binary (opaque). Không parse PKDrawing phía server. Không convert ngược ink → PencilKit.
 
-| Field | Value |
-|-------|--------|
-| `format` | `pencilkit.pkdrawing` |
-| Content-Type upload | `application/octet-stream` |
-| Empty page | xóa object + set `seaweed_key=null` (hoặc DELETE annotation) |
+Empty page / format: xóa object + set `seaweed_key=null`, hoặc PUT `X-Empty: 1`. Header `X-Annotation-Format` bắt buộc khi không phải default PencilKit.
+
+> Chi tiết ink: [reader-ink-v1-app.md](./reader-ink-v1-app.md). Markup: [reader-markup-v1-app.md](./reader-markup-v1-app.md).
 
 > Export PDF đã burn-in annotation: **hoãn** (đúng với MVP app).
 
@@ -470,23 +481,27 @@ Manifest mọi trang có nét:
 
 ### `GET /api/v1/documents/{id}/annotations/{pageIndex}`
 
-Binary `application/octet-stream` (`pencilkit.pkdrawing`).  
-`404` nếu empty/không có.
+Chọn format bằng `X-Annotation-Format` (hoặc `?format=`). Default: `pencilkit.pkdrawing`.
 
-Headers hữu ích: `ETag: "{revision}"`, `X-Content-SHA256: …`
+| Format | Content-Type |
+|--------|--------------|
+| `pencilkit.pkdrawing` | `application/octet-stream` |
+| `reader.ink.v1` / `reader.markup.v1` | `application/json` |
+
+`404` nếu empty/không có. Headers: `ETag: "{revision}"`, `X-Content-SHA256`, `X-Annotation-Format`.
 
 ### `PUT /api/v1/documents/{id}/annotations/{pageIndex}`
 
-Body: raw binary drawing.
+Body: binary drawing hoặc JSON (theo format). Web **không** PUT `reader.ink.v1`.
 
 Headers/query:
 
-- `Content-Type: application/octet-stream`
-- `X-Annotation-Format: pencilkit.pkdrawing`
+- `Content-Type: application/octet-stream` hoặc `application/json`
+- `X-Annotation-Format: pencilkit.pkdrawing` \| `reader.ink.v1` \| `reader.markup.v1`
 - `If-Match: {base_revision}` (optional lần đầu có thể bỏ)
 - `X-Content-SHA256: …` (optional)
 
-Empty body hoặc header `X-Empty: 1` → xóa nét trang đó.
+Empty body hoặc header `X-Empty: 1` → xóa annotation **format đó** trên trang.
 
 **Response `200`**
 
@@ -621,7 +636,7 @@ Offline-first (sau khi có API): import local → khi login, push document mới
 
 1. IdP = `nvnhan0810.com` SSO hiện có; Reader API riêng + Sanctum.  
 2. PDF + PKDrawing blobs → **SeaweedFS**; metadata/revision → **Postgres**.  
-3. Annotation = opaque `pencilkit.pkdrawing` per page.  
+3. Annotation per `(page, format)`: PencilKit binary + optional `reader.ink.v1` (web display) + `reader.markup.v1` (highlight/note).  
 4. Sync = delta `since` + LWW/`revision`.  
 5. Secret SSO chỉ nằm server Reader API.
 

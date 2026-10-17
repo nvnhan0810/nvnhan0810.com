@@ -6,7 +6,6 @@ namespace Modules\Reader\Application\Handler;
 
 use Modules\Reader\Application\DTOs\StoredObjectResult;
 use Modules\Reader\Application\Query\GetPageAnnotation;
-use Modules\Reader\Domain\Enums\AnnotationFormat;
 use Modules\Reader\Domain\Enums\ContentType;
 use Modules\Reader\Domain\Exceptions\ReaderDomainException;
 use Modules\Reader\Domain\Ports\DocumentRepository;
@@ -40,7 +39,7 @@ final class GetPageAnnotationHandler implements QueryHandler
             throw ReaderDomainException::notFound('Annotation not found');
         }
 
-        $contentType = $query->format === AnnotationFormat::ReaderMarkupV1
+        $contentType = $query->format->usesJsonPayload()
             ? ContentType::JSON
             : ContentType::OCTET_STREAM;
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminCollectionController;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminDocumentController;
+use Modules\Reader\Presentation\Http\Controllers\Admin\AdminInkController;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminMarkupController;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminProgressController;
 use Modules\Reader\Presentation\Http\Controllers\Admin\AdminTrashController;
@@ -25,6 +26,10 @@ Route::middleware('auth')->prefix('admin/reader')->name('admin.reader.')->group(
     Route::put('/documents/{id}/markups/{pageIndex}', [AdminMarkupController::class, 'upsert'])
         ->whereNumber('pageIndex')
         ->name('documents.markups.upsert');
+    Route::get('/documents/{id}/inks', [AdminInkController::class, 'index'])->name('documents.inks.index');
+    Route::get('/documents/{id}/inks/{pageIndex}', [AdminInkController::class, 'show'])
+        ->whereNumber('pageIndex')
+        ->name('documents.inks.show');
     Route::get('/documents/{id}/edit', [AdminDocumentController::class, 'edit'])->name('documents.edit');
     Route::put('/documents/{id}', [AdminDocumentController::class, 'update'])->name('documents.update');
     Route::delete('/documents/{id}', [AdminDocumentController::class, 'destroy'])->name('documents.destroy');
