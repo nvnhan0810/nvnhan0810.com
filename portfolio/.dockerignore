@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+coverage
+.git
+.github
+.vscode
+.idea
+.sites-runtime
+.openai
+.env
+.env.*
+.npmrc
+*.log
+*.tsbuildinfo
+.eslintcache
+README.md

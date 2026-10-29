@@ -1,12 +1,17 @@
-import { createApp } from 'vue'
+import { createSSRApp } from 'vue'
 import App from './app/App.vue'
 import { createDependencies } from './app/bootstrap'
-import { router } from './app/router'
-import { portfolioKey } from './modules/portfolio/presentation/portfolio-context'
-import './app/styles/main.css'
+import { createPortfolioRouter } from './app/router'
+import type { PortfolioState } from './modules/portfolio/presentation/portfolio-context'
+import { portfolioKey, portfolioStateKey } from './modules/portfolio/presentation/portfolio-context'
 
-const app = createApp(App)
-const dependencies = createDependencies()
-app.provide(portfolioKey, dependencies.getPortfolio)
-app.use(router)
-app.mount('#app')
+// Never share a Vue app, router, or mutable state between SSR requests.
+export function createPortfolioApp(state: PortfolioState, server = false) {
+  const app = createSSRApp(App)
+  const router = createPortfolioRouter(server)
+  const dependencies = createDependencies()
+  app.provide(portfolioKey, dependencies.getPortfolio)
+  app.provide(portfolioStateKey, state)
+  app.use(router)
+  return { app, router }
+}

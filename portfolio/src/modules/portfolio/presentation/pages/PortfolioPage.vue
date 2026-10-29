@@ -8,7 +8,7 @@ import { usePortfolio } from '../composables/use-portfolio'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import QuickLinks from '../components/QuickLinks.vue'
 
-const { portfolio, locale, messages, loading, error, retry } = usePortfolio()
+const { portfolio, locale, messages, year, loading, error, retry } = usePortfolio()
 const cv = computed(() => messages.value?.cv)
 const sections: readonly SectionId[] = ['about', 'skills', 'apps', 'contact']
 const navItems = computed(() =>
@@ -25,7 +25,6 @@ const apps = computed(
           : siteLinks.apps,
     })) ?? [],
 )
-const year = new Date().getFullYear()
 
 function scrollToSection(id: string): void {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
