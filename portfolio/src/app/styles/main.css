@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: dark;
+  --radius: 0.5rem;
+  --background: hsl(220 12% 10%);
+  --foreground: hsl(220 8% 90%);
+  --card: hsl(220 12% 14%);
+  --card-foreground: hsl(220 8% 90%);
+  --popover: hsl(220 12% 15%);
+  --popover-foreground: hsl(220 8% 90%);
+  --primary: hsl(220 8% 90%);
+  --primary-foreground: hsl(220 12% 12%);
+  --secondary: hsl(220 10% 18%);
+  --secondary-foreground: hsl(220 8% 90%);
+  --muted: hsl(220 10% 18%);
+  --muted-foreground: hsl(220 6% 65%);
+  --accent: hsl(220 10% 20%);
+  --accent-foreground: hsl(220 8% 92%);
+  --destructive: hsl(0 48% 42%);
+  --border: hsl(220 10% 22%);
+  --input: hsl(220 10% 22%);
+  --ring: hsl(220 8% 55%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  }
+  button:not(:disabled),
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    background: #065f46;
+    color: white;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
