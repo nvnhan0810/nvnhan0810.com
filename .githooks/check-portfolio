@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+snapshot=$(mktemp -d "${TMPDIR:-/tmp}/portfolio-check.XXXXXXXX")
+trap 'rm -rf -- "$snapshot"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+case "${1:-}" in
+  commit)
+    revision=${2:?Missing commit ID}
+    if [[ -z "$(git ls-tree -d --name-only "$revision" -- portfolio)" ]]; then exit 0; fi
+    git archive --format=tar "$revision" -- portfolio/ | tar -xf - -C "$snapshot"
+    ;;
+  *)
+    echo 'Usage: check-portfolio commit <commit-id>' >&2
+    exit 2
+    ;;
+esac
+
+# Removing the entire portfolio does not leave an app to build.
+if [[ ! -d "$snapshot/portfolio" ]]; then exit 0; fi
+cd "$snapshot/portfolio"
+if [[ ! -f package.json || ! -f package-lock.json ]]; then
+  echo 'Portfolio package.json and package-lock.json must both be committed.' >&2
+  exit 1
+fi
+
+echo 'Portfolio: installing locked dependencies in a temporary snapshot…'
+npm ci --prefer-offline --no-audit --no-fund
+echo 'Portfolio: checking format, lint, tests, types and production build…'
+npm run check
+echo 'Portfolio: checking SSR over HTTP…'
+npm run test:ssr
+echo 'Portfolio checks passed.'

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+declare -A checked=()
+
+while read -r local_ref local_oid remote_ref remote_oid; do
+  # Git sends all-zero IDs when deleting a remote ref.
+  if [[ "$local_oid" =~ ^0+$ ]]; then continue; fi
+  if ! commit=$(git rev-parse --verify "${local_oid}^{commit}" 2>/dev/null); then
+    continue # A tag pointing to a blob/tree has no application to build.
+  fi
+  if [[ -n "${checked[$commit]:-}" ]]; then continue; fi
+
+  if [[ ! "$remote_oid" =~ ^0+$ ]] && git cat-file -e "${remote_oid}^{commit}" 2>/dev/null; then
+    if git diff --quiet "${remote_oid}^{commit}" "$commit" -- portfolio/; then
+      continue
+    else
+      status=$?
+      if [[ "$status" != 1 ]]; then exit "$status"; fi
+    fi
+  else
+    # New branches or remote objects not available locally: validate the tip.
+    if [[ -z "$(git ls-tree -d --name-only "$commit" -- portfolio)" ]]; then continue; fi
+  fi
+
+  echo "Checking portfolio before pushing ${local_ref} to ${remote_ref}"
+  # Do not let npm/test processes consume the remaining pre-push ref records.
+  "$root/.githooks/check-portfolio" commit "$commit" </dev/null
+  checked[$commit]=1
+done
