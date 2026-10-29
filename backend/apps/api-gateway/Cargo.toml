@@ -1,0 +1,14 @@
+[package]
+name = "api-gateway"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum.workspace = true
+identity = { version = "0.1.0", path = "../../modules/identity" }
+ordering = { version = "0.1.0", path = "../../modules/ordering" }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+shared-kernel = { version = "0.1.0", path = "../../shared-kernel" }
+tokio.workspace = true
+uuid = { workspace = true, features = ["v4", "serde"] }

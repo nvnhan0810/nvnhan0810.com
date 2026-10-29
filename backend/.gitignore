@@ -1,0 +1,15 @@
+# Cargo build artifacts
+/target/
+
+# IDEs và Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Rustfmt backup files
+**/*.rs.bk
