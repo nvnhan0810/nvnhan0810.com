@@ -2,13 +2,17 @@
 name = "api-gateway"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 
 [dependencies]
 axum.workspace = true
+governor = "0.10.4"
 identity = { version = "0.1.0", path = "../../modules/identity" }
 ordering = { version = "0.1.0", path = "../../modules/ordering" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared-kernel = { version = "0.1.0", path = "../../shared-kernel" }
 tokio.workspace = true
+tower-http = { version = "0.7.1", features = ["trace", "cors", "compression-full"] }
+tower_governor = { version = "0.8.0", default-features = false, features = ["axum"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
