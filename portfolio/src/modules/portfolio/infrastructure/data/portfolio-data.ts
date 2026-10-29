@@ -1,8 +1,11 @@
+import { appsMessages as enApps } from './apps-en'
+import { appsMessages as viApps } from './apps-vi'
 import type { Portfolio } from '../../domain/entities/portfolio'
 
 // Copied from index/resources/ts/constants and i18n/locales on 2026-10-29.
 // Blog posts were server props in Laravel; no database content is bundled here.
 export const portfolioData = {
+  appsMessages: { en: enApps, vi: viApps },
   messages: {
     en: {
       nav: {

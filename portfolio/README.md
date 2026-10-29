@@ -157,3 +157,7 @@ Environment:  NODE_ENV=production, HOST=0.0.0.0, PORT=8080
 Storage:      Không cần persistent volume
 Domain:       nvnhan0810.com
 ```
+
+## Apps
+
+Portfolio phục vụ `/apps`, `/apps/foreign-language-course` và `/apps/db-management-tool` bằng SSR, có nội dung EN/VI và metadata riêng. Slug chi tiết không hợp lệ chuyển về `/apps`. Nội dung được chuyển từ catalog và bản dịch của `index`; posts/news vẫn thuộc Laravel.

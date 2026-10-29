@@ -29,6 +29,26 @@ describe('SSR', () => {
     expect(vietnamese.locale).toBe('vi')
   })
 
+  it.each(['en', 'vi'] as const)('renders apps and project details in %s', async (locale) => {
+    const list = await render('/apps', locale)
+    expect(list.status).toBe(200)
+    if (list.status !== 200) throw new Error('Unexpected redirect')
+    expect(list.html).toContain('/apps/foreign-language-course')
+    expect(list.html).toContain('/apps/db-management-tool')
+    expect(list.html).toContain('packagist.org/packages/nvnhan0810/laravel-telegram-logging')
+    expect(list.html).toContain('npmjs.com/package/react-markdown-preview')
+    for (const slug of ['foreign-language-course', 'db-management-tool']) {
+      const detail = await render(`/apps/${slug}`, locale)
+      expect(detail.status).toBe(200)
+      if (detail.status !== 200) throw new Error('Unexpected redirect')
+      expect(detail.html).toContain('href="/apps"')
+      expect(detail.html).toContain('<table')
+      expect(detail.title).not.toBe(list.title)
+      expect(detail.description).not.toBe(list.description)
+    }
+    expect(await render('/apps/missing', locale)).toEqual({ status: 302, location: '/apps' })
+  })
+
   it('returns a real HTTP redirect instruction for unknown routes', async () => {
     expect(await render('/missing', 'en')).toEqual({ status: 302, location: '/' })
   })

@@ -108,9 +108,7 @@ describe('Portfolio home', () => {
     expect(page.get('#skills img').attributes('src')).toBe(
       'https://cdn.simpleicons.org/vuedotjs/4FC08D',
     )
-    expect(page.get('#apps a[href="https://nvnhan0810.com/apps/sample"]').text()).toContain(
-      'Sample app',
-    )
+    expect(page.get('#apps a[href="/apps/sample"]').text()).toContain('Sample app')
     expect(page.find('#blog').exists()).toBe(false)
     expect(page.find('a[href="#blog"]').exists()).toBe(false)
     expect(page.find('nav[aria-label="Mobile quick links"]').exists()).toBe(true)

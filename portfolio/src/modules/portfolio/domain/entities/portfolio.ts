@@ -1,3 +1,4 @@
+import type { AppsMessages } from './apps'
 export type Locale = 'en' | 'vi'
 export type SectionId = 'about' | 'skills' | 'apps' | 'blog' | 'contact'
 
@@ -81,6 +82,7 @@ export interface Post {
 }
 
 export interface Portfolio {
+  readonly appsMessages?: Readonly<Record<Locale, AppsMessages>>
   readonly messages: Readonly<Record<Locale, HomeMessages>>
   readonly profile: {
     readonly githubLink: string

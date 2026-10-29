@@ -1,3 +1,5 @@
+import { appsMessages as enApps } from './modules/portfolio/infrastructure/data/apps-en'
+import { appsMessages as viApps } from './modules/portfolio/infrastructure/data/apps-vi'
 import { renderToString } from 'vue/server-renderer'
 import { createPortfolioApp } from './main'
 import { createDependencies } from './app/bootstrap'
@@ -18,11 +20,18 @@ export async function render(url: string, locale: Locale): Promise<RenderResult>
 
   const html = await renderToString(app)
   const cv = portfolio.messages[locale].cv
+  const apps = (locale === 'vi' ? viApps : enApps).apps
+  const isApps = route.path === '/apps' || route.name === 'app-detail'
+  const detail = apps.details[String(route.params.slug)]
   return {
     status: 200,
     html,
-    title: escapeHtml(`${cv.name} — ${cv.title}`),
-    description: escapeHtml(cv.summary),
+    title: escapeHtml(
+      isApps ? `${detail?.name ?? apps.title} | ${apps.label}` : `${cv.name} — ${cv.title}`,
+    ),
+    description: escapeHtml(
+      isApps ? (detail?.metaDescription ?? apps.metaDescription) : cv.summary,
+    ),
     locale,
     state: `<script id="portfolio-state" type="application/json">${serializeState(state)}</script>`,
   }
