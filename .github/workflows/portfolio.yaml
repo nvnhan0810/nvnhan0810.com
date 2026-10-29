@@ -27,7 +27,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/portfolio
+  IMAGE_NAME: ${{ github.repository }}
   DEPLOY_REPO: nvnhan0810_com
   DEPLOY_TAG: production
 
