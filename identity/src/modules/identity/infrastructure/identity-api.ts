@@ -27,8 +27,9 @@ export class IdentityApi {
         },
         this.transport,
       )
+    const token = await this.session.accessToken()
     try {
-      return await send(await this.session.accessToken())
+      return await send(token)
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401) throw error
       return send(await this.session.accessToken(true))

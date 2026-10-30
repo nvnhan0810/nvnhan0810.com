@@ -20,7 +20,7 @@ pub async fn create(
     headers: HeaderMap,
     Json(input): Json<ClientInput>,
 ) -> Result<impl axum::response::IntoResponse> {
-    admin(&state, &headers).await?;
+    admin(&state, &headers, true).await?;
     let (client, secret) = clients::register(&state, input).await?;
     Ok((
         StatusCode::CREATED,
@@ -38,7 +38,7 @@ pub async fn list(
     headers: HeaderMap,
     Query(page): Query<Pagination>,
 ) -> Result<Json<serde_json::Value>> {
-    admin(&state, &headers).await?;
+    admin(&state, &headers, false).await?;
     let data = clients::list(&state, page.after, page.limit.unwrap_or(20)).await?;
     Ok(Json(
         serde_json::json!({"clients":data,"next_cursor":data.last().map(|c| c.id)}),
@@ -49,7 +49,7 @@ pub async fn get(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>> {
-    admin(&state, &headers).await?;
+    admin(&state, &headers, false).await?;
     Ok(Json(
         serde_json::json!({"client":clients::get(&state,id).await?}),
     ))
@@ -60,7 +60,7 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(input): Json<ClientUpdate>,
 ) -> Result<Json<serde_json::Value>> {
-    admin(&state, &headers).await?;
+    admin(&state, &headers, true).await?;
     Ok(Json(
         serde_json::json!({"client":clients::update(&state,id,input).await?}),
     ))
@@ -75,7 +75,7 @@ pub async fn rotate(
     Path(id): Path<Uuid>,
     Json(input): Json<Version>,
 ) -> Result<impl axum::response::IntoResponse> {
-    admin(&state, &headers).await?;
+    admin(&state, &headers, true).await?;
     let (client, secret) = clients::rotate(&state, id, input.version).await?;
     Ok((
         [(axum::http::header::CACHE_CONTROL, "no-store")],

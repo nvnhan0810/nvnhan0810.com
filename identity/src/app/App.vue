@@ -25,6 +25,7 @@ const router = useRouter()
 const error = ref('')
 const mobileOpen = ref(false)
 const signingOut = ref(false)
+const initializing = ref(true)
 function dismissNotice(id: number) {
   notices.value = notices.value.filter((notice) => notice.id !== id)
 }
@@ -70,7 +71,16 @@ async function logout() {
   }
 }
 onMounted(async () => {
-  if (window.location.pathname !== '/auth/callback') return
+  if (window.location.pathname !== '/auth/callback') {
+    try {
+      await session.restore()
+    } catch (cause) {
+      error.value = errorMessage(cause)
+    } finally {
+      initializing.value = false
+    }
+    return
+  }
   const callback = new URL(window.location.href)
   try {
     await session.completeLogin(callback)
@@ -79,11 +89,22 @@ onMounted(async () => {
     error.value = errorMessage(cause)
     window.history.replaceState({}, '', '/auth/callback')
     await router.replace('/')
+  } finally {
+    initializing.value = false
   }
 })
 </script>
 <template>
-  <div v-if="!session.state.user" class="login-layout">
+  <div
+    v-if="initializing || session.state.busy"
+    class="auth-loading"
+    role="status"
+    aria-label="Đang tải"
+    aria-busy="true"
+  >
+    <LoaderCircle :size="36" class="spin" aria-hidden="true" />
+  </div>
+  <div v-else-if="!session.state.user" class="login-layout">
     <div class="login-visual">
       <div class="brand">
         <span class="brand-mark">N<span>•</span></span>
@@ -112,8 +133,7 @@ onMounted(async () => {
         <p>Đăng nhập bằng tài khoản Google quản trị để tiếp tục.</p>
         <div v-if="error" class="alert error" role="alert">{{ error }}</div>
         <button class="button primary login-button" :disabled="session.state.busy" @click="login">
-          <LoaderCircle v-if="session.state.busy" :size="18" class="spin" /><svg
-            v-else
+          <svg
             width="19"
             height="19"
             viewBox="0 0 24 24"
@@ -123,8 +143,7 @@ onMounted(async () => {
               fill="currentColor"
               d="M21.6 12.2c0-.7-.1-1.4-.2-2.2H12v4.2h5.4a4.6 4.6 0 0 1-2 3v2.7h3.4c2-1.9 2.8-4.5 2.8-7.7M12 22c2.7 0 5-1 6.8-2.5l-3.4-2.7c-.9.6-2 1-3.4 1a6 6 0 0 1-5.6-4.2H3v2.8A10 10 0 0 0 12 22M6.4 13.6a6 6 0 0 1 0-3.2V7.6H3a10 10 0 0 0 0 8.8zM12 6.2c1.5 0 2.8.5 3.8 1.5l3-3A10 10 0 0 0 3 7.6l3.4 2.8A6 6 0 0 1 12 6.2"
             /></svg
-          >{{ session.state.busy ? 'Đang xác thực…' : 'Tiếp tục với Google'
-          }}<ArrowUpRight :size="17" />
+          >Tiếp tục với Google<ArrowUpRight :size="17" />
         </button>
         <div class="login-note">
           <ShieldCheck :size="16" /><span

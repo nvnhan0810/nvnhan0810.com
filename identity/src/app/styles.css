@@ -1383,6 +1383,14 @@ input[type='checkbox'] {
 .spin {
   animation: spin 1s linear infinite;
 }
+.auth-loading {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  background: var(--bg);
+}
 .login-layout {
   min-height: 100dvh;
   display: grid;

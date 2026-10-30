@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IdentitySession } from '../application/session'
 import { authorizationUrl } from '../application/oauth'
 import { ROOT_EMAIL } from '../domain/models'
+import { IdentityApi } from '../infrastructure/identity-api'
 const settings = { baseUrl: 'https://api.example', clientId: 'admin' }
 const tokens = {
   access_token: 'access-credential',
-  refresh_token: 'refresh-credential',
   token_type: 'Bearer',
   expires_in: 900,
   scope: 'profile identity.clients.manage',
@@ -32,7 +32,7 @@ describe('Identity session', () => {
     vi.stubGlobal('crypto', webcrypto)
     history.replaceState({}, '', '/')
   })
-  it('exchanges PKCE, verifies profile and keeps bearer tokens out of browser storage', async () => {
+  it('exchanges PKCE, verifies profile and keeps tokens out of browser storage', async () => {
     const transport = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(json(tokens))
@@ -47,6 +47,38 @@ describe('Identity session', () => {
     const body = transport.mock.calls[0]?.[1]?.body as URLSearchParams
     expect(body.get('code_verifier')).toHaveLength(43)
     expect(body.has('client_secret')).toBe(false)
+  })
+  it('restores a new page through the HttpOnly cookie endpoint', async () => {
+    const transport = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ ...tokens, access_token: 'restored-access' }))
+      .mockResolvedValueOnce(json({ id: 'root', name: 'Root', email: ROOT_EMAIL }))
+    const session = new IdentitySession(settings, transport)
+    await session.restore()
+    expect(session.state.user?.email).toBe(ROOT_EMAIL)
+    expect(await session.accessToken()).toBe('restored-access')
+    expect(transport.mock.calls[0]?.[0]).toBe(`${settings.baseUrl}/auth/sso/token`)
+    const init = transport.mock.calls[0]?.[1]
+    expect(init?.credentials).toBe('include')
+    expect((init?.body as URLSearchParams).has('refresh_token')).toBe(false)
+    expect(sessionStorage.length).toBe(0)
+  })
+  it('stays logged out when the cookie is absent or revoked', async () => {
+    const session = new IdentitySession(
+      settings,
+      vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: 'invalid_grant' }, 401)),
+    )
+    await session.restore()
+    expect(session.state.user).toBeNull()
+    await expect(session.accessToken()).rejects.toThrow('invalid_grant')
+  })
+  it('reports network errors without authenticating', async () => {
+    const session = new IdentitySession(
+      settings,
+      vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError('offline')),
+    )
+    await expect(session.restore()).rejects.toThrow('network_error')
+    expect(session.state.user).toBeNull()
   })
   it('serializes concurrent refresh calls so a rotated token is only used once', async () => {
     const transport = vi
@@ -78,7 +110,42 @@ describe('Identity session', () => {
     await expect(session.completeLogin(await callback())).rejects.toThrow('system root')
     expect(session.state.user).toBeNull()
     await expect(session.accessToken()).rejects.toThrow()
-    expect(transport.mock.calls[2]?.[0]).toBe('https://api.example/auth/sso/revoke')
+    expect(sessionStorage.length).toBe(0)
+    expect(transport.mock.calls[2]?.[0]).toBe(`${settings.baseUrl}/auth/sso/revoke`)
+  })
+  it('refreshes and retries an API request once after a 401', async () => {
+    const transport = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(tokens))
+      .mockResolvedValueOnce(json({ id: 'root', name: 'Root', email: ROOT_EMAIL }))
+      .mockResolvedValueOnce(json({ error: 'invalid_token' }, 401))
+      .mockResolvedValueOnce(
+        json({ ...tokens, access_token: 'new-access', refresh_token: 'new-refresh' }),
+      )
+      .mockResolvedValueOnce(json({ clients: [], next_cursor: null }))
+    const session = new IdentitySession(settings, transport)
+    await session.completeLogin(await callback())
+    await expect(new IdentityApi(session, transport).clients()).resolves.toEqual({
+      clients: [],
+      next_cursor: null,
+    })
+    expect(transport).toHaveBeenCalledTimes(5)
+    expect(transport.mock.calls[4]?.[1]?.headers).toMatchObject({
+      Authorization: 'Bearer new-access',
+    })
+  })
+  it('does not repeat a failed refresh and clears the expired session', async () => {
+    const transport = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ ...tokens, expires_in: 1 }))
+      .mockResolvedValueOnce(json({ id: 'root', name: 'Root', email: ROOT_EMAIL }))
+      .mockResolvedValueOnce(json({ error: 'invalid_grant' }, 401))
+    const session = new IdentitySession(settings, transport)
+    await session.completeLogin(await callback())
+    await expect(new IdentityApi(session, transport).clients()).rejects.toThrow('invalid_grant')
+    expect(transport).toHaveBeenCalledTimes(3)
+    expect(session.state.user).toBeNull()
+    expect(sessionStorage.length).toBe(0)
   })
   it('clears local credentials even when logout cannot reach Identity', async () => {
     const transport = vi
@@ -90,6 +157,7 @@ describe('Identity session', () => {
     transport.mockRejectedValueOnce(new TypeError('offline'))
     await expect(session.logout()).rejects.toThrow()
     expect(session.state.user).toBeNull()
+    expect(sessionStorage.length).toBe(0)
     await expect(session.accessToken()).rejects.toThrow()
   })
 })

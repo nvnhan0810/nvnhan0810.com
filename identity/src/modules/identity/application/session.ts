@@ -16,6 +16,11 @@ export class IdentitySession {
   private expiresAt = 0
   private refreshing: Promise<string> | null = null
   private epoch = 0
+  private clear(): void {
+    this.tokens = null
+    this.expiresAt = 0
+    this.state.user = null
+  }
   constructor(
     readonly settings: IdentitySettings,
     private readonly transport: typeof fetch = fetch,
@@ -39,22 +44,76 @@ export class IdentitySession {
   private install(tokens: Tokens): void {
     if (
       typeof tokens?.access_token !== 'string' ||
-      typeof tokens.refresh_token !== 'string' ||
       tokens.token_type?.toLowerCase() !== 'bearer' ||
       !Number.isFinite(tokens.expires_in) ||
       tokens.expires_in <= 0
     )
       throw new Error('Identity trả về token không hợp lệ.')
-    this.tokens = tokens
+    // The shared OAuth response includes refresh_token for native clients.
+    // This browser client relies on the HttpOnly cookie instead.
+    this.tokens = {
+      access_token: tokens.access_token,
+      token_type: tokens.token_type,
+      expires_in: tokens.expires_in,
+      scope: tokens.scope,
+    }
     this.expiresAt = Date.now() + tokens.expires_in * 1000
+  }
+  async restore(): Promise<void> {
+    this.state.busy = true
+    const epoch = ++this.epoch
+    try {
+      const tokens = await this.tokenRequest(new URLSearchParams({ grant_type: 'refresh_token' }))
+      if (epoch !== this.epoch) return
+      this.install(tokens)
+      const user = await fetchJson<UserProfile>(
+        `${this.settings.baseUrl}/auth/me`,
+        { headers: { Authorization: `Bearer ${tokens.access_token}` } },
+        this.transport,
+      )
+      if (epoch !== this.epoch) return
+      if (user.email?.toLowerCase() !== ROOT_EMAIL) {
+        await this.logout()
+        throw new ApiError(403, 'access_denied')
+      }
+      this.state.user = user
+    } catch (error) {
+      if (
+        epoch === this.epoch &&
+        error instanceof ApiError &&
+        [400, 401, 403].includes(error.status)
+      )
+        this.clear()
+      if (!(error instanceof ApiError) || error.status !== 401 || error.code !== 'invalid_grant')
+        throw error
+    } finally {
+      this.state.busy = false
+    }
   }
   private tokenRequest(body: URLSearchParams): Promise<Tokens> {
     body.set('client_id', this.settings.clientId)
-    return fetchJson(
-      `${this.settings.baseUrl}/auth/sso/token`,
-      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body },
-      this.transport,
-    )
+    return this.cookieRequest<Tokens>('/auth/sso/token', body)
+  }
+  private cookieRequest<T>(path: string, body: URLSearchParams): Promise<T> {
+    const send = () =>
+      fetchJson<T>(
+        `${this.settings.baseUrl}${path}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        },
+        this.transport,
+      )
+    // Cookie rotation is shared by tabs. Serialize it where Web Locks is available.
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      return navigator.locks.request(
+        `identity-session:${this.settings.baseUrl}:${this.settings.clientId}`,
+        send,
+      )
+    }
+    return send()
   }
   async completeLogin(url: URL): Promise<void> {
     this.state.busy = true
@@ -96,8 +155,7 @@ export class IdentitySession {
       this.state.user = user
     } catch (error) {
       if (epoch === this.epoch) {
-        this.tokens = null
-        this.state.user = null
+        this.clear()
       }
       throw error
     } finally {
@@ -112,7 +170,6 @@ export class IdentitySession {
     const refreshing = this.tokenRequest(
       new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: this.tokens.refresh_token,
       }),
     )
       .then((tokens) => {
@@ -126,8 +183,7 @@ export class IdentitySession {
           error instanceof ApiError &&
           [400, 401, 403].includes(error.status)
         ) {
-          this.tokens = null
-          this.state.user = null
+          this.clear()
         }
         throw error
       })
@@ -138,26 +194,12 @@ export class IdentitySession {
     return refreshing
   }
   async logout(): Promise<void> {
-    const token = this.tokens?.refresh_token
     this.epoch++
     this.refreshing = null
-    this.tokens = null
-    this.expiresAt = 0
-    this.state.user = null
-    if (token) {
-      await fetchJson(
-        `${this.settings.baseUrl}/auth/sso/revoke`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: this.settings.clientId,
-            token,
-            token_type_hint: 'refresh_token',
-          }),
-        },
-        this.transport,
-      )
-    }
+    this.clear()
+    await this.cookieRequest(
+      '/auth/sso/revoke',
+      new URLSearchParams({ client_id: this.settings.clientId }),
+    )
   }
 }

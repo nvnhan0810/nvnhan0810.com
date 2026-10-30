@@ -272,22 +272,29 @@ Tất cả yêu cầu bearer token có audience bằng APP_URL, scope
 | PATCH | /auth/admin/sso-clients/{id} | Metadata đầy đủ + version |
 | POST | /auth/admin/sso-clients/{id}/rotate-secret | {"version":1} |
 
-Ví dụ tạo client app có backend:
+Các FE của hệ thống gọi trực tiếp Identity qua gateway, dùng public client + PKCE.
+Gateway mount /auth vào module Identity và route API tính năng tới module tương
+ứng trong cùng Rust workspace. Không có lớp /wallets/auth trung gian hoặc HTTP
+call nội bộ từ module tính năng sang Identity để đổi code. Module tính năng kiểm
+tra JWT và scope bằng logic dùng chung trong process, không gọi lại URL gateway.
+
+Ví dụ đăng ký FE Wallets (ví dụ cấu hình; module Wallets chưa được triển khai):
 
 ```sh
 curl -sS https://api.nvnhan0810.com/auth/admin/sso-clients   -H "Authorization: Bearer YOUR_ADMIN_ACCESS_TOKEN"   -H 'Content-Type: application/json'   -d '{
     "client_id":"wallets-web",
     "name":"Wallets",
     "domain":"https://wallets.nvnhan0810.com",
-    "client_type":"confidential",
+    "client_type":"public",
     "redirect_uris":["https://wallets.nvnhan0810.com/auth/sso/callback"],
     "scopes":["profile","wallets:read","wallets:write"],
     "enabled":true
   }'
 ```
 
-Response có `client` và `client_secret` (chỉ lúc tạo/rotate). Lưu secret an toàn
-ở backend app. GET không trả hash/secret. Public client không có secret.
+Response có `client`; public client không có secret. Không đưa client secret vào FE.
+Khả năng confidential client được giữ cho tích hợp khác, không dùng cho các FE
+của workspace. GET không trả hash/secret.
 PATCH nhận name, domain, redirect_uris, scopes, enabled, version;
 client_id và client_type bất biến. Version cũ trả 409.
 Dùng enabled=false để ngừng client, không hỗ trợ xóa cứng.
@@ -298,11 +305,10 @@ Mỗi web/mobile consumer nên có client riêng.
 
 ### 5. Tích hợp app A/B và refresh
 
-App gọi authorize như bước 3 với client/callback/scope của mình.
-Backend app confidential đổi code bằng `Authorization: Basic`; OAuth Basic phải
-form-url-encode từng credential trước Base64. Client ID/secret sinh bởi hệ thống
-hiện chỉ dùng ký tự URL-safe nên có thể dùng `curl -u CLIENT_ID:CLIENT_SECRET`.
-Public client chỉ gửi client_id và verifier, không nhúng secret vào mobile/SPA.
+FE gọi authorize như bước 3 với client/callback/scope của mình, nhận callback tại
+FE rồi gọi trực tiếp /auth/sso/token để đổi code với client_id và code_verifier.
+Browser gửi credentials=include để nhận/gửi cookie; không gửi Basic authentication.
+Mobile dùng cùng endpoint với PKCE, lưu token JSON trong secure storage.
 
 Tất cả module cùng backend dùng aud=APP_URL. Middleware kiểm tra RS256, iss,
 aud, expiry, kid và typ=at+jwt; từng endpoint kiểm tra scope và quyền dữ liệu.
@@ -312,7 +318,7 @@ GET /auth/me yêu cầu scope profile, không cần token/audience riêng.
 ```sh
 curl -sS https://api.nvnhan0810.com/auth/me   -H "Authorization: Bearer YOUR_PROFILE_ACCESS_TOKEN"
 
-curl -sS https://api.nvnhan0810.com/auth/sso/token   -u CLIENT_ID:CLIENT_SECRET   --data-urlencode grant_type=refresh_token   --data-urlencode refresh_token=YOUR_REFRESH_TOKEN
+curl -sS https://api.nvnhan0810.com/auth/sso/token   --data-urlencode client_id=wallets-web   --data-urlencode grant_type=refresh_token   --data-urlencode refresh_token=YOUR_REFRESH_TOKEN
 ```
 
 Sau refresh phải thay refresh token cũ bằng token mới. Chỉ một refresh tại một
@@ -331,13 +337,13 @@ Chỉ `enabled=true` được cấp CORS; `domain=null` không tự lấy origin
 Middleware tra DB trên mỗi request/preflight, không cache; đổi domain hoặc disable
 có hiệu lực ngay. Production chỉ cho HTTPS; local hỗ trợ HTTP localhost/loopback.
 Lỗi DB thì từ chối origin DB; origin trang quản trị không cần truy vấn DB.
-Không bật CORS credentials. CORS không thay thế kiểm tra token/scope/quyền API.
+CORS bật credentials cho các origin cụ thể được cho phép. CORS không thay thế kiểm tra token/scope/quyền API.
 Mobile/server-to-server không bị browser CORS giới hạn.
 
 ### 6. Revoke, logout và giới hạn hiện tại
 
 ```sh
-curl -sS https://api.nvnhan0810.com/auth/sso/revoke   -u CLIENT_ID:CLIENT_SECRET   --data-urlencode token=YOUR_REFRESH_TOKEN   --data-urlencode token_type_hint=refresh_token
+curl -sS https://api.nvnhan0810.com/auth/sso/revoke   --data-urlencode client_id=wallets-web   --data-urlencode token=YOUR_REFRESH_TOKEN   --data-urlencode token_type_hint=refresh_token
 ```
 
 Public client gửi client_id trong body thay Basic. Revoke thu hồi grant của đúng
@@ -561,3 +567,19 @@ có migration nên giữ nguyên bảng lịch sử và checksum SQL hiện tạ
 
 Các handler seed gọi use case/repository của chính module, như
 `identity::application::handlers::master_data_handler::create_client_if_missing`.
+
+### Cookie cho Identity console
+
+Public client dùng POST /auth/sso/token như trước. Response trả access_token và
+refresh_token trong JSON cho mobile, đồng thời đặt cookie HttpOnly host-only
+(access token theo expires_in, refresh token theo refresh_ttl; production Secure).
+Browser gửi credentials=include; refresh chỉ cần grant_type=refresh_token và
+client_id, server đọc refresh token trong cookie. Request browser có Origin phải
+khớp origin của redirect URI đã đăng ký. Cookie refresh tách theo client UUID.
+Mobile không có Origin dùng refresh_token/token trong form như trước.
+
+Các Identity API ưu tiên Authorization Bearer; nếu không có thì đọc access cookie
+và kiểm tra JWT/quyền/grant như cùng đường Bearer. Mutation dùng access cookie
+phải có Origin đúng client. POST /auth/sso/revoke từ browser thu hồi grant và xóa
+cả hai cookie. /auth/logout vẫn kết thúc phiên SSO trung tâm. Không có endpoint
+/session mới.

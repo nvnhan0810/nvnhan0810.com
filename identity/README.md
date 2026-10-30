@@ -57,7 +57,6 @@ Seeder lấy callback từ `IDENTITY_REDIRECT_URI`; production đặt
 `https://identity.nvnhan0810.com/auth/callback`, local đặt
 `http://localhost:5174/auth/callback` nếu mở frontend bằng localhost.
 
-
 Nếu client đã có, command không sửa hoặc in lại dữ liệu. Muốn thêm callback khác,
 sửa client qua API quản trị. CORS backend phải cho phép origin của portal.
 Workflow .github/workflows/identity.yml build image từ identity/ và gọi deploy
@@ -77,16 +76,38 @@ webhook repo=identity. Manifests nằm trong repo k3s tại apps/identity.nvnhan
 
 ## Token và đăng xuất
 
-Access/refresh token chỉ nằm trong memory của tab. Reload tab sẽ cần bắt đầu SSO
-lại; central login của Identity có thể giúp bỏ qua Google login lại.
-Session storage chỉ giữ state/verifier/callback tạm tối đa 10 phút, bị consume
+Local: mở console bằng `http://localhost:5174`, cùng hostname `localhost` với
+API, `IDENTITY_CORS_ORIGIN` và callback đã đăng ký. `127.0.0.1` là origin/site
+khác: trộn hai hostname sẽ bị chặn CORS hoặc không gửi cookie SameSite=Lax.
+Sau khi đổi hostname, bắt đầu đăng nhập lại để tạo PKCE transaction đúng origin.
+
+Console giữ access token trong memory; backend cũng đặt access cookie HttpOnly.
+Refresh token lưu trong cookie HttpOnly,
+SameSite=Lax, Secure ở production, Max-Age 30 ngày. Đóng browser rồi mở lại
+vẫn khôi phục được phiên nếu cookie và grant backend còn hiệu lực. Backend hiện
+đặt thời hạn grant tuyệt đối 30 ngày; refresh không kéo dài grant vô hạn.
+UI gọi POST /auth/sso/token trên backend Rust với credentials=include để đổi
+code/refresh. Rust đặt access/refresh cookie HttpOnly và cũng trả cả hai token trong JSON cho mobile.
+Console chỉ giữ access token trong memory; refresh được gửi tự động qua cookie.
+Cookie thuộc host backend, không đặt Domain. UI và API production phải cùng site
+(ví dụ identity.nvnhan0810.com và backend.nvnhan0810.com) để SameSite=Lax hoạt động.
+Không lưu bearer token trong localStorage/sessionStorage. Khi khởi động, UI
+refresh và kiểm tra lại profile trước khi hiện trang quản trị.
+
+POST /auth/sso/revoke xóa cookie và revoke grant. Các request dùng cookie chỉ
+chấp nhận public client, kiểm tra Origin khớp origin của redirect URI đã đăng ký.
+CORS cho phép credentials với các origin cụ thể đã được cho phép.
+Cần deploy backend hỗ trợ cookie trước hoặc cùng lúc với frontend.
+Mobile dùng token JSON, Authorization Bearer và refresh/revoke token trong form như trước.
+
+Session storage cũng giữ state/verifier/callback tạm tối đa 10 phút, bị consume
 ngay khi callback. URL callback được xóa code/state trước khi gọi API tiếp theo.
-Không lưu bearer token trong localStorage/sessionStorage/cookie.
 
 Refresh được serialize để tránh dùng lại token cũ do nhiều API request cùng lúc.
-Retry API tối đa một lần khi gặp 401. Logout xóa memory và revoke refresh grant;
+Retry API tối đa một lần khi gặp 401. Logout xóa memory/cookie và revoke refresh grant;
 không xóa central browser login/Google login. Nếu revoke lỗi do mất mạng, UI báo
-rõ; trang admin vẫn xóa token tại máy. Các API khác có thể chấp nhận JWT cũ tới
+rõ; trang admin vẫn xóa token trong memory, nhưng cookie HttpOnly chỉ được xóa khi
+request đến được server. Các API khác có thể chấp nhận JWT cũ tới
 expiry như policy của backend.
 
 ## Build, test và container

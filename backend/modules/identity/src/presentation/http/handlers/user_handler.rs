@@ -1,4 +1,4 @@
-use super::{authentication::bearer, client_handler::Pagination};
+use super::{authentication::access_token, client_handler::Pagination};
 use crate::{
     IdentityState,
     application::{error::Result, handlers::user_handler as users, models::UserAccount},
@@ -18,7 +18,7 @@ pub async fn list(
 ) -> Result<Json<serde_json::Value>> {
     let users = users::list(
         &state,
-        bearer(&headers)?,
+        &access_token(&state, &headers, false).await?,
         page.after,
         page.limit.unwrap_or(20),
     )
@@ -32,7 +32,9 @@ pub async fn get(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<Json<UserAccount>> {
-    Ok(Json(users::get(&state, bearer(&headers)?, id).await?))
+    Ok(Json(
+        users::get(&state, &access_token(&state, &headers, false).await?, id).await?,
+    ))
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -46,7 +48,13 @@ pub async fn update(
     Json(input): Json<UserUpdate>,
 ) -> Result<Json<UserAccount>> {
     Ok(Json(
-        users::set_enabled(&state, bearer(&headers)?, id, input.enabled).await?,
+        users::set_enabled(
+            &state,
+            &access_token(&state, &headers, true).await?,
+            id,
+            input.enabled,
+        )
+        .await?,
     ))
 }
 pub async fn revoke(
@@ -54,6 +62,6 @@ pub async fn revoke(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>> {
-    users::revoke(&state, bearer(&headers)?, id).await?;
+    users::revoke(&state, &access_token(&state, &headers, true).await?, id).await?;
     Ok(Json(serde_json::json!({"success":true})))
 }

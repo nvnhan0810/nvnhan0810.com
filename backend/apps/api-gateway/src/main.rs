@@ -48,7 +48,7 @@ async fn main() {
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
-        .layer(cors) // Explicit browser origins; credentials/cookies are not enabled.
+        .layer(cors) // Exact browser origins; Identity supports credentialed cookie requests.
         .layer(
             TraceLayer::new_for_http()
                 // OAuth query strings contain codes/state: log the path only.

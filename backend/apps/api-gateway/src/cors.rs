@@ -9,6 +9,7 @@ pub fn layer(
     production: bool,
 ) -> CorsLayer {
     CorsLayer::new()
+        .allow_credentials(true)
         .allow_origin(AllowOrigin::async_predicate(
             move |origin: HeaderValue, _| {
                 let repository = repository.clone();
@@ -48,7 +49,7 @@ pub fn layer(
             Method::DELETE,
         ])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
-    // No credentials, wildcard origins or preflight cache: client changes apply immediately.
+    // Exact origins only; browser session endpoints also validate the client's Origin.
 }
 
 #[cfg(test)]
@@ -118,10 +119,9 @@ mod tests {
                 response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
                 "https://identity.example"
             );
-            assert!(
-                !response
-                    .headers()
-                    .contains_key(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            assert_eq!(
+                response.headers()[header::ACCESS_CONTROL_ALLOW_CREDENTIALS],
+                "true"
             );
         }
         assert_eq!(origins.queries.load(Ordering::SeqCst), 0);
