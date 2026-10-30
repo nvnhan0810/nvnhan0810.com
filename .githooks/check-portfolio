@@ -20,7 +20,7 @@ case "${1:-}" in
     ;;
 esac
 
-# Removing the entire portfolio does not leave an app to build.
+# Removing the entire portfolio does not leave an app to check.
 if [[ ! -d "$snapshot/portfolio" ]]; then exit 0; fi
 cd "$snapshot/portfolio"
 if [[ ! -f package.json || ! -f package-lock.json ]]; then
@@ -30,8 +30,9 @@ fi
 
 echo 'Portfolio: installing locked dependencies in a temporary snapshot…'
 npm ci --prefer-offline --no-audit --no-fund
-echo 'Portfolio: checking format, lint, tests, types and production build…'
-npm run check
-echo 'Portfolio: checking SSR over HTTP…'
-npm run test:ssr
+echo 'Portfolio: checking format, lint, tests and types…'
+npm run format:check
+npm run lint
+npm run test
+npm run type-check
 echo 'Portfolio checks passed.'

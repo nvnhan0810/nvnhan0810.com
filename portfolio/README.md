@@ -139,10 +139,10 @@ bash .githooks/install
 Script đặt Git local config `core.hooksPath=.githooks`. Hooks được lưu cùng source để các clone khác có thể cài lại.
 
 - Commit không chạy kiểm tra portfolio.
-- `pre-push`: nếu commit sắp push thay đổi `portfolio/` so với remote tip, kiểm tra snapshot của commit đó. Nhánh mới được kiểm tra nếu có portfolio; xóa nhánh/tag được bỏ qua; cùng commit được kiểm tra một lần trong mỗi lần push.
-- Snapshot cài dependencies từ lockfile bằng `npm ci --prefer-offline`, chạy `npm run check` (format, ESLint, tests, types, production build), sau đó `npm run test:ssr`.
+- `pre-push`: nếu commit sắp push thay đổi `portfolio/` hoặc `.githooks/check-portfolio` so với remote tip, kiểm tra snapshot của commit đó. Thay đổi hook backend, `install` hoặc `pre-push` không tự kích hoạt kiểm tra portfolio. Nhánh mới được kiểm tra nếu có portfolio; xóa nhánh/tag được bỏ qua; cùng commit được kiểm tra một lần trong mỗi lần push.
+- Snapshot cài dependencies từ lockfile bằng `npm ci --prefer-offline`, chạy lần lượt `format:check`, `lint`, `test` và `type-check`. Hook không chạy production build hoặc HTTP smoke test `test:ssr` (cần bản build). GitHub Actions build image và báo lỗi nếu build thất bại. Lệnh `npm run check` thủ công vẫn gồm build.
 - Bất kỳ bước nào lỗi sẽ chặn push. Snapshot và build output được dọn sau khi chạy, không sửa working tree hay staging area.
-- Nếu chỉ thay đổi project khác thì hooks không chạy kiểm tra portfolio. Cần Node 24, npm và khả năng mở cổng localhost cho SSR test; lần đầu cài dependencies có thể cần mạng.
+- Nếu chỉ thay đổi project khác thì hooks không chạy kiểm tra portfolio. Cần Node 24 và npm; lần đầu cài dependencies có thể cần mạng.
 
 Đây là kiểm tra local; người dùng Git vẫn có thể bỏ qua hook bằng `--no-verify`. GitHub Actions được giữ ở phạm vi build và gọi deploy API theo yêu cầu.
 

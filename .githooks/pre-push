@@ -15,7 +15,7 @@ while read -r local_ref local_oid remote_ref remote_oid; do
     key="$project:$commit"
     if [[ -n "${checked[$key]:-}" ]]; then continue; fi
     if [[ ! "$remote_oid" =~ ^0+$ ]] && git cat-file -e "${remote_oid}^{commit}" 2>/dev/null; then
-      if git diff --quiet "${remote_oid}^{commit}" "$commit" -- "$project/" .githooks/; then
+      if git diff --quiet "${remote_oid}^{commit}" "$commit" -- "$project/" ".githooks/check-$project"; then
         continue
       else
         status=$?

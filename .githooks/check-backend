@@ -15,9 +15,8 @@ case "${1:-}" in
   *) echo 'Usage: check-backend commit <commit-id>' >&2; exit 2 ;;
 esac
 cd "$snapshot/backend"
-echo 'Backend: format, clippy, tests and release build…'
+echo 'Backend: format, clippy and tests…'
 cargo fmt --all -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
-cargo build --locked --release --package api-gateway
 echo 'Backend checks passed.'

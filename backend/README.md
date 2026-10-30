@@ -10,8 +10,12 @@ Từ root repo chạy một lần cho mỗi clone:
 bash .githooks/install
 ```
 
-Hook kiểm tra snapshot commit sắp push khi backend thay đổi; không sửa working tree.
-Chạy lần lượt format, Clippy (warnings là lỗi), test toàn workspace và build release.
+Hook kiểm tra snapshot commit sắp push khi `backend/` hoặc `.githooks/check-backend`
+thay đổi so với remote tip; không sửa working tree. Thay đổi hook portfolio,
+`install` hoặc `pre-push` không tự kích hoạt kiểm tra backend.
+Chạy lần lượt format, Clippy (warnings là lỗi) và test toàn workspace.
+Hook không build release; GitHub Actions build image và báo lỗi nếu build thất bại.
+Clippy và test vẫn cần biên dịch Rust nên vẫn sử dụng RAM.
 Lỗi bất kỳ bước nào sẽ chặn push. Cần Rust 1.99.1 với rustfmt/clippy và mạng để tải
 crate chưa có trong cache. Portfolio vẫn có hook riêng. Commit không chạy check.
 Git vẫn cho phép bỏ qua hook bằng `--no-verify`.
