@@ -1,6 +1,17 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.99.1-bookworm AS builder
+FROM rust:1.99.1-bookworm AS chef
+# Cached independently of application source changes.
+RUN cargo install cargo-chef --version 0.1.77 --locked
 WORKDIR /app
+
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+# Cache compiled dependencies until manifests/lockfile change.
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --locked --release --package api-gateway --recipe-path recipe.json
 COPY . .
 RUN cargo build --locked --release --package api-gateway
 

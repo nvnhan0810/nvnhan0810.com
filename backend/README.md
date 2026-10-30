@@ -39,8 +39,11 @@ curl -f http://127.0.0.1:8080/healthz
 
 Workflow `.github/workflows/backend.yml` chỉ build/push image khi push main có thay
 đổi backend hoặc workflow, và khi chạy thủ công. Không chạy format, lint, test trên
-GitHub Actions. Image hỗ trợ linux/amd64 và linux/arm64; build ARM qua QEMU có thể
-mất nhiều thời gian. `GITHUB_TOKEN` cần quyền packages:write.
+GitHub Actions. Image chỉ build `linux/amd64`, đúng kiến trúc node k3s hiện tại;
+không chạy giả lập QEMU hay build ARM64. `GITHUB_TOKEN` cần quyền packages:write.
+Dockerfile dùng cargo-chef để tách layer dependencies khỏi source, kết hợp cache
+GitHub Actions `scope=backend,mode=max`. Khi chỉ đổi source, dependencies đã compile
+có thể được tái sử dụng. Lần đầu hoặc khi đổi dependencies/toolchain vẫn build lâu.
 Sau khi build thành công, workflow gọi deploy webhook hiện có; không kết nối cluster trực tiếp.
 
 Image riêng: `ghcr.io/nvnhan0810/nvnhan0810.com/backend:<7-char-SHA>`.
