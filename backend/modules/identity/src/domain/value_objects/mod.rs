@@ -13,3 +13,5 @@ pub use redirect_uri::RedirectUri;
 pub use sso_client_id::SsoClientId;
 pub mod scope;
 pub use scope::Scope;
+pub mod web_origin;
+pub use web_origin::WebOrigin;

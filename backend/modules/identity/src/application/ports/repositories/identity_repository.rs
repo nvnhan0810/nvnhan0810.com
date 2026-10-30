@@ -7,7 +7,12 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 #[async_trait]
-pub trait IdentityRepository: super::user_repository::UserRepository + Send + Sync {
+pub trait IdentityRepository:
+    super::user_repository::UserRepository
+    + super::cors_origin_repository::CorsOriginRepository
+    + Send
+    + Sync
+{
     async fn client(&self, client_id: &str) -> Result<Client>;
     async fn client_by_id(&self, id: Uuid) -> Result<Client>;
     async fn profile(&self, id: Uuid) -> Result<UserProfile>;

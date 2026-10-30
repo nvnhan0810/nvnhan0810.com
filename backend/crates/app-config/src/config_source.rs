@@ -29,8 +29,8 @@ impl ConfigSource {
     pub fn optional(&self, name: &str) -> Option<&str> {
         self.0.get(name).map(String::as_str)
     }
-    #[cfg(test)]
-    pub fn fixture(values: impl IntoIterator<Item = (String, String)>) -> Self {
+    /// Construct a configuration snapshot from explicit values (e.g. tests).
+    pub fn from_values(values: impl IntoIterator<Item = (String, String)>) -> Self {
         Self(values.into_iter().collect())
     }
 }

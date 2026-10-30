@@ -20,21 +20,35 @@ pub fn validate_intent(client: &Client, intent: &AuthorizeRequest) -> Result<()>
     }
     .validate(&intent.redirect_uri, &intent.scope)
     .map_err(|error| {
+        let reason = match error {
+            AuthorizationError::InvalidRequest if !client.enabled => "client_disabled",
+            AuthorizationError::InvalidRequest => "redirect_uri_mismatch",
+            AuthorizationError::InvalidScope => "scope_not_allowed",
+        };
+        tracing::warn!(client_id = %client.client_id, reason, "SSO authorization rejected");
         IdentityError::bad(match error {
             AuthorizationError::InvalidRequest => "invalid_request",
             AuthorizationError::InvalidScope => "invalid_scope",
         })
     })?;
-    if intent.response_type != "code"
-        || intent.state.is_empty()
-        || intent.state.len() > 1024
-        || intent.code_challenge_method != "S256"
-        || intent.code_challenge.len() != 43
+    let reason = if intent.response_type != "code" {
+        Some("unsupported_response_type")
+    } else if intent.state.is_empty() || intent.state.len() > 1024 {
+        Some("invalid_state")
+    } else if intent.code_challenge_method != "S256" {
+        Some("unsupported_pkce_method")
+    } else if intent.code_challenge.len() != 43
         || !intent
             .code_challenge
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
     {
+        Some("invalid_pkce_challenge")
+    } else {
+        None
+    };
+    if let Some(reason) = reason {
+        tracing::warn!(client_id = %client.client_id, reason, "SSO authorization rejected");
         return Err(IdentityError::bad("invalid_request"));
     }
 

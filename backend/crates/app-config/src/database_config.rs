@@ -46,7 +46,7 @@ impl DatabaseConfig {
 mod tests {
     use super::*;
     fn source(port: &str, password: &str) -> ConfigSource {
-        ConfigSource::fixture(
+        ConfigSource::from_values(
             [
                 ("DB_HOST", "postgres.internal"),
                 ("DB_PORT", port),
@@ -73,6 +73,6 @@ mod tests {
         for port in ["0", "65536", "abc", "-1"] {
             assert!(DatabaseConfig::from_source(&source(port, "fixture")).is_err());
         }
-        assert!(DatabaseConfig::from_source(&ConfigSource::fixture([])).is_err());
+        assert!(DatabaseConfig::from_source(&ConfigSource::from_values([])).is_err());
     }
 }

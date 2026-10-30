@@ -18,7 +18,10 @@ impl RedirectUri {
 
         let web = parsed.scheme() == "https" && parsed.host_str().is_some();
         let loopback = parsed.scheme() == "http"
-            && matches!(parsed.host_str(), Some("127.0.0.1" | "[::1]" | "::1"));
+            && matches!(
+                parsed.host_str(),
+                Some("localhost" | "127.0.0.1" | "[::1]" | "::1")
+            );
         // Reverse-domain native schemes reduce collision risk. Exact callback
         // matching still applies; no wildcards or dynamic loopback port matching.
         let native = parsed.scheme().contains('.')

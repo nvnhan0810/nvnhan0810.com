@@ -8,7 +8,8 @@ pub struct AppConfig {
     pub identity: IdentityConfig,
     pub private_key_path: PathBuf,
     pub public_key_path: PathBuf,
-    pub cors_origins: Vec<HeaderValue>,
+    pub admin_cors_origin: Option<HeaderValue>,
+    pub production: bool,
 }
 
 impl AppConfig {
@@ -39,30 +40,24 @@ impl AppConfig {
             access_ttl: 900,
             refresh_ttl: 30 * 24 * 3600,
         };
-        let cors_origins = source
-            .optional("IDENTITY_CORS_ORIGINS")
-            .unwrap_or_default()
-            .split(',')
+        let admin_cors_origin = source
+            .optional("IDENTITY_CORS_ORIGIN")
             .map(str::trim)
-            .filter(|v| !v.is_empty())
+            .filter(|origin| !origin.is_empty())
             .map(|origin| {
-                let uri = url::Url::parse(origin).map_err(|_| "Invalid CORS origin")?;
-                if !matches!(uri.scheme(), "https" | "http")
-                    || (production && uri.scheme() != "https")
-                    || uri.host_str().is_none()
-                    || uri.origin().ascii_serialization() != origin
-                {
-                    return Err(
-                        "CORS origins must be exact HTTP(S) origins; production requires HTTPS",
-                    );
+                let parsed = identity::domain::value_objects::WebOrigin::parse(origin)
+                    .map_err(|_| "IDENTITY_CORS_ORIGIN must be one exact HTTP(S) origin")?;
+                if production && !parsed.is_https() {
+                    return Err("IDENTITY_CORS_ORIGIN must use HTTPS in production");
                 }
                 origin.parse().map_err(|_| "Invalid CORS origin header")
             })
-            .collect::<Result<Vec<HeaderValue>, _>>()?;
+            .transpose()?;
         Ok(Self {
             database: DatabaseConfig::from_source(source)?,
             identity,
-            cors_origins,
+            admin_cors_origin,
+            production,
             private_key_path: source.required("IDENTITY_PRIVATE_KEY_PATH")?.into(),
             public_key_path: source.required("IDENTITY_PUBLIC_KEY_PATH")?.into(),
         })
@@ -73,6 +68,13 @@ impl AppConfig {
 mod tests {
     use super::*;
     fn source_with(environment: Option<&str>, app_url: &str) -> ConfigSource {
+        source_with_cors(environment, app_url, None)
+    }
+    fn source_with_cors(
+        environment: Option<&str>,
+        app_url: &str,
+        cors: Option<&str>,
+    ) -> ConfigSource {
         let mut values: Vec<(String, String)> = [
             ("DB_HOST", "127.0.0.1"),
             ("DB_PORT", "5432"),
@@ -92,14 +94,17 @@ mod tests {
         if let Some(environment) = environment {
             values.push(("APP_ENV".into(), environment.into()));
         }
-        ConfigSource::fixture(values)
+        if let Some(cors) = cors {
+            values.push(("IDENTITY_CORS_ORIGIN".into(), cors.into()));
+        }
+        ConfigSource::from_values(values)
     }
     #[test]
     fn startup_needs_no_email_allowlists_or_permission_catalog() {
         let source = source_with(None, "https://sso.example");
         let config = AppConfig::from_source(&source).unwrap();
         assert_eq!(config.identity.app_url, "https://sso.example");
-        assert!(config.cors_origins.is_empty());
+        assert!(config.admin_cors_origin.is_none());
     }
     #[test]
     fn local_http_is_explicit_and_production_never_accepts_it() {
@@ -122,8 +127,37 @@ mod tests {
         );
     }
     #[test]
+    fn admin_cors_accepts_one_origin_and_enforces_environment() {
+        let make = |env, origin| {
+            AppConfig::from_source(&source_with_cors(
+                Some(env),
+                "https://api.example",
+                Some(origin),
+            ))
+        };
+        assert_eq!(
+            make("production", "https://identity.example")
+                .unwrap()
+                .admin_cors_origin
+                .unwrap(),
+            "https://identity.example"
+        );
+        assert!(make("local", "http://localhost:5174").is_ok());
+        for origin in [
+            "http://localhost:5174",
+            "https://a.example,https://b.example",
+            "*",
+            "null",
+            "https://identity.example/",
+            "https://identity.example/path",
+        ] {
+            assert!(make("production", origin).is_err());
+        }
+        assert!(make("production", "").unwrap().admin_cors_origin.is_none());
+    }
+    #[test]
     fn migrations_only_need_database_configuration() {
-        let source = ConfigSource::fixture(
+        let source = ConfigSource::from_values(
             [
                 ("DB_HOST", "127.0.0.1"),
                 ("DB_PORT", "5432"),

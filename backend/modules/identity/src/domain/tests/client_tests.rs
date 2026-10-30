@@ -22,6 +22,7 @@ fn invalid_identifiers_and_callbacks() {
     }
     for uri in [
         "http://example.com/callback",
+        "http://localhost.evil.example/callback",
         "https://user:pass@example.com",
         "https://example.com/#fragment",
         "javascript:alert(1)",
@@ -31,6 +32,7 @@ fn invalid_identifiers_and_callbacks() {
     }
     assert!(RedirectUri::parse("com.example.app:/callback").is_ok());
     assert!(RedirectUri::parse("http://127.0.0.1:8080/callback").is_ok());
+    assert!(RedirectUri::parse("http://localhost:5174/auth/callback").is_ok());
 }
 #[test]
 fn callback_matching_is_exact_and_disabled_clients_are_rejected() {

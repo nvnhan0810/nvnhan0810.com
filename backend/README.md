@@ -98,11 +98,13 @@ Trong repo GitOps riêng:
    Khi `deploy_only=false`, để trống `image_tag` để build/deploy cùng commit.
 5. Kiểm tra rollout, pod logs, probe và gọi `/healthz`, `/`, `/auth/`, `/order/`.
 
-Lưu ý hiện trạng ứng dụng: CORS dùng allowlist origins từ cấu hình. Rate limiter dùng peer IP của kết
+Lưu ý hiện trạng ứng dụng: CORS cho phép origin trang quản trị và domain của các client đang bật trong DB. Rate limiter dùng peer IP của kết
 nối (2 request/giây, burst 5); sau Ingress, nhiều client có thể dùng chung bucket
 của proxy và nhận 429. Trước khi mở public, quyết định đặt rate limit ở ingress hoặc
 thiết kế trusted-proxy IP extraction trong app. Không tin X-Forwarded-For tùy ý.
-TraceLayer hiện chưa có tracing subscriber nên chưa xuất request logs đầy đủ.
+Gateway khởi tạo tracing subscriber và ghi method, path, status, latency ra stderr.
+Log không chứa query OAuth, cookie, authorization header hoặc token. Lỗi authorize
+có reason như redirect_uri_mismatch, client_disabled, scope_not_allowed.
 
 Tham khảo: [Docker multi-platform Actions](https://docs.docker.com/build/ci/github-actions/multi-platform/),
 [Argo CD automated sync](https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/).
@@ -158,15 +160,16 @@ Trong k3s, mount read-only từ Secret. Không đưa key/credential vào image/G
 ### 2. Chạy migration và web server
 
 ```sh
-cargo run --locked --package api-gateway --bin migrate -- up
+cargo run --locked --package console --bin migrate -- up
 cargo run --locked --package api-gateway
 ```
 
 `migrate up` chỉ cần DB_HOST, DB_PORT, DB_NAME, DB_USERNAME và DB_PASSWORD, không cần cấu hình Google/key.
 Migration up/down được nhúng trong binary; production chạy `migrate up`
 bằng Job trước rollout. Server không tự migrate khi start.
-Migration chỉ tạo schema, không seed client hoặc user. Ví dụ authorize bên dưới
-giả định client đã có trong DB; công cụ khởi tạo dữ liệu sẽ bổ sung khi cần.
+Migration chỉ tạo schema. Sau migration, chạy make seed để tạo public
+client identity nếu chưa tồn tại. Không tạo user giả; user vẫn được tạo
+khi Google login thành công.
 Không có tài khoản/password hoặc admin endpoint bỏ xác thực.
 
 ### Rollback migration trong dev
@@ -177,16 +180,16 @@ Rollback mặc định lùi một migration, không phải cả batch như Larav
 
 ```sh
 # Lùi migration ban đầu: xóa schema Identity và dữ liệu:
-cargo run --locked --package api-gateway --bin migrate -- down
+cargo run --locked --package console --bin migrate -- down
 
 # Giữ schema tại version chỉ định; undo các version lớn hơn:
-cargo run --locked --package api-gateway --bin migrate -- down 20261030000001
+cargo run --locked --package console --bin migrate -- down 20261030000001
 
 # Undo toàn bộ migration Identity: xóa các bảng Identity và dữ liệu trong đó:
-cargo run --locked --package api-gateway --bin migrate -- down 0
+cargo run --locked --package console --bin migrate -- down 0
 
 # Chạy lại up:
-cargo run --locked --package api-gateway --bin migrate -- up
+cargo run --locked --package console --bin migrate -- up
 ```
 
 Các lệnh migration chỉ cần DB_HOST, DB_PORT, DB_NAME, DB_USERNAME và DB_PASSWORD. Kiểm tra DB đích trước rollback;
@@ -197,7 +200,8 @@ _sqlx_migrations để bỏ qua checksum. Sau khi deploy, tạo migration mới 
 
 ### Cấu hình dùng chung khi khởi động
 
-`apps/api-gateway/src/config/` là nơi duy nhất đọc env và .env.
+`crates/app-config/` cung cấp ConfigSource và DatabaseConfig dùng chung cho HTTP và CLI.
+Mỗi entrypoint load env và .env một lần; `apps/api-gateway/src/config/` chỉ ghép cấu hình HTTP.
 ConfigSource giữ snapshot bất biến; AppConfig chuyển nó thành cấu hình có kiểu,
 kiểm tra APP_URL, CORS origins và các cấu hình bắt buộc.
 IdentityConfig chỉ chứa dữ liệu, không tự đọc env.
@@ -236,7 +240,7 @@ Mở browser tới URL sau, URL-encode các giá trị:
 ```text
 https://api.nvnhan0810.com/auth/sso/authorize
 ?response_type=code
-&client_id=identity-admin
+&client_id=identity
 &redirect_uri=http%3A%2F%2F127.0.0.1%3A8250%2Fcallback
 &scope=identity.clients.manage
 &state=<random-state>
@@ -249,7 +253,7 @@ và state. App phải kiểm tra state khớp giao dịch ban đầu và dùng m
 Trong kiểm thử thủ công có thể lấy code từ URL ngay cả khi chưa có callback server.
 
 ```sh
-curl -sS https://api.nvnhan0810.com/auth/sso/token   --data-urlencode grant_type=authorization_code   --data-urlencode client_id=identity-admin   --data-urlencode code=YOUR_CODE   --data-urlencode redirect_uri=http://127.0.0.1:8250/callback   --data-urlencode code_verifier=YOUR_VERIFIER
+curl -sS https://api.nvnhan0810.com/auth/sso/token   --data-urlencode grant_type=authorization_code   --data-urlencode client_id=identity   --data-urlencode code=YOUR_CODE   --data-urlencode redirect_uri=http://127.0.0.1:8250/callback   --data-urlencode code_verifier=YOUR_VERIFIER
 ```
 
 Response gồm access_token, token_type=Bearer, expires_in=900, refresh_token, scope.
@@ -320,8 +324,14 @@ B dùng authorize riêng trên cùng browser: cookie HttpOnly host-only tại Id
 giúp bỏ qua Google login; B vẫn nhận token riêng. Cookie trung tâm không chia sẻ
 cho A/B, không thay thế storage/token authentication của các app.
 
-`IDENTITY_CORS_ORIGINS` cho phép cấu hình exact browser origins, phân tách dấu phẩy.
-Mặc định không cho cross-origin AJAX; không bật CORS credentials.
+`IDENTITY_CORS_ORIGIN` là một exact origin duy nhất của trang quản trị (không có
+path, dấu / cuối hoặc danh sách dấu phẩy). Nếu để trống, chỉ dùng các origin từ DB.
+Các app khác đăng ký `domain` trong client, ví dụ `https://wallets.nvnhan0810.com`.
+Chỉ `enabled=true` được cấp CORS; `domain=null` không tự lấy origin từ callback.
+Middleware tra DB trên mỗi request/preflight, không cache; đổi domain hoặc disable
+có hiệu lực ngay. Production chỉ cho HTTPS; local hỗ trợ HTTP localhost/loopback.
+Lỗi DB thì từ chối origin DB; origin trang quản trị không cần truy vấn DB.
+Không bật CORS credentials. CORS không thay thế kiểm tra token/scope/quyền API.
 Mobile/server-to-server không bị browser CORS giới hạn.
 
 ### 6. Revoke, logout và giới hạn hiện tại
@@ -463,21 +473,91 @@ http://localhost:8080/auth/google/callback (ngoài callback production).
 
 ### Các entrypoint riêng
 
-Package api-gateway có default-run=api-gateway:
+Package `api-gateway` chỉ chạy HTTP; package `console` chứa các command quản trị DB.
+Console không phụ thuộc api-gateway.
 
 | Binary | Entrypoint | Trách nhiệm |
 | --- | --- | --- |
-| api-gateway | src/main.rs | HTTP server mặc định |
-| migrate | src/bin/migrate.rs | Migration up/down; chỉ cần DB_* |
+| api-gateway | apps/api-gateway/src/main.rs | HTTP server mặc định |
+| migrate | apps/console/src/bin/migrate.rs | Gọi migration của module; chỉ cần DB_* |
+| seed | apps/console/src/bin/seed.rs | Load config/DB, gọi seeders theo module |
 
-Cấu hình dùng chung qua library api_gateway::config, không đọc env lặp ở module.
-make dev và cargo run -p api-gateway vẫn chạy web server như trước.
-make migrate, make migrate-down TARGET=0 gọi binary migration riêng.
+Cấu hình dùng chung qua crate `app-config`, không đọc env lặp ở module.
+`make dev` và `cargo run -p api-gateway` chạy web server.
+`make migrate`, `make migrate-down TARGET=0`, `make seed` chạy package console.
 
-Image Docker chứa hai binary api-gateway và migrate, ENTRYPOINT mặc định vẫn là api-gateway.
-K3s migration Job phải override command thành ["/usr/local/bin/migrate"] và args
-thành ["up"], không chỉ đổi args của web ENTRYPOINT. Ví dụ Docker local:
+Image Docker chứa ba binary api-gateway, migrate và seed, ENTRYPOINT mặc định vẫn là api-gateway.
+K3s Job override command bằng shell -ec, gọi migrate up rồi seed.
+Ví dụ chạy riêng migration bằng Docker local:
 
 ```sh
 docker run --rm --env-file backend/.env --entrypoint migrate backend:local up
 ```
+
+
+### Master data cho Identity Admin
+
+```sh
+make migrate
+make seed
+```
+
+seed chỉ cần DB_*  
+Không cần Google credentials hoặc RSA keys.
+Client ID cố định identity, loại public, không secret, scopes profile và
+identity.clients.manage. `IDENTITY_REDIRECT_URI` đăng ký một callback chính xác
+vào `redirect_uris` khi tạo client. 
+
+```dotenv
+IDENTITY_REDIRECT_URI=http://localhost:5174/auth/callback
+```
+
+URI này phải khớp callback frontend gửi khi login. Đổi env không cập nhật client
+đã tồn tại; chỉnh callback hiện có qua API quản trị.
+
+Seed thành công thoát 0 và không in log, cả khi tạo mới lẫn khi client đã tồn tại.
+Client ID public cố định là `identity`, không cần lấy qua log.
+Nếu đã có client ID này, không cập nhật tên, callback, scope, enabled hoặc version.
+UNIQUE + INSERT ON CONFLICT DO NOTHING đảm bảo hai tiến trình cùng chạy chỉ
+một tiến trình tạo dữ liệu.
+Nếu thay domain hoặc muốn thêm callback local, sửa client qua admin API; command
+không tự ghi đè cấu hình đã được quản lý. DB lỗi thì command trả lỗi để dừng deploy.
+Job k3s chạy migrate up trước seed và chỉ rollout web khi cả hai thành công.
+
+### Seeder theo module và thứ tự chạy
+
+```text
+backend/
+├── apps/
+│   ├── api-gateway/src/main.rs       # HTTP
+│   └── console/src/
+│       ├── bin/migrate.rs           # CLI gọi migration của module
+│       ├── bin/seed.rs              # CLI load config, mở/đóng DB pool
+│       ├── identity_seed_config.rs  # Chuyển env thành cấu hình truyền xuống
+│       └── lib.rs                   # seed_all: thứ tự giữa các module
+├── crates/app-config/               # ConfigSource, DatabaseConfig dùng chung
+└── modules/identity/
+    ├── migrations/                  # SQL up/down do Identity sở hữu
+    └── src/
+        ├── infrastructure/migrations.rs
+        └── seeder/
+            ├── mod.rs               # Thứ tự seed nội bộ Identity
+            ├── data/identity_admin.rs
+            └── handlers/identity_admin_seeder.rs
+```
+
+Chạy `make seed` sau `make migrate`. Console dùng một pool DB chung và gọi lần
+lượt các module trong `seed_all`. Hiện chỉ Identity có dữ liệu seed. Khi thêm
+module phụ thuộc Identity, đặt lời gọi sau Identity; không chạy song song.
+Bên trong mỗi module, `seeder/mod.rs` gọi handler theo thứ tự dữ liệu cha trước,
+dữ liệu con sau. Có lỗi thì dừng và trả exit code khác 0; chạy lại bỏ qua dữ liệu
+đã tồn tại. Seeders không tự đọc env, không phụ thuộc HTTP hay api-gateway.
+
+Mỗi module tự sở hữu `migrations/` và `src/seeder/{data,handlers}/`. Module mới
+cần có entrypoint migration/seeder riêng rồi đăng ký vào console. Khi có nhiều
+module có migration, cần cấu hình lịch sử migration riêng theo module trước khi
+đăng ký runner tiếp theo; rollback theo thứ tự ngược phụ thuộc. Hiện chỉ Identity
+có migration nên giữ nguyên bảng lịch sử và checksum SQL hiện tại.
+
+Các handler seed gọi use case/repository của chính module, như
+`identity::application::handlers::master_data_handler::create_client_if_missing`.

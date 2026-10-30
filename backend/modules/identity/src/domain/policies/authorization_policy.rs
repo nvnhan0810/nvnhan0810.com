@@ -46,3 +46,29 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod local_callback_tests {
+    use super::*;
+    #[test]
+    fn forwarded_localhost_requires_its_exact_registered_callback() {
+        let redirects = vec!["http://localhost:5174/auth/callback".into()];
+        let scopes = vec!["profile".into()];
+        let policy = AuthorizationPolicy {
+            enabled: true,
+            redirect_uris: &redirects,
+            scopes: &scopes,
+        };
+        assert!(policy.validate(&redirects[0], "profile").is_ok());
+        for callback in [
+            "http://127.0.0.1:5174/auth/callback",
+            "http://localhost:5173/auth/callback",
+            "https://identity.nvnhan0810.com/auth/callback",
+        ] {
+            assert_eq!(
+                policy.validate(callback, "profile"),
+                Err(AuthorizationError::InvalidRequest)
+            );
+        }
+    }
+}

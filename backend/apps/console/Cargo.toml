@@ -1,0 +1,24 @@
+[package]
+name = "console"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+autobins = false
+
+[dependencies]
+app-config = { path = "../../crates/app-config" }
+identity = { path = "../../modules/identity" }
+tokio.workspace = true
+sqlx.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+url = "2"
+
+[[bin]]
+name = "migrate"
+path = "src/bin/migrate.rs"
+
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"

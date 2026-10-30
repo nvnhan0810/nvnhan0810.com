@@ -1,19 +1,20 @@
 use api_gateway::config;
 
-use axum::{
-    Json, Router,
-    http::{Method, header},
-    routing::get,
-};
+use axum::{Json, Router, routing::get};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
 
 // Import các middleware từ tower-http và tower_governor
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
-use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
+use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_ansi(false)
+        .with_writer(std::io::stderr)
+        .init();
     let source = config::ConfigSource::load().expect("Configuration loading failed");
     let config =
         config::AppConfig::from_source(&source).expect("Invalid application configuration");
@@ -26,10 +27,11 @@ async fn main() {
     .await
     .expect("Identity database/key initialization failed");
 
-    let cors = CorsLayer::new()
-        .allow_origin(config.cors_origins)
-        .allow_methods([Method::GET, Method::POST, Method::PATCH])
-        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]);
+    let cors = api_gateway::cors::layer(
+        identity_state.store.clone(),
+        config.admin_cors_origin,
+        config.production,
+    );
 
     // 1. Mỗi IP được hồi 1 request / 500ms (2 request / giây), burst tối đa 5.
     let governor_conf = GovernorConfigBuilder::default()
@@ -47,7 +49,14 @@ async fn main() {
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
         .layer(cors) // Explicit browser origins; credentials/cookies are not enabled.
-        .layer(TraceLayer::new_for_http()) // Ghi log request/response tự động
+        .layer(
+            TraceLayer::new_for_http()
+                // OAuth query strings contain codes/state: log the path only.
+                .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
+                    tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
+                })
+                .on_response(tower_http::trace::DefaultOnResponse::new().level(tracing::Level::INFO)),
+        )
         // Probes must bypass the application rate limiter.
         .route("/healthz", get(root_handler));
 

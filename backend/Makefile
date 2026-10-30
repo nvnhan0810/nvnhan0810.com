@@ -1,4 +1,4 @@
-.PHONY: dev build check clean migrate migrate-down
+.PHONY: dev build check clean migrate migrate-down seed
 
 # Tùy chọn: make migrate-down TARGET=0 hoặc TARGET=<migration-version>
 TARGET ?=
@@ -13,11 +13,11 @@ check:
 
 # Chạy các migration chưa áp dụng; app tự đọc DB_* từ .env.
 migrate:
-	cargo run --locked --package api-gateway --bin migrate -- up
+	cargo run --locked --package console --bin migrate -- up
 
 # Mặc định lùi một migration. TARGET=0 rollback toàn bộ schema và dữ liệu Identity.
 migrate-down:
-	cargo run --locked --package api-gateway --bin migrate -- down $(TARGET)
+	cargo run --locked --package console --bin migrate -- down $(TARGET)
 
 # Build toàn bộ project ở chế độ release (tối ưu hóa hiệu năng)
 build:
@@ -26,3 +26,7 @@ build:
 # Dọn dẹp các tệp build tạm thời (thư mục target)
 clean:
 	cargo clean
+
+# Tạo public client Identity nếu chưa tồn tại; có rồi thì không thay đổi/in log.
+seed:
+	cargo run --locked --package console --bin seed

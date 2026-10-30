@@ -1,0 +1,9 @@
+[package]
+name = "app-config"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+dotenvy = "0.15"
+sqlx.workspace = true

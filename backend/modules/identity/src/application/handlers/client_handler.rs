@@ -8,12 +8,13 @@ use crate::{
         entities::sso_client::SsoClient,
         value_objects::{
             ClientId, ClientName, ClientSecretHash, ClientType, RedirectUri, Scope, SsoClientId,
+            WebOrigin,
         },
     },
 };
 use uuid::Uuid;
 
-fn validate(id: Uuid, input: &ClientInput, secret: Option<&str>) -> Result<SsoClient> {
+pub(crate) fn validate(id: Uuid, input: &ClientInput, secret: Option<&str>) -> Result<SsoClient> {
     let invalid = || IdentityError::bad("invalid_client_metadata");
     let kind = match input.client_type.as_str() {
         "public" => ClientType::Public,
@@ -33,7 +34,7 @@ fn validate(id: Uuid, input: &ClientInput, secret: Option<&str>) -> Result<SsoCl
         || input
             .domain
             .as_ref()
-            .is_some_and(|d| RedirectUri::parse(d).is_err())
+            .is_some_and(|d| WebOrigin::parse(d).is_err())
     {
         return Err(invalid());
     }
@@ -127,6 +128,24 @@ mod tests {
     #[test]
     fn client_permissions_need_no_environment_catalog() {
         assert!(validate(Uuid::new_v4(), &input(), None).is_ok());
+    }
+    #[test]
+    fn client_domain_is_an_exact_browser_origin() {
+        let mut client = input();
+        for domain in ["https://new.example", "http://localhost:5174"] {
+            client.domain = Some(domain.into());
+            assert!(validate(Uuid::new_v4(), &client, None).is_ok());
+        }
+        for domain in [
+            "https://new.example/",
+            "https://new.example/path",
+            "https://new.example?x=1",
+            "com.example.app:/callback",
+            "null",
+        ] {
+            client.domain = Some(domain.into());
+            assert!(validate(Uuid::new_v4(), &client, None).is_err());
+        }
     }
     #[test]
     fn invalid_or_duplicate_permissions_are_rejected() {

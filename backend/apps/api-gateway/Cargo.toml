@@ -7,6 +7,8 @@ edition = "2024"
 rust-version.workspace = true
 
 [dependencies]
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "registry"] }
 axum.workspace = true
 governor = "0.10.4"
 identity = { version = "0.1.0", path = "../../modules/identity" }
@@ -18,7 +20,7 @@ tokio.workspace = true
 tower-http = { version = "0.7.1", features = ["trace", "cors", "compression-full"] }
 tower_governor = { version = "0.8.0", default-features = false, features = ["axum"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
-dotenvy = "0.15"
+app-config = { path = "../../crates/app-config" }
 url = "2"
 sqlx.workspace = true
 
@@ -26,6 +28,5 @@ sqlx.workspace = true
 name = "api-gateway"
 path = "src/main.rs"
 
-[[bin]]
-name = "migrate"
-path = "src/bin/migrate.rs"
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

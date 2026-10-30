@@ -3,7 +3,9 @@ members = [
     "shared-kernel",
     "modules/identity",
     "modules/ordering",
-    "apps/api-gateway"
+    "apps/api-gateway",
+    "apps/console",
+    "crates/app-config"
 ]
 resolver = "2"
 
@@ -19,3 +21,4 @@ sqlx = { version = "0.9.0", features = ["runtime-tokio", "tls-rustls", "postgres
 uuid = { version = "1.29.0", features = ["v4", "serde"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 thiserror = "2.0.21"
+tracing = "0.1"

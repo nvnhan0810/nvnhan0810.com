@@ -8,7 +8,9 @@ pub mod token_crypto;
 pub mod token_transaction;
 
 pub use google_identity_provider::GoogleIdentityProvider;
+pub use repositories::cors_origin_repository::CorsOriginRepository;
 pub use repositories::identity_repository::IdentityRepository;
+pub use repositories::master_data_repository::MasterDataRepository;
 pub use repositories::user_repository::UserRepository;
 pub use token_crypto::TokenCrypto;
 pub use token_transaction::TokenTransaction;

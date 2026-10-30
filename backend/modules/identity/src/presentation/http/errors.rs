@@ -7,6 +7,19 @@ use axum::{
 
 impl IntoResponse for IdentityError {
     fn into_response(self) -> Response {
+        if self.status >= 500 {
+            tracing::error!(
+                status = self.status,
+                error_code = self.code,
+                "Identity request failed"
+            );
+        } else {
+            tracing::warn!(
+                status = self.status,
+                error_code = self.code,
+                "Identity request rejected"
+            );
+        }
         let mut response = (
             axum::http::StatusCode::from_u16(self.status)
                 .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR),

@@ -315,3 +315,34 @@ row_mapping!(
     enabled,
     is_system_root
 );
+
+#[async_trait]
+impl crate::application::ports::MasterDataRepository for IdentityStore {
+    async fn insert_client_if_missing(
+        &self,
+        id: Uuid,
+        input: &ClientInput,
+    ) -> Result<Option<String>> {
+        // The unique constraint arbitrates concurrent deploy/seed processes.
+        // Do not update an existing client's callbacks, state, scopes or version.
+        Ok(sqlx::query_scalar("INSERT INTO sso_clients(id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled) VALUES($1,$2,$3,$4,'public',NULL,$5,$6,TRUE) ON CONFLICT(client_id) DO NOTHING RETURNING client_id")
+            .bind(id).bind(&input.client_id).bind(&input.name).bind(&input.domain)
+            .bind(&input.redirect_uris).bind(&input.scopes).fetch_optional(&self.0).await?)
+    }
+}
+
+impl crate::application::ports::CorsOriginRepository for IdentityStore {
+    fn allows_origin<'a>(
+        &'a self,
+        origin: &'a str,
+    ) -> crate::application::ports::PortFuture<'a, bool> {
+        Box::pin(async move {
+            Ok(sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM sso_clients WHERE enabled AND domain=$1)",
+            )
+            .bind(origin)
+            .fetch_one(&self.0)
+            .await?)
+        })
+    }
+}

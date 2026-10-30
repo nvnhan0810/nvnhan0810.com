@@ -1,4 +1,4 @@
-use api_gateway::config::{ConfigSource, DatabaseConfig};
+use app_config::{ConfigSource, DatabaseConfig};
 use identity::MigrationAction;
 
 fn action(args: &[String]) -> Result<Option<MigrationAction>, String> {
