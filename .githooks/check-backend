@@ -2,6 +2,15 @@
 set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 cd "$root"
+# Keep dependency artifacts across temporary snapshots. Keep this cache separate
+# from development builds because these checks use a smaller build profile.
+export CARGO_TARGET_DIR="$(git rev-parse --path-format=absolute --git-path hooks-cache/backend-target)"
+# Compile serially by default to limit peak RAM on developer machines. Callers
+# can opt into more parallelism with CARGO_BUILD_JOBS.
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
+export CARGO_PROFILE_DEV_DEBUG=0
+export CARGO_PROFILE_TEST_DEBUG=0
+export CARGO_INCREMENTAL=0
 snapshot=$(mktemp -d "${TMPDIR:-/tmp}/backend-check.XXXXXXXX")
 trap 'rm -rf -- "$snapshot"' EXIT
 trap 'exit 130' INT
@@ -15,7 +24,7 @@ case "${1:-}" in
   *) echo 'Usage: check-backend commit <commit-id>' >&2; exit 2 ;;
 esac
 cd "$snapshot/backend"
-echo 'Backend: format, clippy and tests…'
+echo "Backend: format, clippy and tests (build jobs: $CARGO_BUILD_JOBS)…"
 cargo fmt --all -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
