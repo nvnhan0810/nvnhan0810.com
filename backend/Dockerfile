@@ -11,9 +11,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 # Cache compiled dependencies until manifests/lockfile change.
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --locked --release --package api-gateway --recipe-path recipe.json
+RUN cargo chef cook --locked --release --package api-gateway --bins --recipe-path recipe.json
 COPY . .
-RUN cargo build --locked --release --package api-gateway
+RUN cargo build --locked --release --package api-gateway --bins
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
@@ -21,6 +21,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/api-gateway /usr/local/bin/api-gateway
+COPY --from=builder /app/target/release/migrate /usr/local/bin/migrate
 USER 10001:10001
 EXPOSE 8080
 STOPSIGNAL SIGTERM

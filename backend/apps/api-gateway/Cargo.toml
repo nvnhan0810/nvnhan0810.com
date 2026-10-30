@@ -1,5 +1,7 @@
 [package]
 name = "api-gateway"
+default-run = "api-gateway"
+autobins = false
 version = "0.1.0"
 edition = "2024"
 rust-version.workspace = true
@@ -16,3 +18,14 @@ tokio.workspace = true
 tower-http = { version = "0.7.1", features = ["trace", "cors", "compression-full"] }
 tower_governor = { version = "0.8.0", default-features = false, features = ["axum"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
+dotenvy = "0.15"
+url = "2"
+sqlx.workspace = true
+
+[[bin]]
+name = "api-gateway"
+path = "src/main.rs"
+
+[[bin]]
+name = "migrate"
+path = "src/bin/migrate.rs"

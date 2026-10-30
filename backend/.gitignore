@@ -13,3 +13,9 @@ Thumbs.db
 
 # Rustfmt backup files
 **/*.rs.bk
+
+# Local Identity credentials and signing keys
+/.env
+/.env.*
+!/.env.example
+/keys/

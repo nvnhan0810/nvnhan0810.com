@@ -1,4 +1,10 @@
-use axum::{Json, Router, routing::get};
+use api_gateway::config;
+
+use axum::{
+    Json, Router,
+    http::{Method, header},
+    routing::get,
+};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
 
@@ -8,6 +14,23 @@ use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLay
 
 #[tokio::main]
 async fn main() {
+    let source = config::ConfigSource::load().expect("Configuration loading failed");
+    let config =
+        config::AppConfig::from_source(&source).expect("Invalid application configuration");
+    let identity_state = identity::IdentityState::new(
+        config.identity,
+        config.database.connect_options(),
+        &config.private_key_path,
+        &config.public_key_path,
+    )
+    .await
+    .expect("Identity database/key initialization failed");
+
+    let cors = CorsLayer::new()
+        .allow_origin(config.cors_origins)
+        .allow_methods([Method::GET, Method::POST, Method::PATCH])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]);
+
     // 1. Mỗi IP được hồi 1 request / 500ms (2 request / giây), burst tối đa 5.
     let governor_conf = GovernorConfigBuilder::default()
         .per_millisecond(500)
@@ -18,12 +41,12 @@ async fn main() {
     // 2. Khai báo router và gắn các middleware (Thứ tự thực thi từ dưới lên trên)
     let app = Router::new()
         .route("/", get(root_handler))
-        .nest("/auth", identity::identity_routes())
+        .nest("/auth", identity::identity_routes(identity_state))
         .nest("/order", ordering::ordering_routes())
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
-        .layer(CorsLayer::permissive()) // Cho phép CORS gọi từ frontend/mobile
+        .layer(cors) // Explicit browser origins; credentials/cookies are not enabled.
         .layer(TraceLayer::new_for_http()) // Ghi log request/response tự động
         // Probes must bypass the application rate limiter.
         .route("/healthz", get(root_handler));

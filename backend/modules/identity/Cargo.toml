@@ -7,3 +7,20 @@ rust-version.workspace = true
 [dependencies]
 axum.workspace = true
 serde_json.workspace = true
+url = "2"
+serde.workspace = true
+sqlx = { workspace = true, features = ["uuid", "json", "migrate"] }
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+subtle = "2"
+async-trait = "0.1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
