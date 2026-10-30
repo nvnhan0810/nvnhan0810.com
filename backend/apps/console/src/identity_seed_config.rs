@@ -27,7 +27,10 @@ mod tests {
     #[test]
     fn explicit_redirect_overrides_derived_callback() {
         let config = IdentitySeedConfig::from_source(&ConfigSource::from_values([
-            ("IDENTITY_CORS_ORIGIN".into(), "http://localhost:5174".into()),
+            (
+                "IDENTITY_CORS_ORIGIN".into(),
+                "http://localhost:5174".into(),
+            ),
             (
                 "IDENTITY_REDIRECT_URI".into(),
                 "http://localhost:5174/sso/callback".into(),
