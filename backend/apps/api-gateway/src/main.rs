@@ -24,7 +24,9 @@ async fn main() {
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
         .layer(CorsLayer::permissive()) // Cho phép CORS gọi từ frontend/mobile
-        .layer(TraceLayer::new_for_http()); // Ghi log request/response tự động
+        .layer(TraceLayer::new_for_http()) // Ghi log request/response tự động
+        // Probes must bypass the application rate limiter.
+        .route("/healthz", get(root_handler));
 
     // Bind ra 0.0.0.0 để nhận kết nối từ port forwarding của VM
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
@@ -33,10 +35,32 @@ async fn main() {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown_signal())
     .await
     .unwrap();
 }
 
 async fn root_handler() -> Json<Value> {
     Json(json!({ "message": "ok" }))
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

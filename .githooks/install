@@ -3,4 +3,4 @@ set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
 git -C "$root" config --local core.hooksPath .githooks
-echo 'Enabled .githooks: portfolio checks run before push only.'
+echo 'Enabled .githooks: portfolio and backend checks run before push only.'

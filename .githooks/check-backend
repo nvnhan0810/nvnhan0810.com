@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+snapshot=$(mktemp -d "${TMPDIR:-/tmp}/backend-check.XXXXXXXX")
+trap 'rm -rf -- "$snapshot"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+case "${1:-}" in
+  commit)
+    revision=${2:?Missing commit ID}
+    if [[ -z "$(git ls-tree -d --name-only "$revision" -- backend)" ]]; then exit 0; fi
+    git archive --format=tar "$revision" -- backend/ | tar -xf - -C "$snapshot"
+    ;;
+  *) echo 'Usage: check-backend commit <commit-id>' >&2; exit 2 ;;
+esac
+cd "$snapshot/backend"
+echo 'Backend: format, clippy, tests and release build…'
+cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace
+cargo build --locked --release --package api-gateway
+echo 'Backend checks passed.'
