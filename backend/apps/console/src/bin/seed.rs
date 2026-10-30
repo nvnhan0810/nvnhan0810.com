@@ -6,7 +6,9 @@ use sqlx::postgres::PgPoolOptions;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args == ["--help"] || args == ["-h"] {
-        println!("Usage: seed (DB_* required; optional IDENTITY_CORS_ORIGIN, IDENTITY_REDIRECT_URI)");
+        println!(
+            "Usage: seed (DB_* required; optional IDENTITY_CORS_ORIGIN, IDENTITY_REDIRECT_URI)"
+        );
         return Ok(());
     }
     if !args.is_empty() {
