@@ -27,6 +27,15 @@ build:
 clean:
 	cargo clean
 
-# Tạo public client Identity nếu chưa tồn tại; có rồi thì không thay đổi/in log.
+# Local fixtures: Identity Admin + Foreign public clients; không dùng cho production.
 seed:
-	cargo run --locked --package console --bin seed
+	cargo run --locked --package console --bin console -- seed
+
+# Production reference data: Identity Admin client, giữ nguyên nếu đã tồn tại.
+.PHONY: master-data command
+master-data:
+	cargo run --locked --package console --bin console -- master-data
+
+# Ví dụ: make command CMD=master-data
+command:
+	cargo run --locked --package console --bin console -- $(CMD)

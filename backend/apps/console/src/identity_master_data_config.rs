@@ -1,10 +1,10 @@
 use app_config::ConfigSource;
 
-pub struct IdentitySeedConfig {
+pub struct IdentityMasterDataConfig {
     pub portal_url: String,
     pub redirect_uri: String,
 }
-impl IdentitySeedConfig {
+impl IdentityMasterDataConfig {
     pub fn from_source(source: &ConfigSource) -> Self {
         let portal_url = source
             .optional("IDENTITY_CORS_ORIGIN")
@@ -26,7 +26,7 @@ mod tests {
     use super::*;
     #[test]
     fn explicit_redirect_overrides_derived_callback() {
-        let config = IdentitySeedConfig::from_source(&ConfigSource::from_values([
+        let config = IdentityMasterDataConfig::from_source(&ConfigSource::from_values([
             (
                 "IDENTITY_CORS_ORIGIN".into(),
                 "http://localhost:5174".into(),
@@ -37,7 +37,7 @@ mod tests {
             ),
         ]));
         assert_eq!(config.redirect_uri, "http://localhost:5174/sso/callback");
-        let fallback = IdentitySeedConfig::from_source(&ConfigSource::from_values([(
+        let fallback = IdentityMasterDataConfig::from_source(&ConfigSource::from_values([(
             "IDENTITY_CORS_ORIGIN".into(),
             "http://localhost:5174/".into(),
         )]));

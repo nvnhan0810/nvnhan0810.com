@@ -167,7 +167,7 @@ cargo run --locked --package api-gateway
 `migrate up` chỉ cần DB_HOST, DB_PORT, DB_NAME, DB_USERNAME và DB_PASSWORD, không cần cấu hình Google/key.
 Migration up/down được nhúng trong binary; production chạy `migrate up`
 bằng Job trước rollout. Server không tự migrate khi start.
-Migration chỉ tạo schema. Sau migration, chạy make seed để tạo public
+Migration chỉ tạo schema. Sau migration, chạy make master-data để tạo public
 client identity nếu chưa tồn tại. Không tạo user giả; user vẫn được tạo
 khi Google login thành công.
 Không có tài khoản/password hoặc admin endpoint bỏ xác thực.
@@ -486,14 +486,15 @@ Console không phụ thuộc api-gateway.
 | --- | --- | --- |
 | api-gateway | apps/api-gateway/src/main.rs | HTTP server mặc định |
 | migrate | apps/console/src/bin/migrate.rs | Gọi migration của module; chỉ cần DB_* |
-| seed | apps/console/src/bin/seed.rs | Load config/DB, gọi seeders theo module |
+| console seed | apps/console/src/main.rs | Dữ liệu test local: Identity Admin + Foreign |
+| console master-data | apps/console/src/main.rs | Client Identity Admin production, không gồm fixture |
 
 Cấu hình dùng chung qua crate `app-config`, không đọc env lặp ở module.
 `make dev` và `cargo run -p api-gateway` chạy web server.
-`make migrate`, `make migrate-down TARGET=0`, `make seed` chạy package console.
+`make migrate`, `make migrate-down TARGET=0`, `make master-data` chạy package console.
 
-Image Docker chứa ba binary api-gateway, migrate và seed, ENTRYPOINT mặc định vẫn là api-gateway.
-K3s Job override command bằng shell -ec, gọi migrate up rồi seed.
+Image Docker chứa ba binary api-gateway, migrate và console, ENTRYPOINT mặc định vẫn là api-gateway.
+K3s Job override command bằng shell -ec, gọi migrate up rồi console master-data.
 Ví dụ chạy riêng migration bằng Docker local:
 
 ```sh
@@ -505,10 +506,10 @@ docker run --rm --env-file backend/.env --entrypoint migrate backend:local up
 
 ```sh
 make migrate
-make seed
+make master-data
 ```
 
-seed chỉ cần DB_*  
+seed local chỉ cần DB_*; master-data đọc thêm IDENTITY_CORS_ORIGIN/IDENTITY_REDIRECT_URI
 Không cần Google credentials hoặc RSA keys.
 Client ID cố định identity, loại public, không secret, scopes profile và
 identity.clients.manage. `IDENTITY_REDIRECT_URI` đăng ký một callback chính xác
@@ -528,7 +529,7 @@ UNIQUE + INSERT ON CONFLICT DO NOTHING đảm bảo hai tiến trình cùng ch�
 một tiến trình tạo dữ liệu.
 Nếu thay domain hoặc muốn thêm callback local, sửa client qua admin API; command
 không tự ghi đè cấu hình đã được quản lý. DB lỗi thì command trả lỗi để dừng deploy.
-Job k3s chạy migrate up trước seed và chỉ rollout web khi cả hai thành công.
+Job k3s chạy migrate up trước master-data và chỉ rollout web khi cả hai thành công.
 
 ### Seeder theo module và thứ tự chạy
 
@@ -539,27 +540,27 @@ backend/
 │   └── console/src/
 │       ├── bin/migrate.rs           # CLI gọi migration của module
 │       ├── bin/seed.rs              # CLI load config, mở/đóng DB pool
-│       ├── identity_seed_config.rs  # Chuyển env thành cấu hình truyền xuống
-│       └── lib.rs                   # seed_all: thứ tự giữa các module
+│       ├── identity_master_data_config.rs  # Chuyển env thành cấu hình truyền xuống
+│       └── lib.rs                   # master_data_all: thứ tự giữa các module
 ├── crates/app-config/               # ConfigSource, DatabaseConfig dùng chung
 └── modules/identity/
     ├── migrations/                  # SQL up/down do Identity sở hữu
     └── src/
         ├── infrastructure/migrations.rs
-        └── seeder/
+        └── master_data/
             ├── mod.rs               # Thứ tự seed nội bộ Identity
             ├── data/identity_admin.rs
             └── handlers/identity_admin_seeder.rs
 ```
 
-Chạy `make seed` sau `make migrate`. Console dùng một pool DB chung và gọi lần
-lượt các module trong `seed_all`. Hiện chỉ Identity có dữ liệu seed. Khi thêm
+Chạy `make master-data` sau `make migrate`. Console dùng một pool DB chung và gọi lần
+lượt các module trong `master_data_all`. Hiện chỉ Identity có master data. Khi thêm
 module phụ thuộc Identity, đặt lời gọi sau Identity; không chạy song song.
-Bên trong mỗi module, `seeder/mod.rs` gọi handler theo thứ tự dữ liệu cha trước,
+Bên trong mỗi module, `master_data/mod.rs` gọi handler theo thứ tự dữ liệu cha trước,
 dữ liệu con sau. Có lỗi thì dừng và trả exit code khác 0; chạy lại bỏ qua dữ liệu
 đã tồn tại. Seeders không tự đọc env, không phụ thuộc HTTP hay api-gateway.
 
-Mỗi module tự sở hữu `migrations/` và `src/seeder/{data,handlers}/`. Module mới
+Mỗi module tự sở hữu `migrations/` và `src/master_data/{data,handlers}/`. Module mới
 cần có entrypoint migration/seeder riêng rồi đăng ký vào console. Khi có nhiều
 module có migration, cần cấu hình lịch sử migration riêng theo module trước khi
 đăng ký runner tiếp theo; rollback theo thứ tự ngược phụ thuộc. Hiện chỉ Identity
@@ -583,3 +584,14 @@ và kiểm tra JWT/quyền/grant như cùng đường Bearer. Mutation dùng acc
 phải có Origin đúng client. POST /auth/sso/revoke từ browser thu hồi grant và xóa
 cả hai cookie. /auth/logout vẫn kết thúc phiên SSO trung tâm. Không có endpoint
 /session mới.
+
+### Seed local và master data production
+
+- `make seed` hoặc `make command CMD=seed`: tạo client `identity` và `foreign-web`
+  cho `http://localhost:5174/auth/callback`, scope admin/profile tương ứng.
+  Chỉ trỏ DB_* đến DB dev/test. Không tạo user Google giả. Hai FE dùng luân phiên port 5174.
+- `make master-data` hoặc `make command CMD=master-data`: tạo duy nhất client
+  Identity Admin theo IDENTITY_CORS_ORIGIN và IDENTITY_REDIRECT_URI (mặc định domain production).
+- Cả hai giữ nguyên client đã tồn tại. Muốn sửa client dùng Identity, không mong seed ghi đè.
+- Docker/K3s gọi `console master-data` sau migration; không chạy fixture local.
+- Không còn command tạo Foreign local riêng; Foreign production vẫn đăng ký qua Identity.

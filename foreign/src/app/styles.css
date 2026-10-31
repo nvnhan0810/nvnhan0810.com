@@ -99,3 +99,38 @@ footer {
   color: #8a99ad;
   font-size: 12px;
 }
+
+.auth-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 5vw;
+}
+.auth-bar a {
+  color: inherit;
+}
+.auth-bar button {
+  padding: 0.65rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.auth-bar button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.auth-error,
+.auth-status {
+  margin: 1rem 5vw;
+}
+.auth-error {
+  color: #a33131;
+}
+.profile-page {
+  padding: 4rem 5vw;
+  overflow-wrap: anywhere;
+}

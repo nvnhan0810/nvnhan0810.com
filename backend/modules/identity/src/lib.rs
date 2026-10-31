@@ -1,8 +1,8 @@
 pub mod application;
 pub mod domain;
 pub mod infrastructure;
+pub mod master_data;
 pub mod presentation;
-pub mod seeder;
 
 use application::{
     config::IdentityConfig,

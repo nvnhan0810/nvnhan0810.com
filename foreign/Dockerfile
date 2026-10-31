@@ -6,6 +6,8 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
 ARG VITE_API_BASE_URL=https://backend.nvnhan0810.com
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_SSO_CLIENT_ID=foreign-web
+ENV VITE_SSO_CLIENT_ID=$VITE_SSO_CLIENT_ID
 RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime

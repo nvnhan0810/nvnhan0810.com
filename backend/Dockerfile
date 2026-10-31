@@ -22,7 +22,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=builder /app/target/release/api-gateway /usr/local/bin/api-gateway
 COPY --from=builder /app/target/release/migrate /usr/local/bin/migrate
-COPY --from=builder /app/target/release/seed /usr/local/bin/seed
+COPY --from=builder /app/target/release/console /usr/local/bin/console
 USER 10001:10001
 EXPOSE 8080
 STOPSIGNAL SIGTERM

@@ -1,4 +1,4 @@
-use identity::seeder::handlers::identity_admin_seeder::run as create_identity_admin;
+use identity::master_data::handlers::identity_admin_seeder::run as create_identity_admin;
 use identity::{application::ports::IdentityRepository, infrastructure::postgres::IdentityStore};
 use sqlx::postgres::PgPoolOptions;
 
@@ -57,7 +57,8 @@ async fn identity_master_client_is_created_once_without_overwriting_existing_dat
     // Exercise the real entry point and ordered runner against this disposable DB.
     let db = url::Url::parse(&url).unwrap();
     let run_command = || {
-        std::process::Command::new(env!("CARGO_BIN_EXE_seed"))
+        std::process::Command::new(env!("CARGO_BIN_EXE_console"))
+            .arg("master-data")
             .current_dir(std::env::temp_dir())
             .env_clear()
             .env("DB_HOST", db.host_str().unwrap())
@@ -95,5 +96,25 @@ async fn identity_master_client_is_created_once_without_overwriting_existing_dat
     assert!(second.status.success());
     assert!(second.stdout.is_empty());
     assert!(second.stderr.is_empty());
+    // Local seed contains both clients and must never use production callbacks.
+    sqlx::query("DELETE FROM sso_clients WHERE client_id IN ('identity', 'foreign-web')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    console::seed_all(&pool).await.unwrap();
+    console::seed_all(&pool).await.unwrap();
+    for id in ["identity", "foreign-web"] {
+        let client = store.client(id).await.unwrap();
+        assert_eq!(client.domain.as_deref(), Some("http://localhost:5174"));
+        assert_eq!(
+            client.redirect_uris,
+            ["http://localhost:5174/auth/callback"]
+        );
+        assert_eq!(client.client_type, "public");
+    }
+    assert_eq!(
+        store.client("foreign-web").await.unwrap().scopes,
+        ["profile"]
+    );
     pool.close().await;
 }

@@ -1,8 +1,8 @@
 # Foreign
 
 Scaffold FE: Vue 3, TypeScript strict, Vite, Vue Router; Vitest/Prettier tooling
-matches Identity. This first step only includes the top page and a link to the
-Rust demo API. No application features, auth, admin or data migration yet.
+matches Identity. Includes Identity login, a protected profile page and the public demo API.
+Business features and data migration are not implemented yet.
 
 ```sh
 cd foreign
@@ -24,11 +24,10 @@ PORT=8082 npm start
 ```
 
 Directories are ready under `src/modules/foreign/{domain,application,infrastructure,presentation}`
-and `src/shared`. Only the presentation top page has content in this scaffold.
+and `src/shared`. Auth is implemented in the application/infrastructure layers.
 The initial page is a placeholder, not the migrated mobile/tablet/laptop UI.
 
-`npm run type-check` and `npm run format:check` are available. Vitest is configured
-for future feature tests; none are added for this static scaffold.
+`npm run type-check` and `npm run format:check` are available. Vitest covers PKCE and browser sessions.
 
 Backend module: `backend/modules/foreign`. Migration plan:
 [`docs/foreign-migration-plan.md`](../docs/foreign-migration-plan.md).
@@ -52,9 +51,60 @@ GitHub variable `FOREIGN_API_BASE_URL` override API origin lúc build;
 
 K3s: repo `~/www/k3s`, path `apps/foreign.nvnhan0810.com`.
 Frontend chỉ phục vụ UI; `/foreign/` API do gateway Rust cung cấp trên API host.
-Bản này mới là trang đầu/demo. Sync cấu hình mới sẽ thay web cũ bằng scaffold,
+Bản này có trang đầu/demo và login/profile Identity. Sync cấu hình mới sẽ thay web cũ bằng scaffold,
 đồng thời bỏ migration/queue cũ khỏi Kustomization; không xóa DB/media nguồn.
 Chưa có migration nghiệp vụ Foreign hoặc cutover dữ liệu.
 
 Port dev 5174 dùng chung quy ước Identity; dừng Identity dev khi chạy Foreign
 trên cùng máy hoặc override `npm run dev -- --port 5175` nếu cần chạy cả hai.
+
+## Login/auth: đã làm
+
+- Authorization Code + PKCE S256 trực tiếp Identity, scope `profile`; không giới hạn tài khoản root.
+- Callback `/auth/callback`, state một lần có hạn 10 phút; xóa code/state khỏi URL trước request.
+- Access token trong RAM, refresh bằng cookie HttpOnly, không lưu token trong browser storage.
+- Restore khi reload, refresh đồng thời được gộp; Web Locks tuần tự rotation giữa tab khi browser hỗ trợ.
+- Trang `/profile` lấy từ `/auth/me`, chờ restore và yêu cầu đăng nhập.
+- Logout revoke phiên app (không logout Google/SSO toàn cục); xóa local cả khi mạng lỗi và báo chưa thu hồi được phiên server.
+- Docker/CI hỗ trợ `VITE_SSO_CLIENT_ID`, GitHub variable `FOREIGN_SSO_CLIENT_ID`, mặc định `foreign-web`.
+- Vitest kiểm tra PKCE và lifecycle session.
+
+## Cần làm / chưa làm
+
+Bạn tự tạo client trên Identity, **không seed DB Identity**:
+
+| Trường       | Production                                     | Local                                 |
+| ------------ | ---------------------------------------------- | ------------------------------------- |
+| Client ID    | `foreign-web` hoặc ID bạn chọn                 | Khớp `.env`                           |
+| Client type  | `public`                                       | `public`                              |
+| Domain       | `https://foreign.nvnhan0810.com`               | `http://localhost:5174`               |
+| Redirect URI | `https://foreign.nvnhan0810.com/auth/callback` | `http://localhost:5174/auth/callback` |
+| Scopes       | `profile`                                      | `profile`                             |
+| Enabled      | true                                           | true                                  |
+
+Domain là exact origin, không path. Có thể dùng client riêng cho local. Không dùng client secret.
+API origin production: `https://backend.nvnhan0810.com`; gateway tra CORS từ client đã đăng ký.
+Nếu ID khác mặc định, đặt variable rồi build lại image. Env runtime K3s không đổi được cấu hình Vite.
+
+Còn cần tạo client, deploy và smoke test browser thật: login/callback, reload, hết hạn/refresh,
+logout, nhiều tab và cookie/CORS trên domain thật. Test mock không thay thế kiểm thử này.
+
+Foreign API hiện chỉ demo public; chưa có API private, scope `foreign:*` hoặc ownership.
+Guard FE không thay thế authorization backend. Chưa triển khai schema/importer, nghiệp vụ,
+UI cũ, mobile/extension handoff và cutover dữ liệu; xem migration plan.
+
+### Dữ liệu test local và master data production
+
+```sh
+make -C backend migrate
+make -C backend seed
+```
+
+`seed` đọc DB_* từ backend/.env, tạo public client Identity Admin (`identity`)
+và Foreign (`foreign-web`) cho localhost:5174, không cần access token. Hai FE
+chạy luân phiên trên port này. Không tạo user giả; đăng nhập Google qua Identity.
+Client đã tồn tại giữ nguyên, không ghi đè metadata. Chỉ chạy seed trên DB dev/test.
+
+Production dùng `make -C backend master-data` hoặc CLI
+`console master-data`: chỉ tạo Identity Admin theo IDENTITY_CORS_ORIGIN và
+IDENTITY_REDIRECT_URI; Foreign production vẫn tạo thủ công trong Identity.

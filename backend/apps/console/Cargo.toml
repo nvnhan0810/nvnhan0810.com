@@ -22,3 +22,7 @@ path = "src/bin/migrate.rs"
 [[bin]]
 name = "seed"
 path = "src/bin/seed.rs"
+
+[[bin]]
+name = "console"
+path = "src/main.rs"

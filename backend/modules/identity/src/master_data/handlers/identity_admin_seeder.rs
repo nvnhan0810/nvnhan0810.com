@@ -2,7 +2,7 @@ use crate::application::{
     error::Result, handlers::master_data_handler::create_client_if_missing,
     ports::MasterDataRepository,
 };
-use crate::seeder::data::identity_admin::identity_admin_input;
+use crate::master_data::data::identity_admin::identity_admin_input;
 
 pub async fn run(
     repository: &dyn MasterDataRepository,
