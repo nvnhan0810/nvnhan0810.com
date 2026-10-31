@@ -9,6 +9,7 @@ export interface DictionaryEntry {
     definitions: {
       definition: string
       example: string
+      examples?: string[]
       synonyms: string[]
       antonyms: string[]
     }[]

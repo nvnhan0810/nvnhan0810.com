@@ -24,16 +24,23 @@ Use the exposed gateway port if running through Docker or port forwarding.
 
 ## Read-only lookup
 
-`GET /foreign/dictionary?q=hello` is public, returns an array of dictionary entries
+`GET /foreign/dictionary?q=hello` requires an Identity Bearer token with profile
+scope, active grant and valid user; returns an array of dictionary entries
 with `word`, `phonetic`, `phonetics` and `meanings` (provider `partOfSpeech`,
-definitions/examples/synonyms/antonyms). It calls https://dictionaryapi.dev/;
+definitions/examples/synonyms/antonyms). It tries dictionaryapi.dev → freedictionaryapi.com → api.suvankar.cc;
 no DB writes, user vocabulary, editing or migration.
 
 Errors: 400 `invalid_word`, 404 `word_not_found`, 502 `dictionary_unavailable`,
 503 `dictionary_busy`. Missing `q` is rejected by Axum's query extractor.
 Input: 1–100 ASCII bytes after trimming, letters/spaces/apostrophes/hyphens.
-Provider: HTTPS fixed host, no redirects, 8-second timeout, 2 MiB response limit,
+Provider: HTTPS fixed host, no redirects, 3-second timeout per provider, 2 MiB response limit,
 8 concurrent requests; gateway rate limiting still applies. No persistent cache.
 
 Validation: `cargo test --locked -p foreign`, `cargo check --locked -p api-gateway`.
 Live provider/audio and browser testing remain deployment checks.
+
+Unavailable upstreams cool down for 15 minutes (429: 1 hour), in process memory.
+Not-found also falls through to the next provider. If any provider is unavailable
+and none returns a result, respond 502 rather than claim a definitive 404.
+Provider contracts 2/3 are ported from legacy Laravel adapters, covered by fixtures;
+live production verification remains outstanding. Auth errors preserve HTTP status.

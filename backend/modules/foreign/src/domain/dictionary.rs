@@ -32,6 +32,8 @@ pub struct Definition {
     #[serde(default)]
     pub example: String,
     #[serde(default)]
+    pub examples: Vec<String>,
+    #[serde(default)]
     pub synonyms: Vec<String>,
     #[serde(default)]
     pub antonyms: Vec<String>,

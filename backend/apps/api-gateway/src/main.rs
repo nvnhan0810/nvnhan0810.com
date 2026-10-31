@@ -43,9 +43,9 @@ async fn main() {
     // 2. Khai báo router và gắn các middleware (Thứ tự thực thi từ dưới lên trên)
     let app = Router::new()
         .route("/", get(root_handler))
-        .nest("/auth", identity::identity_routes(identity_state))
+        .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
-        .nest("/foreign", foreign::foreign_routes())
+        .nest("/foreign", foreign::foreign_routes(identity_state))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông

@@ -89,7 +89,7 @@ Nếu ID khác mặc định, đặt variable rồi build lại image. Env runti
 Còn cần tạo client, deploy và smoke test browser thật: login/callback, reload, hết hạn/refresh,
 logout, nhiều tab và cookie/CORS trên domain thật. Test mock không thay thế kiểm thử này.
 
-Foreign API có demo/lookup public; chưa có API private, scope `foreign:*` hoặc ownership.
+Demo API còn public; lookup yêu cầu bearer token với scope `profile` và active grant. Chưa có scope nghiệp vụ `foreign:*` hoặc dữ liệu cần ownership.
 Guard FE không thay thế authorization backend. Chưa triển khai schema/importer, nghiệp vụ,
 UI cũ, mobile/extension handoff và cutover dữ liệu; xem migration plan.
 
@@ -111,19 +111,41 @@ IDENTITY_REDIRECT_URI; Foreign production vẫn tạo thủ công trong Identity
 
 ## Lookup — chỉ tra cứu
 
-Trang chủ chuyển đến `/lookup`. Tra tiếng Anh qua Rust gateway:
-`GET /foreign/dictionary?q=hello`. Không cần login cho lookup public.
-Nhập từ, Enter/Tra từ hoặc chọn gợi ý/từ liên quan. Query `?q=` hỗ trợ
-reload và Back/Forward. Kết quả có nhiều mục từ, nghĩa theo từ loại, ví dụ,
-đồng/trái nghĩa, phiên âm và audio khi nguồn có cung cấp. Định nghĩa bằng tiếng Anh.
-Có trạng thái chờ, không tìm thấy, lỗi mạng/provider và thử lại.
+`/` chỉ điều hướng: chờ restore session, chưa login → `/login`, đã login → `/lookup`.
+Đăng nhập qua Identity xong luôn đến `/lookup`; route lookup/profile đều có guard.
+Không hiển thị lookup trong lúc kiểm tra phiên. Logout trở về login.
 
-Nguồn [Free Dictionary API](https://dictionaryapi.dev/), cùng provider source cũ.
-Backend giới hạn 8 request đồng thời, timeout 8 giây, response 2 MiB, không theo
-redirect. Từ tra tối đa 100 ký tự, chữ Latin, dấu cách, nháy đơn và gạch nối.
-Audio HTTPS phát trực tiếp từ nguồn; không có audio thì không hiện player.
+UI dùng lại theme FLC và bố cục mobile cũ: header, bottom nav (chỉ các tính năng
+đã triển khai), input có nút Clear, nút Look up, card kết quả, Pronounce,
+UI/JSON chỉ đọc, nghĩa/ví dụ/đồng-trái nghĩa. Không lưu/sửa từ.
+Tablet 768–1023px dùng form ngang và vùng đọc có max-width. Laptop từ 1024px có navigation trái, vùng search sticky và vùng kết quả riêng; từ 1280px tăng khoảng cách/chiều rộng vùng đọc. Mobile giữ form dọc/bottom nav.
 
-Đã có test component cho tìm kiếm, deep link, related words, lỗi/thử lại và race
-request; Rust test kiểm tra input/DTO provider. Chưa có browser/visual test thật,
-kiểm thử audio/provider production. Chưa làm lưu/sửa từ, DB/cache dictionary,
-resolve biến thể từ, JSON editor hoặc copy prompt. Không gọi AI.
+`GET /foreign/dictionary?q=hello` yêu cầu Bearer token; gateway kiểm tra chữ ký,
+expiry, scope `profile`, active grant và tài khoản qua Identity trong cùng process.
+FE lấy token trong RAM, refresh và retry một lần khi API trả 401.
+
+Ba provider theo source Laravel cũ (bản Go chỉ còn provider đầu):
+
+1. `api.dictionaryapi.dev/api/v2/entries/en/{word}`
+2. `freedictionaryapi.com/api/v1/entries/en/{word}`
+3. `api.suvankar.cc/dictionaryapi/v1/definitions/en/{word}?compact=true`
+
+Thử tuần tự khi không có từ hoặc provider lỗi. Nguồn lỗi được tạm bỏ qua 15 phút,
+rate limit 1 giờ; cooldown trong RAM theo process, reset khi restart. Nếu có nguồn
+không truy cập được và không tìm được ở nguồn còn lại, báo unavailable thay vì
+kết luận chắc chắn không tồn tại từ. Timeout 3 giây/provider, tối đa 8 request
+lookup đồng thời, 2 MiB/provider, không redirect. Không DB/cache nội dung từ điển.
+Provider 2/3 được map theo contract source cũ; chưa xác minh live production.
+
+FE tách `application/ports/dictionary.ts`, use cases `lookup-word.ts` và
+`initialize-session.ts`, `infrastructure/dictionary-api.ts`,
+`presentation/composables/use-lookup.ts`, components `LookupSearch` và
+`DictionaryResult`. Page chỉ ghép UI; state/race/cancellation nằm trong composable,
+validation nằm trong use case, HTTP/token retry nằm trong adapter.
+
+Có tests use case, session routing, callback, component lookup/error/race,
+provider DTO và fallback/cooldown. Đã kiểm tra Chromium với API/session fixture ở 360/390/430/768/820/1024/1280/1440px, không overflow ngang và các cột laptop không chồng nhau. Chưa đối chiếu screenshot với app cũ, chưa test live audio/provider,
+DB/import, lưu/sửa từ, resolve biến thể, JSON editor, copy prompt và embed/WebView.
+Không gọi AI.
+
+Nút sáng/tối ở trang login và header; lưu `flc-theme` trong localStorage, lần đầu theo theme hệ điều hành.
