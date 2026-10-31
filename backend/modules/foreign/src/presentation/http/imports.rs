@@ -2,9 +2,10 @@ use super::{
     routes::ForeignState,
     vocabulary::{ApiError, internal},
 };
+use axum::response::IntoResponse;
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
 };
 use serde::Deserialize;
@@ -40,10 +41,8 @@ fn default_dry() -> bool {
 }
 pub async fn start(
     State(state): State<ForeignState>,
-    headers: HeaderMap,
-    Json(input): Json<Start>,
-) -> Result<(StatusCode, Json<Value>), ApiError> {
-    admin(&state, &headers).await?;
+    Query(input): Query<Start>,
+) -> Result<axum::response::Response, ApiError> {
     let config = app_config::ConfigSource::load().map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -103,10 +102,11 @@ pub async fn start(
     });
     Ok((
         StatusCode::ACCEPTED,
+        [(axum::http::header::CACHE_CONTROL, "no-store")],
         Json(
             json!({"run_id":id,"dry_run":input.dry_run,"status_url":format!("/foreign/imports/{id}")}),
         ),
-    ))
+    ).into_response())
 }
 pub async fn status(
     State(state): State<ForeignState>,

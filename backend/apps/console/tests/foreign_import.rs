@@ -278,21 +278,21 @@ async fn check_http_permissions(pool: &sqlx::PgPool, user: Uuid, other: Uuid) {
         )
         .await
         .unwrap();
-    assert_eq!(denied.status(), 403);
+    assert_eq!(denied.status(), 405);
     let denied = router
         .clone()
         .oneshot(
             Request::builder()
-                .method("POST")
-                .uri("/imports")
+                .method("GET")
+                .uri("/imports?command=arbitrary")
                 .header("Authorization", format!("Bearer {}", tokens[0]))
                 .header("Content-Type", "application/json")
-                .body(Body::from(r#"{"command":"arbitrary"}"#))
+                .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(denied.status(), 422);
+    assert_eq!(denied.status(), 400);
     sqlx::query("UPDATE identity_users SET email='nguyenvannhan0810@gmail.com' WHERE id=$1")
         .bind(user)
         .execute(pool)

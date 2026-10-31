@@ -14,7 +14,7 @@ pub fn foreign_routes(identity: identity::IdentityState, pool: sqlx::PgPool) -> 
             "/vocabularies",
             get(super::vocabulary::list).post(super::vocabulary::save),
         )
-        .route("/imports", axum::routing::post(super::imports::start))
+        .route("/imports", get(super::imports::start))
         .route("/imports/{id}", get(super::imports::status))
         .with_state(ForeignState {
             dictionary: Dictionary::new(),

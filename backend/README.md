@@ -598,4 +598,4 @@ cả hai cookie. /auth/logout vẫn kết thúc phiên SSO trung tâm. Không c�
 
 ## Saved vocabulary và import Laravel
 
-Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và root-only HTTP trigger background. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../docs/foreign-vocabulary-import.md).
+Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và GET HTTP trigger tạm không token (vẫn có cờ enable), status root-only. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../docs/foreign-vocabulary-import.md).
