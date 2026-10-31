@@ -45,6 +45,7 @@ async fn main() {
         .route("/", get(root_handler))
         .nest("/auth", identity::identity_routes(identity_state))
         .nest("/order", ordering::ordering_routes())
+        .nest("/foreign", foreign::foreign_routes())
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông

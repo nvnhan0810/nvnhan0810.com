@@ -3,6 +3,7 @@ members = [
     "shared-kernel",
     "modules/identity",
     "modules/ordering",
+    "modules/foreign",
     "apps/api-gateway",
     "apps/console",
     "crates/app-config"

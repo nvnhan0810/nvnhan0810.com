@@ -13,6 +13,7 @@ axum.workspace = true
 governor = "0.10.4"
 identity = { version = "0.1.0", path = "../../modules/identity" }
 ordering = { version = "0.1.0", path = "../../modules/ordering" }
+foreign = { version = "0.1.0", path = "../../modules/foreign" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared-kernel = { version = "0.1.0", path = "../../shared-kernel" }
