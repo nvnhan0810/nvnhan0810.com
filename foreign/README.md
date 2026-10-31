@@ -1,7 +1,7 @@
 # Foreign
 
 Scaffold FE: Vue 3, TypeScript strict, Vite, Vue Router; Vitest/Prettier tooling
-matches Identity. Includes Identity login, a protected profile page and the public demo API.
+matches Identity. Includes Identity login, a protected profile page and English dictionary lookup.
 Business features and data migration are not implemented yet.
 
 ```sh
@@ -89,7 +89,7 @@ Nếu ID khác mặc định, đặt variable rồi build lại image. Env runti
 Còn cần tạo client, deploy và smoke test browser thật: login/callback, reload, hết hạn/refresh,
 logout, nhiều tab và cookie/CORS trên domain thật. Test mock không thay thế kiểm thử này.
 
-Foreign API hiện chỉ demo public; chưa có API private, scope `foreign:*` hoặc ownership.
+Foreign API có demo/lookup public; chưa có API private, scope `foreign:*` hoặc ownership.
 Guard FE không thay thế authorization backend. Chưa triển khai schema/importer, nghiệp vụ,
 UI cũ, mobile/extension handoff và cutover dữ liệu; xem migration plan.
 
@@ -108,3 +108,22 @@ Client đã tồn tại giữ nguyên, không ghi đè metadata. Chỉ chạy se
 Production dùng `make -C backend master-data` hoặc CLI
 `console master-data`: chỉ tạo Identity Admin theo IDENTITY_CORS_ORIGIN và
 IDENTITY_REDIRECT_URI; Foreign production vẫn tạo thủ công trong Identity.
+
+## Lookup — chỉ tra cứu
+
+Trang chủ chuyển đến `/lookup`. Tra tiếng Anh qua Rust gateway:
+`GET /foreign/dictionary?q=hello`. Không cần login cho lookup public.
+Nhập từ, Enter/Tra từ hoặc chọn gợi ý/từ liên quan. Query `?q=` hỗ trợ
+reload và Back/Forward. Kết quả có nhiều mục từ, nghĩa theo từ loại, ví dụ,
+đồng/trái nghĩa, phiên âm và audio khi nguồn có cung cấp. Định nghĩa bằng tiếng Anh.
+Có trạng thái chờ, không tìm thấy, lỗi mạng/provider và thử lại.
+
+Nguồn [Free Dictionary API](https://dictionaryapi.dev/), cùng provider source cũ.
+Backend giới hạn 8 request đồng thời, timeout 8 giây, response 2 MiB, không theo
+redirect. Từ tra tối đa 100 ký tự, chữ Latin, dấu cách, nháy đơn và gạch nối.
+Audio HTTPS phát trực tiếp từ nguồn; không có audio thì không hiện player.
+
+Đã có test component cho tìm kiếm, deep link, related words, lỗi/thử lại và race
+request; Rust test kiểm tra input/DTO provider. Chưa có browser/visual test thật,
+kiểm thử audio/provider production. Chưa làm lưu/sửa từ, DB/cache dictionary,
+resolve biến thể từ, JSON editor hoặc copy prompt. Không gọi AI.

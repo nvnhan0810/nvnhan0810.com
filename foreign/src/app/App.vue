@@ -59,7 +59,8 @@ onMounted(async () => {
 
 <template>
   <nav class="auth-bar" aria-label="Tài khoản">
-    <RouterLink to="/">Foreign</RouterLink>
+    <RouterLink to="/" class="nav-brand">F<span>·</span> Foreign</RouterLink>
+    <RouterLink to="/lookup">Tra từ</RouterLink>
     <template v-if="ready">
       <template v-if="session.state.user">
         <RouterLink to="/profile">{{
