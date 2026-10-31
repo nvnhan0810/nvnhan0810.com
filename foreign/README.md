@@ -2,7 +2,7 @@
 
 Scaffold FE: Vue 3, TypeScript strict, Vite, Vue Router; Vitest/Prettier tooling
 matches Identity. Includes Identity login, a protected profile page and English dictionary lookup.
-Business features and data migration are not implemented yet.
+Includes saved vocabulary and a Laravel vocabulary importer; other business features remain planned.
 
 ```sh
 cd foreign
@@ -53,7 +53,7 @@ K3s: repo `~/www/k3s`, path `apps/foreign.nvnhan0810.com`.
 Frontend chỉ phục vụ UI; `/foreign/` API do gateway Rust cung cấp trên API host.
 Bản này có trang đầu/demo và login/profile Identity. Sync cấu hình mới sẽ thay web cũ bằng scaffold,
 đồng thời bỏ migration/queue cũ khỏi Kustomization; không xóa DB/media nguồn.
-Chưa có migration nghiệp vụ Foreign hoặc cutover dữ liệu.
+Đã có migration vocabulary và importer Laravel; chưa cutover dữ liệu thật.
 
 Port dev 5174 dùng chung quy ước Identity; dừng Identity dev khi chạy Foreign
 trên cùng máy hoặc override `npm run dev -- --port 5175` nếu cần chạy cả hai.
@@ -89,9 +89,9 @@ Nếu ID khác mặc định, đặt variable rồi build lại image. Env runti
 Còn cần tạo client, deploy và smoke test browser thật: login/callback, reload, hết hạn/refresh,
 logout, nhiều tab và cookie/CORS trên domain thật. Test mock không thay thế kiểm thử này.
 
-Demo API còn public; lookup yêu cầu bearer token với scope `profile` và active grant. Chưa có scope nghiệp vụ `foreign:*` hoặc dữ liệu cần ownership.
-Guard FE không thay thế authorization backend. Chưa triển khai schema/importer, nghiệp vụ,
-UI cũ, mobile/extension handoff và cutover dữ liệu; xem migration plan.
+Demo API còn public; lookup yêu cầu bearer token với scope `profile` và active grant. Vocabulary cũng dùng scope `profile`, server kiểm tra owner theo Identity UUID; chưa có scope `foreign:*` riêng.
+Guard FE không thay thế authorization backend. Đã có schema/importer vocabulary; chưa triển khai nghiệp vụ còn lại,
+mobile/extension handoff và cutover dữ liệu; xem migration plan.
 
 ### Dữ liệu test local và master data production
 
@@ -117,7 +117,7 @@ Không hiển thị lookup trong lúc kiểm tra phiên. Logout trở về login
 
 UI dùng lại theme FLC và bố cục mobile cũ: header, bottom nav (chỉ các tính năng
 đã triển khai), input có nút Clear, nút Look up, card kết quả, Pronounce,
-UI/JSON chỉ đọc, nghĩa/ví dụ/đồng-trái nghĩa. Không lưu/sửa từ.
+UI/JSON chỉ đọc, nghĩa/ví dụ/đồng-trái nghĩa. Có Save word và Copy prompt AI; chưa sửa từ.
 Tablet 768–1023px dùng form ngang và vùng đọc có max-width. Laptop từ 1024px có navigation trái, vùng search sticky và vùng kết quả riêng; từ 1280px tăng khoảng cách/chiều rộng vùng đọc. Mobile giữ form dọc/bottom nav.
 
 `GET /foreign/dictionary?q=hello` yêu cầu Bearer token; gateway kiểm tra chữ ký,
@@ -145,7 +145,11 @@ validation nằm trong use case, HTTP/token retry nằm trong adapter.
 
 Có tests use case, session routing, callback, component lookup/error/race,
 provider DTO và fallback/cooldown. Đã kiểm tra Chromium với API/session fixture ở 360/390/430/768/820/1024/1280/1440px, không overflow ngang và các cột laptop không chồng nhau. Chưa đối chiếu screenshot với app cũ, chưa test live audio/provider,
-DB/import, lưu/sửa từ, resolve biến thể, JSON editor, copy prompt và embed/WebView.
+production import, sửa từ, resolve biến thể, JSON editor và embed/WebView. Save/copy/My Words và import DB fixture đã test riêng theo runbook bên dưới.
 Không gọi AI.
 
 Nút sáng/tối ở trang login và Profile; header laptop (từ 1024px) vẫn có nút theme/logout, mobile/tablet dùng các nút trong Profile; lưu `flc-theme` trong localStorage, lần đầu theo theme hệ điều hành.
+
+## Saved vocabulary và import Laravel
+
+Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và root-only HTTP trigger background. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../docs/foreign-vocabulary-import.md).

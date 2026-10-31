@@ -27,6 +27,11 @@ async fn main() {
     .await
     .expect("Identity database/key initialization failed");
 
+    let foreign_pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect_with(config.database.connect_options())
+        .await
+        .expect("Foreign database initialization failed");
     let cors = api_gateway::cors::layer(
         identity_state.store.clone(),
         config.admin_cors_origin,
@@ -45,7 +50,7 @@ async fn main() {
         .route("/", get(root_handler))
         .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
-        .nest("/foreign", foreign::foreign_routes(identity_state))
+        .nest("/foreign", foreign::foreign_routes(identity_state, foreign_pool))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import WordActions from './WordActions.vue'
 import { computed, onUnmounted, ref } from 'vue'
 import type { DictionaryEntry } from '../../domain/dictionary'
 import { audioUrl } from '../../domain/dictionary'
-const props = defineProps<{ entry: DictionaryEntry }>()
+const props = defineProps<{ entry: DictionaryEntry; lookupActions?: boolean }>()
 defineEmits<{ related: [word: string] }>()
 const mode = ref<'ui' | 'json'>('ui')
 const error = ref('')
@@ -43,6 +44,7 @@ function unique(words: string[]) {
       {{ entry.phonetic || entry.phonetics.find((p) => p.text)?.text }}
     </p>
     <p v-if="error" role="alert">{{ error }}</p>
+    <WordActions v-if="lookupActions" :entry="entry" />
     <div class="meanings-header">
       <div class="meanings-mode-toggle" role="group" aria-label="Meanings view">
         <button

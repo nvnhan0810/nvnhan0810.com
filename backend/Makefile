@@ -39,3 +39,8 @@ master-data:
 # Ví dụ: make command CMD=master-data
 command:
 	cargo run --locked --package console --bin console -- $(CMD)
+
+# Laravel PostgreSQL vocabulary import; dry-run by default. IMPORT_ARGS=--apply to write.
+.PHONY: import-foreign
+import-foreign:
+	cargo run --locked --package console --bin console -- foreign:import $(IMPORT_ARGS)

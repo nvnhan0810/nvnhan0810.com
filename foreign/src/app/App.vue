@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ThemeToggle from '../shared/ThemeToggle.vue'
 import { watch } from 'vue'
-import { Globe, Search, UserRound, LogOut } from 'lucide-vue-next'
+import { Globe, Search, UserRound, LogOut, BookMarked } from 'lucide-vue-next'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { session } from './services'
 import { authError, authReady, logout } from './auth'
@@ -28,7 +28,15 @@ watch(
       <RouterLink to="/lookup" aria-label="FLC home"
         ><Globe :size="24"
       /></RouterLink>
-      <h1>{{ route.name === 'profile' ? 'Profile' : 'Lookup' }}</h1>
+      <h1>
+        {{
+          route.name === 'profile'
+            ? 'Profile'
+            : route.name === 'vocabulary'
+              ? 'Từ của tôi'
+              : 'Lookup'
+        }}
+      </h1>
       <div class="header-actions">
         <ThemeToggle />
         <button class="header-logout" aria-label="Sign out" @click="signOut">
@@ -50,6 +58,10 @@ watch(
       >
       <RouterLink to="/lookup" :class="{ active: route.name === 'lookup' }"
         ><Search class="icon" :size="22" />Lookup</RouterLink
+      ><RouterLink
+        to="/vocabulary"
+        :class="{ active: route.name === 'vocabulary' }"
+        ><BookMarked class="icon" :size="22" />Từ của tôi</RouterLink
       ><RouterLink to="/profile" :class="{ active: route.name === 'profile' }"
         ><UserRound class="icon" :size="22" />Profile</RouterLink
       >

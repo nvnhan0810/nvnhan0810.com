@@ -11,3 +11,7 @@ serde.workspace = true
 tokio.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 identity = { path = "../identity" }
+sqlx = { workspace = true, features = ["uuid", "json", "migrate"] }
+uuid.workspace = true
+app-config = { path = "../../crates/app-config" }
+tracing.workspace = true

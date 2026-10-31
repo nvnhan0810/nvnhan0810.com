@@ -336,11 +336,15 @@ name = "console"
 version = "0.1.0"
 dependencies = [
  "app-config",
+ "axum",
+ "foreign",
  "identity",
  "serde_json",
  "sqlx",
  "tokio",
+ "tower",
  "url",
+ "uuid",
 ]
 
 [[package]]
@@ -708,12 +712,16 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 name = "foreign"
 version = "0.1.0"
 dependencies = [
+ "app-config",
  "axum",
  "identity",
  "reqwest",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -595,3 +595,7 @@ cả hai cookie. /auth/logout vẫn kết thúc phiên SSO trung tâm. Không c�
 - Cả hai giữ nguyên client đã tồn tại. Muốn sửa client dùng Identity, không mong seed ghi đè.
 - Docker/K3s gọi `console master-data` sau migration; không chạy fixture local.
 - Không còn command tạo Foreign local riêng; Foreign production vẫn đăng ký qua Identity.
+
+## Saved vocabulary và import Laravel
+
+Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và root-only HTTP trigger background. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../docs/foreign-vocabulary-import.md).

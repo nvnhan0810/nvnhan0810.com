@@ -4,6 +4,7 @@ import { ensureSession } from '../auth'
 import { sessionDestination } from '../../modules/foreign/application/use-cases/initialize-session'
 import LoginPage from '../../modules/foreign/presentation/pages/LoginPage.vue'
 import LookupPage from '../../modules/foreign/presentation/pages/LookupPage.vue'
+import MyWordsPage from '../../modules/foreign/presentation/pages/MyWordsPage.vue'
 import ProfilePage from '../../modules/foreign/presentation/pages/ProfilePage.vue'
 const NavigationOnly = { render: () => null }
 export const router = createRouter({
@@ -13,6 +14,8 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: LoginPage },
     { path: '/lookup', name: 'lookup', component: LookupPage },
     { path: '/auth/callback', component: NavigationOnly },
+    { path: '/vocabulary', name: 'vocabulary', component: MyWordsPage },
+    { path: '/home/vocab', redirect: '/vocabulary' },
     { path: '/profile', name: 'profile', component: ProfilePage },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

@@ -22,3 +22,5 @@ pub async fn seed_all(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::error::Err
     commands::create_foreign_local_client::insert(pool).await?;
     Ok(())
 }
+
+pub mod migrations;

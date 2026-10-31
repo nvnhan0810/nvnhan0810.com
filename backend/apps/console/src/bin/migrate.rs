@@ -29,8 +29,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let source = ConfigSource::load()?;
     let database = DatabaseConfig::from_source(&source)?;
-    identity::migrate(database.connect_options(), action).await?;
-    println!("Identity migration command completed.");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect_with(database.connect_options())
+        .await?;
+    console::migrations::apply(&pool, action).await?;
+    pool.close().await;
+    println!("Workspace migration command completed.");
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-import { onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { DictionaryEntry } from '../../domain/dictionary'
 import { normalizeLookupWord } from '../../application/use-cases/lookup-word'
@@ -25,7 +25,22 @@ export function useLookup() {
     busy.value = true
     try {
       const result = await lookup.execute(word, request.signal)
-      if (controller === request) entries.value = result
+      if (controller === request) {
+        const grouped = new Map<string, DictionaryEntry>()
+        for (const entry of result) {
+          const existing = grouped.get(entry.word)
+          if (existing) {
+            existing.meanings.push(...entry.meanings)
+            existing.phonetics.push(...entry.phonetics)
+          } else
+            grouped.set(entry.word, {
+              ...entry,
+              meanings: [...entry.meanings],
+              phonetics: [...entry.phonetics],
+            })
+        }
+        entries.value = [...grouped.values()]
+      }
     } catch (e) {
       if (controller !== request) return
       error.value =
@@ -66,5 +81,18 @@ export function useLookup() {
     controller?.abort()
     controller = undefined
   })
-  return { query, entries, busy, error, searched, search, clear }
+  const draft = computed<DictionaryEntry | null>(() => {
+    if (!error.value || entries.value.length || busy.value) return null
+    try {
+      return {
+        word: normalizeLookupWord(searched.value),
+        phonetic: '',
+        phonetics: [],
+        meanings: [],
+      }
+    } catch {
+      return null
+    }
+  })
+  return { query, entries, busy, error, searched, search, clear, draft }
 }

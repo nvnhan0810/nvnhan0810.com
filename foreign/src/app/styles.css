@@ -807,3 +807,68 @@ button:disabled {
     flex-wrap: wrap;
   }
 }
+
+.word-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+.word-actions .alert {
+  flex-basis: 100%;
+}
+.my-words-page {
+  max-width: 1280px;
+  margin-inline: auto;
+}
+.my-words-search {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.my-words-search input {
+  min-width: 0;
+}
+.my-words-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+.saved-word {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.saved-word-heading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.saved-word-heading strong {
+  font-size: 20px;
+}
+.saved-word-heading small {
+  display: block;
+  margin-top: 6px;
+}
+.saved-word .lookup-result-card {
+  margin-top: 16px;
+  padding: 16px;
+}
+@media (min-width: 768px) {
+  .my-words-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1440px) {
+  .my-words-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

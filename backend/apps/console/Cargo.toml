@@ -9,9 +9,13 @@ autobins = false
 app-config = { path = "../../crates/app-config" }
 identity = { path = "../../modules/identity" }
 tokio.workspace = true
+foreign = { path = "../../modules/foreign" }
+uuid.workspace = true
 sqlx.workspace = true
 
 [dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+axum.workspace = true
 serde_json.workspace = true
 url = "2"
 

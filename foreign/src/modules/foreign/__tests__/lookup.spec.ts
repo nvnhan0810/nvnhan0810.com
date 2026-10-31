@@ -57,7 +57,7 @@ describe('Lookup', () => {
     expect(wrapper.text()).toContain('A greeting.')
     expect(wrapper.text()).toContain('Hello there.')
     expect(
-      wrapper.findAll('button').some((b) => /Lưu|Chỉnh sửa/.test(b.text())),
+      wrapper.findAll('button').some((b) => /Chỉnh sửa/.test(b.text())),
     ).toBe(false)
     await wrapper.get('.related-words button').trigger('click')
     await flushPromises()
@@ -68,6 +68,8 @@ describe('Lookup', () => {
     vi.mocked(lookupWord).mockRejectedValueOnce(new LookupFailure('not_found'))
     const { wrapper } = await page('/lookup?q=hello')
     expect(wrapper.text()).toContain('No dictionary entry found')
+    expect(wrapper.text()).toContain('Copy prompt AI')
+    expect(wrapper.text()).not.toContain('Save word')
     vi.mocked(lookupWord).mockRejectedValueOnce(
       new LookupFailure('unavailable'),
     )

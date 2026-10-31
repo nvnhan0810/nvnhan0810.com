@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useLookup } from '../composables/use-lookup'
+import WordActions from '../components/WordActions.vue'
 import LookupSearch from '../components/LookupSearch.vue'
 import DictionaryResult from '../components/DictionaryResult.vue'
-const { query, entries, busy, error, searched, search, clear } = useLookup()
+const { query, entries, busy, error, searched, search, clear, draft } =
+  useLookup()
 </script>
 <template>
   <div class="lookup-page">
@@ -39,11 +41,13 @@ const { query, entries, busy, error, searched, search, clear } = useLookup()
           Try again
         </button>
       </div>
+      <WordActions v-if="draft" :entry="draft" :allow-save="false" />
       <div v-if="entries.length" class="lookup-result-panel">
         <DictionaryResult
           v-for="(entry, i) in entries"
           :key="`${searched}-${i}`"
           :entry="entry"
+          lookup-actions
           @related="search"
         />
       </div>

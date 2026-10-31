@@ -9,8 +9,7 @@ Rust/Axum module mounted by API Gateway at `/foreign`.
 ```
 
 Layers: `domain`, `application`, `infrastructure`, `presentation/http`.
-Demo and read-only English dictionary lookup are implemented. No business logic, schema migration,
-seeding or data import is included in this scaffold.
+Demo, dictionary lookup, saved vocabulary and a Laravel PostgreSQL vocabulary importer are implemented. See the runbook below for schema and import configuration.
 
 Run through the existing API Gateway with its normal Identity/DB configuration:
 
@@ -28,7 +27,7 @@ Use the exposed gateway port if running through Docker or port forwarding.
 scope, active grant and valid user; returns an array of dictionary entries
 with `word`, `phonetic`, `phonetics` and `meanings` (provider `partOfSpeech`,
 definitions/examples/synonyms/antonyms). It tries dictionaryapi.dev → freedictionaryapi.com → api.suvankar.cc;
-no DB writes, user vocabulary, editing or migration.
+lookup itself does not write the DB. Separate vocabulary endpoints save/list owned words; editing remains unimplemented.
 
 Errors: 400 `invalid_word`, 404 `word_not_found`, 502 `dictionary_unavailable`,
 503 `dictionary_busy`. Missing `q` is rejected by Axum's query extractor.
@@ -44,3 +43,7 @@ Not-found also falls through to the next provider. If any provider is unavailabl
 and none returns a result, respond 502 rather than claim a definitive 404.
 Provider contracts 2/3 are ported from legacy Laravel adapters, covered by fixtures;
 live production verification remains outstanding. Auth errors preserve HTTP status.
+
+## Saved vocabulary và import Laravel
+
+Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và root-only HTTP trigger background. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../../../../docs/foreign-vocabulary-import.md).
