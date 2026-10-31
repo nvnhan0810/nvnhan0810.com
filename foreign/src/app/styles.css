@@ -759,3 +759,51 @@ button:disabled {
   justify-content: flex-end;
   margin: -16px -8px 8px;
 }
+
+/* Account actions live in Profile on mobile/tablet; desktop keeps quick actions. */
+@media (max-width: 1023px) {
+  .header-actions {
+    display: none;
+  }
+  .user-header {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+}
+.profile-page {
+  max-width: 800px;
+  margin-inline: auto;
+}
+.profile-account p {
+  overflow-wrap: anywhere;
+}
+.profile-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.profile-setting-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+.profile-setting-row h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.profile-setting-row p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.profile-logout {
+  flex-shrink: 0;
+  color: var(--danger);
+}
+@media (max-width: 430px) {
+  .profile-setting-row {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}

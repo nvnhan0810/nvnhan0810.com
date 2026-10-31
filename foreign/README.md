@@ -148,4 +148,4 @@ provider DTO và fallback/cooldown. Đã kiểm tra Chromium với API/session f
 DB/import, lưu/sửa từ, resolve biến thể, JSON editor, copy prompt và embed/WebView.
 Không gọi AI.
 
-Nút sáng/tối ở trang login và header; lưu `flc-theme` trong localStorage, lần đầu theo theme hệ điều hành.
+Nút sáng/tối ở trang login và Profile; header laptop (từ 1024px) vẫn có nút theme/logout, mobile/tablet dùng các nút trong Profile; lưu `flc-theme` trong localStorage, lần đầu theo theme hệ điều hành.
