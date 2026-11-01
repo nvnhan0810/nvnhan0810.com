@@ -6,6 +6,8 @@ rust-version.workspace = true
 autobins = false
 
 [dependencies]
+app-telemetry = { path = "../../crates/app-telemetry" }
+tracing.workspace = true
 app-resources = { path = "../../crates/app-resources" }
 app-config = { path = "../../crates/app-config" }
 identity = { path = "../../modules/identity" }

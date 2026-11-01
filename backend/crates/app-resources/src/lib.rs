@@ -75,6 +75,13 @@ impl AppResources {
         queue_prefix: &str,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let redis = SharedRedis::new(redis_url, queue_prefix)?;
+        Self::with_redis(database, redis).await
+    }
+
+    pub async fn with_redis(
+        database: sqlx::postgres::PgConnectOptions,
+        redis: SharedRedis,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let database = sqlx::postgres::PgPoolOptions::new()
             .max_connections(10)
             .acquire_timeout(Duration::from_secs(10))

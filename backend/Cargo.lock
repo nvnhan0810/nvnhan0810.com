@@ -110,6 +110,7 @@ version = "0.1.0"
 dependencies = [
  "app-config",
  "app-resources",
+ "app-telemetry",
  "axum",
  "foreign",
  "governor",
@@ -144,6 +145,24 @@ dependencies = [
  "redis",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "app-telemetry"
+version = "0.1.0"
+dependencies = [
+ "apalis",
+ "apalis-redis",
+ "app-config",
+ "app-resources",
+ "axum",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -462,6 +481,7 @@ version = "0.1.0"
 dependencies = [
  "app-config",
  "app-resources",
+ "app-telemetry",
  "axum",
  "foreign",
  "identity",
@@ -469,6 +489,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tower",
+ "tracing",
  "url",
  "uuid",
 ]

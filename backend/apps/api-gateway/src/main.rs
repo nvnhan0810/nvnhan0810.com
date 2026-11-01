@@ -10,23 +10,33 @@ use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_ansi(false)
-        .with_writer(std::io::stderr)
-        .init();
     let source = config::ConfigSource::load().expect("Configuration loading failed");
-    let config =
-        config::AppConfig::from_source(&source).expect("Invalid application configuration");
-    let resources = app_resources::AppResources::connect(
-        config.database.connect_options(),
+    let redis = app_resources::SharedRedis::new(
         &source.required("REDIS_URL").expect("Missing REDIS_URL"),
         &source
             .required("REDIS_QUEUE_PREFIX")
             .expect("Missing REDIS_QUEUE_PREFIX"),
     )
-    .await
-    .expect("Shared connections initialization failed");
+    .expect("Invalid Redis configuration");
+    let telemetry = app_telemetry::Telemetry::init(&source, redis.clone())
+        .expect("Logging initialization failed");
+    let result = tokio::spawn(run(source, redis)).await;
+    if result.is_err() {
+        tracing::error!("API gateway stopped after a panic");
+    }
+    telemetry.shutdown().await;
+    if result.is_err() {
+        std::process::exit(1);
+    }
+}
+
+async fn run(source: config::ConfigSource, redis: app_resources::SharedRedis) {
+    let config =
+        config::AppConfig::from_source(&source).expect("Invalid application configuration");
+    let resources =
+        app_resources::AppResources::with_redis(config.database.connect_options(), redis)
+            .await
+            .expect("Shared connections initialization failed");
     let identity_state = identity::IdentityState::new(
         config.identity,
         resources.database.clone(),

@@ -7,7 +7,8 @@ members = [
     "apps/api-gateway",
     "apps/console",
     "crates/app-config",
-    "crates/app-resources"
+    "crates/app-resources",
+    "crates/app-telemetry"
 ]
 resolver = "2"
 

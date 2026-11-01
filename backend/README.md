@@ -603,3 +603,22 @@ Foreign giữ các page mobile từ source Vue cũ; các override bố cục lap
 API JSON `GET /foreign/pages?path=...`, `POST /foreign/actions` và `POST /foreign/media/preview` dùng Bearer Identity, owner lấy từ token. Public dictionary/save/list API hiện có vẫn giữ. Không có thông báo, admin hay AI/Listening assessment.
 
 Đã bỏ command/API/cấu hình import DB cũ. Migration đã deploy được giữ nguyên checksum; migration mới xóa bảng import và thêm schema tính năng. Không tự chuyển dữ liệu hoặc chạy DB production.
+
+## Telegram warning/error logs
+
+API gateway and the dedicated Foreign transcript worker keep stderr logging and optionally forward warning/error events to Telegram through Apalis Redis. Configure:
+
+```env
+TELEGRAM_LOG_ENABLED=true
+TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
+TELEGRAM_CHAT_ID=YOUR_CHAT_ID
+TELEGRAM_LOG_LEVEL=warning
+```
+
+Use `error` to send only errors. Disabled by default; disabled logging needs no Telegram credentials. Restart the process after changing env. On k3s, update the backend Secret from `apps/backend.nvnhan0810.com/secret.env` using the normal deployment workflow; editing the local file alone does not update the cluster.
+
+The tracing layer uses `try_send` into a bounded 1024-event buffer, without Redis or Telegram I/O in the request path. A background publisher persists jobs to `<REDIS_QUEUE_PREFIX>:backend:queue:telegram-logs`; an embedded Apalis worker sends plain text via Telegram, with a five-second HTTP timeout and up to three delivery attempts. Identical level/target/message/fields are suppressed for 60 seconds per publisher process. Messages are truncated to 3800 characters; credential fields and configured DB/Redis/Google/Telegram secret values are redacted before entering the queue. Telegram transport and Apalis internal logs stay on stderr to avoid notification loops. HTTP 5xx events from the gateway trace layer and panic events are captured too; ordinary 4xx responses are not alerts.
+
+Redis connection managers are shared with other modules. During Redis outages, the publisher retries in the background. A full local buffer drops additional Telegram alerts and reports the count on stderr; stderr logging remains active. Shutdown attempts to persist buffered alerts for up to 15 seconds and stops the worker with a separate 15-second timeout. Persisted jobs survive restarts and may be delivered by another backend replica; in-memory events can be lost on process termination. Delivery can be duplicated if Telegram accepted a message before its HTTP response was lost.
+
+No real Telegram messages are sent by tests. HTTP tests use a localhost mock server. Seed/master-data/migration commands do not start the Telegram log worker.
