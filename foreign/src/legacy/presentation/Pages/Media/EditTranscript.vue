@@ -349,7 +349,7 @@ function save(): void {
           :disabled="saving"
           @click="save"
         >
-          {{ saving ? 'Saving…' : 'Save' }}
+          Save
         </button>
       </header>
     </template>
@@ -531,7 +531,7 @@ function save(): void {
               :disabled="saving"
               @click="save"
             >
-              {{ saving ? 'Saving…' : 'Save transcript' }}
+              Save transcript
             </button>
           </div>
         </section>

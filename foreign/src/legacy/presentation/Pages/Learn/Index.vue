@@ -553,7 +553,7 @@ const saveButtonLabel = computed((): string =>
           class="btn btn-block"
           :disabled="searchForm.processing"
         >
-          {{ searchForm.processing ? 'Looking up…' : 'Look up' }}
+          Look up
         </button>
       </form>
 

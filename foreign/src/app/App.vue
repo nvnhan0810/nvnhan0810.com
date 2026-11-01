@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
+import PageLoading from '../shared/PageLoading.vue'
+import { pendingRequests } from '../shared/loading'
 import { RouterView, useRouter } from 'vue-router'
 import { session } from './services'
 import { authError, authReady } from './auth'
@@ -12,10 +14,8 @@ watch(
 )
 </script>
 <template>
-  <p v-if="!authReady" class="session-loading" role="status">
-    Checking session…
-  </p>
-  <template v-else
+  <PageLoading v-if="!authReady || session.state.busy || pendingRequests > 0" />
+  <template v-if="authReady"
     ><p v-if="authError" class="alert alert-error" role="alert">
       {{ authError }}
     </p>

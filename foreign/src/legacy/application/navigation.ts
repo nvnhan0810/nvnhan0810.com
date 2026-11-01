@@ -2,6 +2,7 @@
 import { defineComponent, h, reactive, watchEffect } from 'vue'
 import { RouterLink } from 'vue-router'
 import { router as vueRouter } from '../../app/router'
+import { withLoading } from '../../shared/loading'
 import { session } from '../../app/services'
 import { logout } from '../../app/auth'
 import { foreignRequest } from '../../modules/foreign/infrastructure/foreign-api'
@@ -167,9 +168,14 @@ export function useForm<T extends Record<string, unknown>>(defaults: T) {
   return form
 }
 export async function apiFetch(path: string, init: RequestInit = {}) {
-  const token = await session.accessToken()
-  return fetch(`${session.settings.baseUrl}/foreign${path}`, {
-    ...init,
-    headers: { ...init.headers, Authorization: `Bearer ${token}` },
+  return withLoading(async () => {
+    const token = await session.accessToken()
+    const response = await fetch(`${session.settings.baseUrl}/foreign${path}`, {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(15000),
+      headers: { ...init.headers, Authorization: `Bearer ${token}` },
+    })
+    await response.clone().arrayBuffer()
+    return response
   })
 }

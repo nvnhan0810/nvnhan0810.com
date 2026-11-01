@@ -170,7 +170,7 @@ function onTranscriptSeek(seconds: number): void {
                 :disabled="captionForm.processing"
                 @click="fetchCaptions"
               >
-                {{ captionForm.processing ? 'Fetching…' : 'Fetch captions' }}
+                Fetch captions
               </button>
               <Link
                 :href="appPath(`/home/media/${item.id}/transcript/edit`)"
@@ -201,7 +201,7 @@ function onTranscriptSeek(seconds: number): void {
             :disabled="listened.processing"
             @click="markListened"
           >
-            {{ listened.processing ? 'Saving…' : 'Mark listened' }}
+            Mark listened
           </button>
         </section>
       </div>

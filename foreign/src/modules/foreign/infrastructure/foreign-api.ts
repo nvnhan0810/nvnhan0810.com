@@ -1,9 +1,13 @@
+import { withLoading } from '../../../shared/loading'
 import { session } from '../../../app/services'
 import { ApiError, fetchJson } from './transport'
 export async function foreignRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  return withLoading(() => request<T>(path, init))
+}
+async function request<T>(path: string, init: RequestInit): Promise<T> {
   const send = (token: string) =>
     fetchJson<T>(`${session.settings.baseUrl}/foreign${path}`, {
       ...init,

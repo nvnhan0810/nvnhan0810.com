@@ -67,7 +67,7 @@ async function fetchPreview() {
 
   fetching.value = true
   statusError.value = false
-  status.value = 'Fetching…'
+  status.value = ''
   preview.value = null
 
   try {
@@ -277,7 +277,7 @@ onUnmounted(() => {
                 :disabled="fetching || form.processing"
                 @click="fetchPreview"
               >
-                {{ fetching ? '…' : 'Fetch' }}
+                Fetch
               </button>
             </div>
             <p
@@ -334,7 +334,7 @@ onUnmounted(() => {
                 style="margin-top: 16px"
                 :disabled="form.processing"
               >
-                {{ form.processing ? 'Saving…' : 'Save' }}
+                Save
               </button>
             </form>
           </div>

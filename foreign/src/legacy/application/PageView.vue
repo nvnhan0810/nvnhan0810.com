@@ -69,13 +69,12 @@ async function load() {
 watch(() => route.fullPath, load, { immediate: true })
 </script>
 <template>
-  <p v-if="busy" class="empty-state" role="status">Loading…</p>
-  <div v-else-if="error" class="empty-state" role="alert">
+  <div v-if="!busy && error" class="empty-state" role="alert">
     {{ error }} <button class="btn" @click="load">Retry</button>
   </div>
   <component
     :is="component"
-    v-else
+    v-else-if="!busy"
     :key="`${route.path}:${page.revision}`"
     v-bind="screenProps"
   />
