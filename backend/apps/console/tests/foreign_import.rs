@@ -75,21 +75,15 @@ async fn imports_laravel_words_without_duplicates_and_preserves_ownership() {
         ("FOREIGN_IMPORT_SOURCE_ID".into(), "laravel-fixture".into()),
         ("FOREIGN_IMPORT_SOURCE_TIMEZONE".into(), "UTC".into()),
     ]);
-    let config = |mapping: String| {
-        ConfigSource::from_values(
-            base.iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .chain([("FOREIGN_IMPORT_USER_MAP".into(), mapping)]),
-        )
-    };
+    let config = ConfigSource::from_values(base.iter().cloned());
     let id = importer::create_run(&target, true).await.unwrap();
     assert!(importer::create_run(&target, true).await.is_err());
-    assert!(
-        importer::run(&target, id, true, &config("{}".into()))
-            .await
-            .is_err()
-    );
-    let config = config(format!("{{\"1\":\"{user}\"}}"));
+    assert!(importer::run(&target, id, true, &config).await.is_err());
+    sqlx::query("UPDATE identity_users SET email='nguyenvannhan0810@gmail.com' WHERE id=$1")
+        .bind(user)
+        .execute(&target)
+        .await
+        .unwrap();
     let id = importer::create_run(&target, true).await.unwrap();
     importer::run(&target, id, true, &config).await.unwrap();
     assert!(
@@ -144,8 +138,7 @@ async fn imports_laravel_words_without_duplicates_and_preserves_ownership() {
         .args(["foreign:import", "--dry-run", "--run-id", &run.to_string()])
         .current_dir(std::env::temp_dir())
         .env_clear()
-        .envs(base)
-        .env("FOREIGN_IMPORT_USER_MAP", format!("{{\"1\":\"{user}\"}}"))
+        .envs(base.clone())
         .output()
         .unwrap();
     assert!(
@@ -171,6 +164,77 @@ async fn imports_laravel_words_without_duplicates_and_preserves_ownership() {
         .await
         .unwrap();
     assert!(detail.contains("Source changed"));
+    // Switch the source to UUID IDs; ownership still uses the fixed account.
+    sqlx::raw_sql("DELETE FROM vocabularies; ALTER TABLE vocabularies DROP CONSTRAINT vocabularies_user_id_fkey; ALTER TABLE users ALTER COLUMN id DROP DEFAULT; ALTER TABLE users ALTER COLUMN id TYPE uuid USING md5(id::text)::uuid; ALTER TABLE vocabularies ALTER COLUMN user_id TYPE uuid USING md5(user_id::text)::uuid; ALTER TABLE vocabularies ADD FOREIGN KEY(user_id) REFERENCES users(id); ALTER TABLE vocabularies ALTER COLUMN id DROP DEFAULT; ALTER TABLE vocabularies ALTER COLUMN id TYPE uuid USING md5(id::text)::uuid;")
+        .execute(&source).await.unwrap();
+    let source_user = Uuid::new_v4();
+    sqlx::query("INSERT INTO users(id,name,email,password) VALUES($1,'UUID user',$2,'unused')")
+        .bind(source_user)
+        .bind(format!("  {other}@EXAMPLE.TEST  "))
+        .execute(&source)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO vocabularies(id,user_id,dictionary_entry_id,created_at,updated_at) VALUES($1,$2,1,'2025-01-01','2025-01-02')")
+        .bind(Uuid::new_v4()).bind(source_user).execute(&source).await.unwrap();
+    sqlx::query("UPDATE dictionary_meanings SET definition='A greeting.' WHERE id=1")
+        .execute(&source)
+        .await
+        .unwrap();
+    // The source users table is unnecessary, including for UUID owners.
+    sqlx::raw_sql(
+        "DROP TABLE users CASCADE; UPDATE dictionary_entries SET word='uuid-word' WHERE id=1;",
+    )
+    .execute(&source)
+    .await
+    .unwrap();
+    let duplicate = Uuid::new_v4();
+    sqlx::query("INSERT INTO identity_users(id,google_subject,email,name) VALUES($1,$2,'NGUYENVANNHAN0810@gmail.com','Duplicate')")
+        .bind(duplicate).bind(duplicate.to_string()).execute(&target).await.unwrap();
+    let run = importer::create_run(&target, false).await.unwrap();
+    assert!(
+        importer::run(&target, run, false, &config)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("Ambiguous")
+    );
+    sqlx::query("DELETE FROM identity_users WHERE id=$1")
+        .bind(duplicate)
+        .execute(&target)
+        .await
+        .unwrap();
+    let run = importer::create_run(&target, true).await.unwrap();
+    importer::run(&target, run, true, &config).await.unwrap();
+    assert_eq!(
+        vocabulary::list(&target, user, "", i64::MAX)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    for _ in 0..2 {
+        let run = importer::create_run(&target, false).await.unwrap();
+        importer::run(&target, run, false, &config).await.unwrap();
+    }
+    assert_eq!(
+        vocabulary::list(&target, user, "", i64::MAX)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+    assert!(
+        vocabulary::list(&target, other, "", i64::MAX)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    let records: i64 = sqlx::query_scalar("SELECT count(*) FROM foreign_import_records")
+        .fetch_one(&target)
+        .await
+        .unwrap();
+    assert_eq!(records, 2);
+    // The combined schema rolls back both integer and UUID source records.
     console::migrations::apply(&target, identity::MigrationAction::Down { target: Some(0) })
         .await
         .unwrap();
