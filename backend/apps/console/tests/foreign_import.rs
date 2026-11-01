@@ -19,6 +19,31 @@ async fn imports_laravel_words_without_duplicates_and_preserves_ownership() {
         .connect(&std::env::var("FOREIGN_TEST_SOURCE").unwrap())
         .await
         .unwrap();
+    // Simulate the deployed migration history before applying the new migration.
+    let identity = sqlx::migrate!("../../modules/identity/migrations");
+    let foreign = sqlx::migrate!("../../modules/foreign/migrations");
+    let mut migrations: Vec<_> = identity
+        .iter()
+        .chain(foreign.iter())
+        .filter(|migration| migration.version <= 20261031000001)
+        .cloned()
+        .collect();
+    migrations.sort_by_key(|migration| {
+        (
+            migration.version,
+            !migration.migration_type.is_up_migration(),
+        )
+    });
+    sqlx::migrate::Migrator {
+        migrations: migrations.into(),
+        ..sqlx::migrate::Migrator::DEFAULT
+    }
+    .run(&target)
+    .await
+    .unwrap();
+    let old_type: String = sqlx::query_scalar("SELECT data_type FROM information_schema.columns WHERE table_name='foreign_import_records' AND column_name='source_id'")
+        .fetch_one(&target).await.unwrap();
+    assert_eq!(old_type, "bigint");
     console::migrations::apply(&target, identity::MigrationAction::Up)
         .await
         .unwrap();
@@ -234,7 +259,22 @@ async fn imports_laravel_words_without_duplicates_and_preserves_ownership() {
         .await
         .unwrap();
     assert_eq!(records, 2);
-    // The combined schema rolls back both integer and UUID source records.
+    // UUID records prevent a lossy rollback to BIGINT.
+    let mut rollback = target.begin().await.unwrap();
+    assert!(
+        sqlx::raw_sql(include_str!(
+            "../../../modules/foreign/migrations/20261101000001_import_source_ids.down.sql"
+        ))
+        .execute(&mut *rollback)
+        .await
+        .is_err()
+    );
+    rollback.rollback().await.unwrap();
+    // Remove only UUID fixture mappings before testing full schema rollback.
+    sqlx::query("DELETE FROM foreign_import_records WHERE source_id <> '1'")
+        .execute(&target)
+        .await
+        .unwrap();
     console::migrations::apply(&target, identity::MigrationAction::Down { target: Some(0) })
         .await
         .unwrap();

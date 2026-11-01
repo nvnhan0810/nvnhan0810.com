@@ -18,6 +18,6 @@ CREATE TABLE foreign_import_runs (
 );
 CREATE UNIQUE INDEX foreign_one_import ON foreign_import_runs ((true)) WHERE status IN ('queued','running');
 CREATE TABLE foreign_import_records (
- source_system TEXT NOT NULL, source_id TEXT NOT NULL, source_snapshot JSONB NOT NULL, target_id BIGINT NOT NULL REFERENCES foreign_vocabularies(id),
+ source_system TEXT NOT NULL, source_id BIGINT NOT NULL, source_snapshot JSONB NOT NULL, target_id BIGINT NOT NULL REFERENCES foreign_vocabularies(id),
  PRIMARY KEY(source_system,source_id)
 );
