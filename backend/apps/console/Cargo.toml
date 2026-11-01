@@ -6,6 +6,7 @@ rust-version.workspace = true
 autobins = false
 
 [dependencies]
+app-resources = { path = "../../crates/app-resources" }
 app-config = { path = "../../crates/app-config" }
 identity = { path = "../../modules/identity" }
 tokio.workspace = true

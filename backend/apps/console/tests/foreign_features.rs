@@ -8,6 +8,18 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
 use uuid::Uuid;
+async fn latest_task(pool: &PgPool) -> foreign::infrastructure::transcript_queue::TranscriptTask {
+    let (media_id, payload): (i64, Value) = sqlx::query_as("SELECT id,payload FROM foreign_media WHERE payload->>'transcript_task_id' IS NOT NULL ORDER BY id DESC LIMIT 1").fetch_one(pool).await.unwrap();
+    foreign::infrastructure::transcript_queue::TranscriptTask {
+        id: payload["transcript_task_id"]
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap(),
+        media_id,
+        video_id: payload["source_id"].as_str().unwrap().into(),
+    }
+}
 async fn request(
     app: &Router,
     token: Option<&str>,
@@ -128,7 +140,17 @@ async fn setup(pool: &PgPool) -> (Router, Uuid, String, Uuid, String) {
     let (other, other_token) = users.pop().unwrap();
     let (user, token) = users.pop().unwrap();
     (
-        foreign::foreign_routes(state, pool.clone()),
+        foreign::foreign_routes(
+            state,
+            pool.clone(),
+            app_resources::SharedRedis::new(
+                &std::env::var("FOREIGN_TEST_REDIS_URL")
+                    .expect("requires disposable FOREIGN_TEST_REDIS_URL without workers"),
+                "foreign-integration-test",
+            )
+            .unwrap(),
+        )
+        .unwrap(),
         user,
         token,
         other,
@@ -136,7 +158,7 @@ async fn setup(pool: &PgPool) -> (Router, Uuid, String, Uuid, String) {
     )
 }
 #[tokio::test]
-#[ignore = "requires FOREIGN_TEST_TARGET pointing to an empty disposable PostgreSQL database"]
+#[ignore = "requires FOREIGN_TEST_TARGET (empty PostgreSQL) and FOREIGN_TEST_REDIS_URL (disposable Redis without workers)"]
 async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import() {
     let pool = PgPool::connect(&std::env::var("FOREIGN_TEST_TARGET").unwrap())
         .await
@@ -381,6 +403,165 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
     assert_eq!(create.0, 200, "{create:?}");
     let media_path = create.1["redirect"].as_str().unwrap();
     assert_eq!(page(&app, &other_token, media_path).await.0, 404);
+    use foreign::infrastructure::transcript_queue as queue;
+    assert_eq!(
+        page(&app, &token, media_path).await.1["item"]["transcript_status"],
+        "queued"
+    );
+    // Saving a video dispatched a durable job; repeated dispatch cannot duplicate it.
+    for _ in 0..2 {
+        assert_eq!(
+            action(
+                &app,
+                &token,
+                &format!("{media_path}/captions"),
+                "POST",
+                json!({}),
+                Value::Null
+            )
+            .await
+            .0,
+            200
+        );
+    }
+    let job = latest_task(&pool).await;
+    assert_eq!(
+        page(&app, &token, media_path).await.1["item"]["transcript_task_id"],
+        job.id.to_string()
+    );
+    // Editing during an in-flight fetch cancels it and the old worker cannot overwrite the edit.
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            &format!("{media_path}/transcript"),
+            "PUT",
+            json!({"segments":[{"start":0,"end":1,"text":"Manual edit"}]}),
+            Value::Null
+        )
+        .await
+        .0,
+        200
+    );
+    assert!(
+        !queue::complete(
+            &pool,
+            &job,
+            &[json!({"start":0,"end":1,"text":"Stale worker"})]
+        )
+        .await
+        .unwrap()
+    );
+    assert_eq!(
+        page(&app, &token, media_path).await.1["item"]["transcript"],
+        "Manual edit"
+    );
+    // Clear and request a fresh job. Retry failures at most three times, with backoff.
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            &format!("{media_path}/transcript"),
+            "PUT",
+            json!({"segments":[]}),
+            Value::Null
+        )
+        .await
+        .0,
+        200
+    );
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            &format!("{media_path}/captions"),
+            "POST",
+            json!({}),
+            Value::Null
+        )
+        .await
+        .0,
+        200
+    );
+    for attempt in 1..=3 {
+        assert!(
+            queue::run_once_with(
+                &pool,
+                &latest_task(&pool).await,
+                attempt as usize,
+                |_| async { Err("Temporary provider failure".to_owned()) }
+            )
+            .await
+            .is_err()
+        );
+        let status: String = sqlx::query_scalar(
+            "SELECT payload->>'transcript_status' FROM foreign_media WHERE id=$1",
+        )
+        .bind(job.media_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(status, if attempt == 3 { "failed" } else { "queued" });
+    }
+    assert_eq!(
+        page(&app, &token, media_path).await.1["item"]["transcript_status"],
+        "failed"
+    );
+    // An Apalis redelivery gets a new fencing token; late results are rejected.
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            &format!("{media_path}/captions"),
+            "POST",
+            json!({}),
+            Value::Null
+        )
+        .await
+        .0,
+        200
+    );
+    let recovered = latest_task(&pool).await;
+    let expired = job;
+    assert!(
+        !queue::complete(
+            &pool,
+            &expired,
+            &[json!({"start":0,"end":1,"text":"Expired"})]
+        )
+        .await
+        .unwrap()
+    );
+    assert!(
+        queue::complete(
+            &pool,
+            &recovered,
+            &[json!({"start":0,"end":2,"text":"Fetched caption"})]
+        )
+        .await
+        .unwrap()
+    );
+    assert_eq!(
+        page(&app, &token, media_path).await.1["item"]["transcript_status"],
+        "completed"
+    );
+    assert_eq!(
+        page(&app, &token, media_path).await.1["item"]["transcript"],
+        "Fetched caption"
+    );
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            &format!("{media_path}/captions"),
+            "POST",
+            json!({}),
+            Value::Null
+        )
+        .await
+        .0,
+        400
+    );
     let invalid = action(
         &app,
         &token,

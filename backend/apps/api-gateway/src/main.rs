@@ -18,20 +18,31 @@ async fn main() {
     let source = config::ConfigSource::load().expect("Configuration loading failed");
     let config =
         config::AppConfig::from_source(&source).expect("Invalid application configuration");
+    let resources = app_resources::AppResources::connect(
+        config.database.connect_options(),
+        &source.required("REDIS_URL").expect("Missing REDIS_URL"),
+        &source
+            .required("REDIS_QUEUE_PREFIX")
+            .expect("Missing REDIS_QUEUE_PREFIX"),
+    )
+    .await
+    .expect("Shared connections initialization failed");
     let identity_state = identity::IdentityState::new(
         config.identity,
-        config.database.connect_options(),
+        resources.database.clone(),
         &config.private_key_path,
         &config.public_key_path,
     )
     .await
     .expect("Identity database/key initialization failed");
 
-    let foreign_pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect_with(config.database.connect_options())
-        .await
-        .expect("Foreign database initialization failed");
+    let foreign = foreign::start(
+        identity_state.clone(),
+        resources.database.clone(),
+        resources.redis.clone(),
+    )
+    .await
+    .expect("Foreign initialization failed");
     let cors = api_gateway::cors::layer(
         identity_state.store.clone(),
         config.admin_cors_origin,
@@ -50,7 +61,7 @@ async fn main() {
         .route("/", get(root_handler))
         .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
-        .nest("/foreign", foreign::foreign_routes(identity_state, foreign_pool))
+        .nest("/foreign", foreign.router())
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
@@ -69,13 +80,20 @@ async fn main() {
     // Bind ra 0.0.0.0 để nhận kết nối từ port forwarding của VM
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     println!("API Gateway đang chạy tại http://0.0.0.0:8080");
-    axum::serve(
+    let foreign_shutdown = foreign.shutdown_handle();
+    let result = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown_signal())
-    .await
-    .unwrap();
+    .with_graceful_shutdown(async move {
+        shutdown_signal().await;
+        foreign_shutdown.request_shutdown();
+    })
+    .await;
+    let shutdown_result = foreign.shutdown().await;
+    resources.shutdown().await;
+    shutdown_result.expect("Foreign shutdown failed");
+    result.expect("HTTP server failed");
 }
 
 async fn root_handler() -> Json<Value> {

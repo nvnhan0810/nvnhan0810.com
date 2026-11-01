@@ -39,3 +39,8 @@ master-data:
 # Ví dụ: make command CMD=master-data
 command:
 	cargo run --locked --package console --bin console -- $(CMD)
+
+# Optional dedicated worker. Set QueueConfig.api_worker_enabled=false in the foreign config when using it.
+.PHONY: transcript-worker
+transcript-worker:
+	cargo run --locked --package console --bin console -- foreign:transcript-worker

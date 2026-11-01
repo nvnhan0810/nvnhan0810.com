@@ -6,7 +6,8 @@ members = [
     "modules/foreign",
     "apps/api-gateway",
     "apps/console",
-    "crates/app-config"
+    "crates/app-config",
+    "crates/app-resources"
 ]
 resolver = "2"
 

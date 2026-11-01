@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { appPath } from '@/path'
-import { Head, Link, usePage, useForm } from '@/application/navigation'
-import { computed, ref } from 'vue'
+import { Head, Link, usePage, useForm, router } from '@/application/navigation'
+import { computed, ref, watch, onUnmounted } from 'vue'
+import { LoaderCircle } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import YouTubeSyncedPlayer from '@/Components/media/YouTubeSyncedPlayer.vue'
 import TimedTranscriptList from '@/Components/media/TimedTranscriptList.vue'
@@ -23,12 +24,39 @@ type MediaShowItem = {
   transcript: string | null
   transcript_segments: TranscriptSegment[] | null
   analysis_status: string | null
+  transcript_status?: string | null
+  transcript_error?: string | null
 }
 
 const props = defineProps<{
   item: MediaShowItem
 }>()
 
+const transcriptPending = computed(() =>
+  ['queued', 'running'].includes(props.item.transcript_status || ''),
+)
+let pollTimer: ReturnType<typeof setInterval> | undefined
+let polling = false
+watch(
+  transcriptPending,
+  (pending) => {
+    clearInterval(pollTimer)
+    if (pending)
+      pollTimer = setInterval(async () => {
+        if (polling) return
+        polling = true
+        try {
+          await router.reload({ background: true })
+        } catch {
+          /* Retry transient polling failures on the next tick. */
+        } finally {
+          polling = false
+        }
+      }, 2000)
+  },
+  { immediate: true },
+)
+onUnmounted(() => clearInterval(pollTimer))
 const listened = useForm({})
 const captionForm = useForm({})
 function markListened() {
@@ -167,7 +195,7 @@ function onTranscriptSeek(seconds: number): void {
                 v-if="!item.transcript && !hasTimedTranscript"
                 type="button"
                 class="btn btn-sm btn-secondary"
-                :disabled="captionForm.processing"
+                :disabled="captionForm.processing || transcriptPending"
                 @click="fetchCaptions"
               >
                 Fetch captions
@@ -183,8 +211,32 @@ function onTranscriptSeek(seconds: number): void {
 
           <div class="transcript-scroll-panel">
             <div class="transcript-view">
+              <div
+                v-if="transcriptPending && !hasTimedTranscript"
+                class="transcript-queue-loading"
+                role="status"
+                aria-label="Đang lấy transcript"
+              >
+                <LoaderCircle
+                  class="transcript-queue-spinner"
+                  :size="32"
+                  aria-hidden="true"
+                />
+              </div>
+              <p
+                v-else-if="
+                  item.transcript_status === 'failed' && !hasTimedTranscript
+                "
+                class="alert alert-error"
+                role="alert"
+              >
+                {{
+                  item.transcript_error ||
+                  'Could not fetch captions. Retry or add a transcript manually.'
+                }}
+              </p>
               <TimedTranscriptList
-                v-if="hasTimedTranscript"
+                v-else-if="hasTimedTranscript"
                 :segments="segments"
                 :active-index="activeSegmentIndex"
                 @seek="onTranscriptSeek"
@@ -208,3 +260,25 @@ function onTranscriptSeek(seconds: number): void {
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+.transcript-queue-loading {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: var(--primary);
+}
+.transcript-queue-spinner {
+  animation: transcript-queue-spin 0.8s linear infinite;
+}
+@keyframes transcript-queue-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .transcript-queue-spinner {
+    animation: none;
+  }
+}
+</style>

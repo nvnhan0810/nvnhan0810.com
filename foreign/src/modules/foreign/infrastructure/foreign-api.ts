@@ -4,8 +4,11 @@ import { ApiError, fetchJson } from './transport'
 export async function foreignRequest<T>(
   path: string,
   init: RequestInit = {},
+  options: { background?: boolean } = {},
 ): Promise<T> {
-  return withLoading(() => request<T>(path, init))
+  return options.background
+    ? request<T>(path, init)
+    : withLoading(() => request<T>(path, init))
 }
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const send = (token: string) =>

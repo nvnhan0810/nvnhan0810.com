@@ -39,6 +39,7 @@ export const Link = defineComponent({
   },
 })
 interface Options {
+  background?: boolean
   onSuccess?: () => void
   onError?: () => void
   onFinish?: () => void
@@ -47,9 +48,11 @@ interface Options {
   preserveState?: boolean
   only?: string[]
 }
-export async function loadPage(path: string) {
+export async function loadPage(path: string, background = false) {
   const result = await foreignRequest<PageProps>(
     `/pages?path=${encodeURIComponent(path)}`,
+    {},
+    { background },
   )
   if (vueRouter.currentRoute.value.fullPath !== path) return
   if (typeof result.redirect === 'string') {
@@ -118,7 +121,10 @@ export const router = {
     submit(path, data, 'PUT', options),
   reload: async (options: Options = {}) => {
     try {
-      await loadPage(vueRouter.currentRoute.value.fullPath)
+      await loadPage(
+        vueRouter.currentRoute.value.fullPath,
+        options.background ?? false,
+      )
     } finally {
       options.onFinish?.()
     }
