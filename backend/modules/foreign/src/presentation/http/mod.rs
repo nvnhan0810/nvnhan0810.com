@@ -3,4 +3,5 @@ pub mod routes;
 
 mod vocabulary;
 
-mod imports;
+mod media;
+mod pages;

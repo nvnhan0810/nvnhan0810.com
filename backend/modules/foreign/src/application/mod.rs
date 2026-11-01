@@ -1,3 +1,3 @@
-//! Foreign application layer. Business implementation will be added separately.
+//! Foreign application layer.
 
 pub mod vocabulary;

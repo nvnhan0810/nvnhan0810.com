@@ -32,6 +32,6 @@ pub async fn list(
     q: &str,
     before: i64,
 ) -> Result<Vec<Vocabulary>, sqlx::Error> {
-    sqlx::query_as("SELECT v.id,e.word,e.payload AS entry,v.created_at::text AS created_at FROM foreign_vocabularies v JOIN foreign_dictionary_entries e ON e.id=v.dictionary_entry_id WHERE v.user_id=$1 AND v.id < $2 AND ($3='' OR strpos(e.word,lower($3))>0) ORDER BY v.id DESC LIMIT 31")
+    sqlx::query_as("SELECT v.id,e.word,COALESCE(v.entry_override,e.payload) AS entry,v.created_at::text AS created_at FROM foreign_vocabularies v JOIN foreign_dictionary_entries e ON e.id=v.dictionary_entry_id WHERE v.user_id=$1 AND v.id < $2 AND ($3='' OR strpos(e.word,lower($3))>0) ORDER BY v.id DESC LIMIT 31")
         .bind(user).bind(before).bind(q).fetch_all(pool).await
 }

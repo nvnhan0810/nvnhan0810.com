@@ -10,12 +10,13 @@ pub fn foreign_routes(identity: identity::IdentityState, pool: sqlx::PgPool) -> 
     Router::new()
         .route("/", get(super::handlers::demo))
         .route("/dictionary", get(super::handlers::lookup))
+        .route("/pages", get(super::pages::get))
+        .route("/actions", axum::routing::post(super::pages::action))
+        .route("/media/preview", axum::routing::post(super::media::preview))
         .route(
             "/vocabularies",
             get(super::vocabulary::list).post(super::vocabulary::save),
         )
-        .route("/imports", get(super::imports::start))
-        .route("/imports/{id}", get(super::imports::status))
         .with_state(ForeignState {
             dictionary: Dictionary::new(),
             identity,

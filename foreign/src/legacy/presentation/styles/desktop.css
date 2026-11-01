@@ -1,0 +1,63 @@
+/* The source profile header is a shell slot, so it must not inherit main-content negative gutters. */
+.user-shell > .profile-header {
+  margin-inline: 0;
+}
+.login-theme {
+  display: flex;
+  justify-content: flex-end;
+}
+.login-theme > .theme-toggle {
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+}
+/* Mobile DOM/styles are copied from the source. All layout overrides start at tablet. */
+@media (min-width: 768px) {
+  [data-vocab-list],
+  .media-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .vocab-card,
+  .media-list-item {
+    margin-bottom: 0;
+    min-width: 0;
+  }
+  .puzzle-mode-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .user-main {
+    min-width: 0;
+  }
+}
+@media (min-width: 1024px) {
+  .user-main:not(.user-main-game) {
+    padding: 28px 36px;
+  }
+  .media-show-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
+    align-items: start;
+    gap: 24px;
+  }
+  .media-show-main .transcript-panel {
+    margin-top: 0;
+  }
+  .puzzle-mode-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

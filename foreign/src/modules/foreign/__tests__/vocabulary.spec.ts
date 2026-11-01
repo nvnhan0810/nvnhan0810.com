@@ -2,8 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import WordActions from '../presentation/components/WordActions.vue'
-import MyWordsPage from '../presentation/pages/MyWordsPage.vue'
-import { saveWord, listMyWords } from '../../../app/vocabulary'
+import { saveWord } from '../../../app/vocabulary'
 import { copyPrompt } from '../../../app/clipboard'
 import { CopyPrompt } from '../application/use-cases/copy-prompt'
 import { SaveWord } from '../application/use-cases/vocabulary'
@@ -33,12 +32,12 @@ const entry = {
   ],
 }
 async function setup(
-  component: typeof MyWordsPage | typeof WordActions,
-  props = {},
+  component: typeof WordActions,
+  props: { entry: typeof entry },
 ) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/vocabulary', component: MyWordsPage }],
+    routes: [{ path: '/vocabulary', component: { render: () => null } }],
   })
   await router.push('/vocabulary')
   await router.isReady()
@@ -74,39 +73,5 @@ describe('Saved vocabulary and AI prompt', () => {
       new SaveWord(gateway).execute({ ...entry, meanings: [] }),
     ).toThrow()
     expect(gateway.save).not.toHaveBeenCalled()
-  })
-  it('loads, expands and paginates owned words', async () => {
-    vi.mocked(listMyWords.execute)
-      .mockResolvedValueOnce({
-        items: [{ id: 1, word: 'hello', entry, created_at: '2026-01-01' }],
-        next_cursor: 1,
-      })
-      .mockResolvedValueOnce({
-        items: [
-          {
-            id: 2,
-            word: 'hi',
-            entry: { ...entry, word: 'hi' },
-            created_at: '2026-01-01',
-          },
-        ],
-        next_cursor: null,
-      })
-    const wrapper = await setup(MyWordsPage)
-    expect(wrapper.text()).toContain('hello')
-    await wrapper.get('.saved-word-heading').trigger('click')
-    expect(wrapper.text()).toContain('Hello there.')
-    await wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Tải thêm')!
-      .trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('hi')
-    expect(listMyWords.execute).toHaveBeenLastCalledWith(
-      '',
-      1,
-      expect.any(AbortSignal),
-    )
-    wrapper.unmount()
   })
 })

@@ -2,7 +2,7 @@
 
 Scaffold FE: Vue 3, TypeScript strict, Vite, Vue Router; Vitest/Prettier tooling
 matches Identity. Includes Identity login, a protected profile page and English dictionary lookup.
-Includes saved vocabulary and a Laravel vocabulary importer; other business features remain planned.
+Includes vocabulary list/detail, JSON editing, Quiz and four Word Games, YouTube/transcripts and profile history. Old database import has been removed.
 
 ```sh
 cd foreign
@@ -53,7 +53,7 @@ K3s: repo `~/www/k3s`, path `apps/foreign.nvnhan0810.com`.
 Frontend chỉ phục vụ UI; `/foreign/` API do gateway Rust cung cấp trên API host.
 Bản này có trang đầu/demo và login/profile Identity. Sync cấu hình mới sẽ thay web cũ bằng scaffold,
 đồng thời bỏ migration/queue cũ khỏi Kustomization; không xóa DB/media nguồn.
-Đã có migration vocabulary và importer Laravel; chưa cutover dữ liệu thật.
+Có schema cho vocabulary, games và media. Người dùng tự xử lý dữ liệu DB; không còn importer DB cũ.
 
 Port dev 5174 dùng chung quy ước Identity; dừng Identity dev khi chạy Foreign
 trên cùng máy hoặc override `npm run dev -- --port 5175` nếu cần chạy cả hai.
@@ -90,7 +90,7 @@ Còn cần tạo client, deploy và smoke test browser thật: login/callback, r
 logout, nhiều tab và cookie/CORS trên domain thật. Test mock không thay thế kiểm thử này.
 
 Demo API còn public; lookup yêu cầu bearer token với scope `profile` và active grant. Vocabulary cũng dùng scope `profile`, server kiểm tra owner theo Identity UUID; chưa có scope `foreign:*` riêng.
-Guard FE không thay thế authorization backend. Đã có schema/importer vocabulary; chưa triển khai nghiệp vụ còn lại,
+Guard FE không thay thế authorization backend. API Foreign kiểm tra Identity và quyền sở hữu dữ liệu;
 mobile/extension handoff và cutover dữ liệu; xem migration plan.
 
 ### Dữ liệu test local và master data production
@@ -150,6 +150,10 @@ Không gọi AI.
 
 Nút sáng/tối ở trang login và Profile; header laptop (từ 1024px) vẫn có nút theme/logout, mobile/tablet dùng các nút trong Profile; lưu `flc-theme` trong localStorage, lần đầu theo theme hệ điều hành.
 
-## Saved vocabulary và import Laravel
+## Foreign features
 
-Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và root-only HTTP trigger background. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../docs/foreign-vocabulary-import.md).
+Foreign giữ các page mobile từ source Vue cũ; các override bố cục laptop/tablet bắt đầu tại 768px. Vocabulary có list, page detail, phát âm, xóa và chỉnh meanings qua JSON tại Lookup. Quiz và Scramble/Wordle/Hangman/Word Search nằm cùng hub; server giữ đáp án, round ID, chấm điểm và lịch sử. Media có YouTube preview/player, fetch captions, transcript editor/sync và mark listened. Profile có thống kê, lịch sử, theme và logout qua Identity.
+
+API JSON `GET /foreign/pages?path=...`, `POST /foreign/actions` và `POST /foreign/media/preview` dùng Bearer Identity, owner lấy từ token. Public dictionary/save/list API hiện có vẫn giữ. Không có thông báo, admin hay AI/Listening assessment.
+
+Đã bỏ command/API/cấu hình import DB cũ. Migration đã deploy được giữ nguyên checksum; migration mới xóa bảng import và thêm schema tính năng. Không tự chuyển dữ liệu hoặc chạy DB production.

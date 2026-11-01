@@ -2,3 +2,6 @@ node_modules/
 dist/
 coverage/
 package-lock.json
+
+# Preserve the source app mobile baseline byte-for-byte.
+src/legacy/presentation/styles/mobile.css

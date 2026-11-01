@@ -1,3 +1,5 @@
-//! Foreign domain layer. Business implementation will be added separately.
+//! Foreign domain layer.
 
 pub mod dictionary;
+
+pub mod games;

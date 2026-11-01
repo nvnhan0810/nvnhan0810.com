@@ -9,7 +9,7 @@ Rust/Axum module mounted by API Gateway at `/foreign`.
 ```
 
 Layers: `domain`, `application`, `infrastructure`, `presentation/http`.
-Demo, dictionary lookup, saved vocabulary and a Laravel PostgreSQL vocabulary importer are implemented. See the runbook below for schema and import configuration.
+Dictionary, owned vocabulary, Quiz, four Word Games, media/transcripts and profile history are implemented. Legacy database import has been removed.
 
 Run through the existing API Gateway with its normal Identity/DB configuration:
 
@@ -44,6 +44,10 @@ and none returns a result, respond 502 rather than claim a definitive 404.
 Provider contracts 2/3 are ported from legacy Laravel adapters, covered by fixtures;
 live production verification remains outstanding. Auth errors preserve HTTP status.
 
-## Saved vocabulary và import Laravel
+## Foreign features
 
-Đã thêm Save word, Copy prompt AI (clipboard, không gọi AI), `/vocabulary`, command `foreign:import` và GET HTTP trigger tạm không token (vẫn có cờ enable), status root-only. Schema chạy qua console migrate tổng hợp. Runbook/config/API/phạm vi và các việc chưa làm: [foreign-vocabulary-import](../../../../docs/foreign-vocabulary-import.md).
+Foreign giữ các page mobile từ source Vue cũ; các override bố cục laptop/tablet bắt đầu tại 768px. Vocabulary có list, page detail, phát âm, xóa và chỉnh meanings qua JSON tại Lookup. Quiz và Scramble/Wordle/Hangman/Word Search nằm cùng hub; server giữ đáp án, round ID, chấm điểm và lịch sử. Media có YouTube preview/player, fetch captions, transcript editor/sync và mark listened. Profile có thống kê, lịch sử, theme và logout qua Identity.
+
+API JSON `GET /foreign/pages?path=...`, `POST /foreign/actions` và `POST /foreign/media/preview` dùng Bearer Identity, owner lấy từ token. Public dictionary/save/list API hiện có vẫn giữ. Không có thông báo, admin hay AI/Listening assessment.
+
+Đã bỏ command/API/cấu hình import DB cũ. Migration đã deploy được giữ nguyên checksum; migration mới xóa bảng import và thêm schema tính năng. Không tự chuyển dữ liệu hoặc chạy DB production.

@@ -3,20 +3,44 @@ import { session } from '../services'
 import { ensureSession } from '../auth'
 import { sessionDestination } from '../../modules/foreign/application/use-cases/initialize-session'
 import LoginPage from '../../modules/foreign/presentation/pages/LoginPage.vue'
-import LookupPage from '../../modules/foreign/presentation/pages/LookupPage.vue'
-import MyWordsPage from '../../modules/foreign/presentation/pages/MyWordsPage.vue'
-import ProfilePage from '../../modules/foreign/presentation/pages/ProfilePage.vue'
+import PageView from '../../legacy/application/PageView.vue'
 const NavigationOnly = { render: () => null }
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: NavigationOnly },
     { path: '/login', name: 'login', component: LoginPage },
-    { path: '/lookup', name: 'lookup', component: LookupPage },
     { path: '/auth/callback', component: NavigationOnly },
-    { path: '/vocabulary', name: 'vocabulary', component: MyWordsPage },
-    { path: '/home/vocab', redirect: '/vocabulary' },
-    { path: '/profile', name: 'profile', component: ProfilePage },
+    {
+      path: '/lookup',
+      redirect: (to) => ({ path: '/home/lookup', query: to.query }),
+    },
+    { path: '/vocabulary', redirect: '/home/vocab' },
+    {
+      path: '/vocabulary/:id',
+      redirect: (to) => `/home/vocab/${to.params.id}`,
+    },
+    { path: '/profile', redirect: '/home/profile' },
+    { path: '/home/lookup', name: 'lookup', component: PageView },
+    { path: '/home/word/:word', name: 'related', component: PageView },
+    { path: '/home/vocab', name: 'vocabulary', component: PageView },
+    { path: '/home/vocab/:id', name: 'vocabulary-detail', component: PageView },
+    { path: '/home/quiz', name: 'games', component: PageView },
+    { path: '/home/puzzle', redirect: '/home/quiz' },
+    { path: '/home/quiz/play', name: 'quiz', component: PageView },
+    ...['scramble', 'wordle', 'hangman', 'word-search'].map((mode) => ({
+      path: `/home/puzzle/${mode}`,
+      name: mode,
+      component: PageView,
+    })),
+    { path: '/home/media', name: 'media', component: PageView },
+    { path: '/home/media/:id', name: 'media-detail', component: PageView },
+    {
+      path: '/home/media/:id/transcript/edit',
+      name: 'transcript',
+      component: PageView,
+    },
+    { path: '/home/profile', name: 'profile', component: PageView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
