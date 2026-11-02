@@ -1,0 +1,89 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount toàn bộ source code vào container để chỉnh sửa realtime
+      - ./backend:/app
+      
+      # [QUAN TRỌNG] Tạo volume riêng cho thư mục target và registry
+      # Tránh xung đột kiến trúc OS (giữa máy thật và container) và giữ cache build siêu tốc
+      - backend-target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+    
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      # Thêm các biến môi trường cho database, redis... ở đây
+    depends_on:
+      - db
+    networks:
+      - backend-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: postgres_db_dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=secretpassword
+      - POSTGRES_DB=app_db
+    ports:
+      - "5432:5432" # Mở port 5432 ra localhost để dùng tool quản lý (DBeaver, TablePlus...)
+    volumes:
+      - postgres-data:/var/lib/postgresql/data # Lưu dữ liệu thật xuống ổ cứng để không mất khi tắt container
+    networks:
+      - backend-network
+  
+  identity:
+    build:
+      context: ./identity
+      dockerfile: Dockerfile
+    container_name: identity
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./identity:/app
+    depends_on:
+      - backend
+    networks:
+      - backend-network
+  foreign:
+    build:
+      context: ./foreign
+      dockerfile: Dockerfile
+    container_name: foreign
+    ports:
+      - "5174:5173"
+    volumes:
+      - ./foreign:/app
+    depends_on:
+      - backend
+    networks:
+      - backend-network
+  wallets:
+    build:
+      context: ./wallets
+      dockerfile: Dockerfile
+    container_name: wallets
+    ports:
+      - "5175:5173"
+    volumes:
+      - ./wallets:/app
+    depends_on:
+      - backend
+    networks:
+      - backend-network
+
+volumes:
+  backend-target:
+  cargo-registry:
+  postgres-data:
+
+networks:
+  backend-network:
+    driver: bridge
