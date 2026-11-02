@@ -6,7 +6,13 @@ pub async fn apply(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let identity = sqlx::migrate!("../../modules/identity/migrations");
     let foreign = sqlx::migrate!("../../modules/foreign/migrations");
-    let mut migrations: Vec<_> = identity.iter().chain(foreign.iter()).cloned().collect();
+    let wallets = sqlx::migrate!("../../modules/wallets/migrations");
+    let mut migrations: Vec<_> = identity
+        .iter()
+        .chain(foreign.iter())
+        .chain(wallets.iter())
+        .cloned()
+        .collect();
     migrations.sort_by_key(|m| (m.version, !m.migration_type.is_up_migration()));
     let migrator = Migrator {
         migrations: migrations.into(),

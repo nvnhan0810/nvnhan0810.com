@@ -1,0 +1,16 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/Layouts/*": ["src/presentation/Layouts/*"],
+      "@/Components/*": ["src/presentation/Components/*"],
+      "@/*": ["src/*"]
+    },
+    "ignoreDeprecations": "6.0",
+    "types": ["vite/client", "node"],
+    "verbatimModuleSyntax": true
+  }
+}

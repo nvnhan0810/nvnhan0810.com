@@ -72,6 +72,7 @@ async fn run(source: config::ConfigSource, redis: app_resources::SharedRedis) {
         .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
         .nest("/foreign", foreign.router())
+        .nest("/wallets", wallets::wallets_routes(identity_state.clone(), resources.database.clone()))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông

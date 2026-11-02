@@ -1,4 +1,4 @@
-const USAGE: &str = "Usage: console <seed | master-data | foreign:transcript-worker>\nReads DB_* from environment/.env; run migrations first.";
+const USAGE: &str = "Usage: console <seed | master-data | foreign:transcript-worker | wallets:auto-pay-due | wallets:process-reminders | wallets:process-periods>\nReads DB_* from environment/.env; run migrations first.";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,6 +10,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         [command] if command == "master-data" => console::commands::data::run(true).await?,
         [command] if command == "foreign:transcript-worker" => {
             console::commands::transcript_worker::run().await?
+        }
+        [command]
+            if [
+                "wallets:auto-pay-due",
+                "wallets:process-reminders",
+                "wallets:process-periods",
+            ]
+            .contains(&command.as_str()) =>
+        {
+            console::commands::wallets::run(command).await?
         }
         _ => return Err(USAGE.into()),
     }
