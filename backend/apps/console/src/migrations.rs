@@ -19,7 +19,10 @@ pub async fn apply(
         ..Migrator::DEFAULT
     };
     match action {
-        MigrationAction::Up => migrator.run(pool).await?,
+        MigrationAction::Up => {
+            migrator.run(pool).await?;
+            app_resources::migrate_queue(pool).await?;
+        }
         MigrationAction::Down { target } => {
             let exists: bool =
                 sqlx::query_scalar("SELECT to_regclass('_sqlx_migrations') IS NOT NULL")

@@ -1,4 +1,4 @@
-.PHONY: dev build check clean clean-cache migrate migrate-down seed master-data command transcript-worker
+.PHONY: dev build check clean clean-cache migrate migrate-down seed master-data command queue-worker
 
 # Tùy chọn: make migrate-down TARGET=0 hoặc TARGET=<migration-version>
 TARGET ?=
@@ -70,6 +70,6 @@ master-data:
 command:
 	cargo run --locked --package console --bin console -- $(CMD)
 
-# Optional dedicated worker. Set QueueConfig.api_worker_enabled=false in the foreign config when using it.
-transcript-worker:
-	cargo run --locked --package console --bin console -- foreign:transcript-worker
+# One consumer process for all backend job types (Supervisor runs the release binary).
+queue-worker:
+	cargo run --locked --package console --bin console -- queue:work

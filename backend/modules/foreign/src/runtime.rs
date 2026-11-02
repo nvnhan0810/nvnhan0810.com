@@ -2,9 +2,8 @@
 //! Foreign owns queue settings and workers; the host owns shared connections.
 use crate::{
     config::QueueConfig,
-    infrastructure::{redis_queue, transcript_queue},
+    infrastructure::{postgres_queue, transcript_queue},
 };
-use app_resources::SharedRedis;
 use axum::Router;
 use sqlx::PgPool;
 use tokio::{sync::watch, task::JoinHandle};
@@ -43,18 +42,16 @@ impl ForeignShutdown {
     }
 }
 
-/// Start the HTTP module and its optional embedded worker.
+/// Start the HTTP producer only; consumers run in `console queue:work`.
 pub async fn start(
     identity: identity::IdentityState,
     pool: PgPool,
-    redis: SharedRedis,
 ) -> Result<Foreign, StartupError> {
     let settings = QueueConfig::default();
-    let worker_enabled = settings.api_worker_enabled;
-    let queue = redis_queue::Config::from_config(redis, settings)?;
+    let queue = postgres_queue::Config::from_config(settings)?;
     let router =
         crate::presentation::http::routes::build_routes(identity, pool.clone(), queue.clone());
-    let runtime = ForeignWorker::spawn(pool, queue, worker_enabled);
+    let runtime = ForeignWorker::spawn(pool, queue, false);
     Ok(Foreign { router, runtime })
 }
 
@@ -65,7 +62,7 @@ pub struct ForeignWorker {
 }
 
 impl ForeignWorker {
-    fn spawn(pool: PgPool, queue: redis_queue::Config, enabled: bool) -> Self {
+    fn spawn(pool: PgPool, queue: postgres_queue::Config, enabled: bool) -> Self {
         let (shutdown, signal) = watch::channel(false);
         let worker =
             enabled.then(|| tokio::spawn(transcript_queue::run(pool.clone(), queue, signal)));
@@ -87,8 +84,8 @@ impl ForeignWorker {
 }
 
 /// Dedicated worker startup uses the same Foreign configuration as the API.
-pub async fn start_worker(pool: PgPool, redis: SharedRedis) -> Result<ForeignWorker, StartupError> {
-    let queue = redis_queue::Config::new(redis)?;
+pub async fn start_worker(pool: PgPool) -> Result<ForeignWorker, StartupError> {
+    let queue = postgres_queue::Config::new()?;
     Ok(ForeignWorker::spawn(pool, queue, true))
 }
 

@@ -1,5 +1,5 @@
-//! Apalis Redis dispatch and transcript handling; no PostgreSQL job queue.
-use super::redis_queue::{Config, Priority};
+//! Durable Apalis PostgreSQL dispatch and transcript handling.
+use super::postgres_queue::{Config, Priority};
 use apalis::layers::retry::{
     HasherRng, RetryPolicy,
     backoff::{ExponentialBackoffMaker, MakeBackoff},
@@ -17,8 +17,7 @@ pub struct TranscriptTask {
     pub media_id: i64,
     pub video_id: String,
 }
-/// Push directly to Apalis while holding the existing media row lock. Workers
-/// wait for the transaction and ignore tasks whose media token was rolled back.
+/// Persist the Apalis job and its media token in the same PostgreSQL transaction.
 pub async fn enqueue(
     pool: &PgPool,
     config: &Config,
@@ -51,19 +50,15 @@ pub async fn enqueue(
     payload["transcript_task_id"] = json!(task.id);
     payload["transcript_status"] = json!("queued");
     payload["transcript_error"] = Value::Null;
-    let dispatched = async {
-        let connection = config.connect().await?;
-        config
-            .storage::<TranscriptTask>(connection, &config.dispatch.channel, priority as i16)
-            .push_task(TaskBuilder::new(task).max_attempts(3).build())
-            .await?;
-        Ok::<_, BoxDynError>(())
-    }
-    .await;
-    if dispatched.is_err() {
-        payload["transcript_status"] = json!("failed");
-        payload["transcript_error"] = json!("Could not queue captions. Please retry.");
-    }
+    // The job and its media token commit together, using Apalis' transaction-aware sink.
+    let encoded = serde_json::to_vec(&task).map_err(|e| sqlx::Error::Encode(Box::new(e)))?;
+    apalis_postgres::queries::push_tasks(
+        &mut *tx,
+        &config.key(&config.dispatch.channel, priority as i16),
+        vec![TaskBuilder::new(encoded).max_attempts(3).build()],
+    )
+    .await
+    .map_err(|e| sqlx::Error::Protocol(format!("Could not queue captions: {e}")))?;
     sqlx::query("UPDATE foreign_media SET payload=$2 WHERE id=$1")
         .bind(media_id)
         .bind(payload)
@@ -184,18 +179,7 @@ async fn stop(mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), st
     }
     Ok(())
 }
-pub async fn run(pool: PgPool, config: Config, mut shutdown: tokio::sync::watch::Receiver<bool>) {
-    // Reconnect startup without dropping committed Redis tasks.
-    let connection = loop {
-        if *shutdown.borrow() {
-            return;
-        }
-        tokio::select! {
-            _=shutdown.changed()=>return,
-            result=config.connect()=>match result {Ok(connection)=>break connection,Err(_)=>tracing::error!("Apalis Redis connection unavailable; tasks retained in Redis")},
-        }
-        tokio::select! {_=shutdown.changed()=>return,_=tokio::time::sleep(Duration::from_secs(2))=>{}}
-    };
+pub async fn run(pool: PgPool, config: Config, shutdown: tokio::sync::watch::Receiver<bool>) {
     let mut workers = tokio::task::JoinSet::new();
     let (worker_stop, worker_signal) = tokio::sync::watch::channel(false);
     let instance = Uuid::new_v4();
@@ -205,8 +189,7 @@ pub async fn run(pool: PgPool, config: Config, mut shutdown: tokio::sync::watch:
             .enumerate()
         {
             for index in 0..config.workers[lane] {
-                let storage =
-                    config.storage::<TranscriptTask>(connection.clone(), channel, *priority as i16);
+                let storage = config.storage::<TranscriptTask>(&pool, channel, *priority as i16);
                 let backoff = ExponentialBackoffMaker::new(
                     Duration::from_secs(30),
                     Duration::from_secs(60),

@@ -34,8 +34,10 @@ const components = {
   transcript: Transcript,
   profile: Profile,
 }
+// Keep the current screen mounted until the next page is ready.
+const renderedRoute = ref<{ name: string; path: string } | null>(null)
 const component = computed(
-  () => components[route.name as keyof typeof components],
+  () => components[renderedRoute.value?.name as keyof typeof components],
 )
 // Shared transport metadata stays in usePage(); pass only declared props to each source screen.
 const screenProps = computed(() => {
@@ -59,6 +61,9 @@ async function load() {
   error.value = ''
   try {
     await loadPage(path)
+    if (path === route.fullPath) {
+      renderedRoute.value = { name: String(route.name), path: route.path }
+    }
   } catch (e) {
     if (path === route.fullPath)
       error.value = e instanceof Error ? e.message : 'Could not load page.'
@@ -74,8 +79,8 @@ watch(() => route.fullPath, load, { immediate: true })
   </div>
   <component
     :is="component"
-    v-else-if="!busy"
-    :key="`${route.path}:${page.revision}`"
+    v-if="renderedRoute"
+    :key="`${renderedRoute.path}:${page.revision}`"
     v-bind="screenProps"
   />
 </template>

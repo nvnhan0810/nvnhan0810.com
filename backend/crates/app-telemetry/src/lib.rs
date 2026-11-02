@@ -1,4 +1,4 @@
-//! Nonblocking warning/error capture -> Apalis Redis -> Telegram.
+//! Nonblocking warning/error capture -> Apalis PostgreSQL -> Telegram.
 use apalis::{
     layers::retry::{
         HasherRng, RetryPolicy,
@@ -7,8 +7,8 @@ use apalis::{
     prelude::*,
 };
 use app_config::ConfigSource;
-use app_resources::SharedRedis;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use std::{
     collections::HashMap,
     fmt::Write,
@@ -68,17 +68,12 @@ impl Settings {
             chat_id: source.required("TELEGRAM_CHAT_ID")?,
             environment: source.optional("APP_ENV").unwrap_or("unknown").into(),
             minimum,
-            secrets: [
-                "TELEGRAM_BOT_TOKEN",
-                "REDIS_URL",
-                "DB_PASSWORD",
-                "GOOGLE_CLIENT_SECRET",
-            ]
-            .iter()
-            .filter_map(|key| source.optional(key))
-            .filter(|value| !value.is_empty())
-            .map(str::to_owned)
-            .collect(),
+            secrets: ["TELEGRAM_BOT_TOKEN", "DB_PASSWORD", "GOOGLE_CLIENT_SECRET"]
+                .iter()
+                .filter_map(|key| source.optional(key))
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+                .collect(),
         }))
     }
     fn redact(&self, mut text: String) -> String {
@@ -153,10 +148,7 @@ pub struct Telemetry {
 }
 impl Telemetry {
     /// Install stderr logging and optional Telegram capture. No network I/O here.
-    pub fn init(
-        source: &ConfigSource,
-        redis: SharedRedis,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn init(source: &ConfigSource, pool: PgPool) -> Result<Self, Box<dyn std::error::Error>> {
         let settings = Settings::load(source)?.map(Arc::new);
         let (sender, receiver) = mpsc::channel(CAPACITY);
         let dropped = Arc::new(AtomicUsize::new(0));
@@ -175,9 +167,8 @@ impl Telemetry {
             .with(layer)
             .try_init()?;
         let (shutdown, signal) = watch::channel(false);
-        let tasks = if let Some(settings) = settings {
-            let publisher = tokio::spawn(publish(redis.clone(), receiver, signal.clone(), dropped));
-            let worker = tokio::spawn(consume(redis, settings, signal));
+        let tasks = if settings.is_some() {
+            let publisher = tokio::spawn(publish(pool, receiver, signal, dropped));
             let old_hook = std::panic::take_hook();
             std::panic::set_hook(Box::new(move |info| {
                 let message = info
@@ -189,7 +180,7 @@ impl Telemetry {
                 tracing::error!(target: "backend::panic", message, location = ?info.location(), "Backend panic");
                 old_hook(info);
             }));
-            vec![publisher, worker]
+            vec![publisher]
         } else {
             Vec::new()
         };
@@ -197,7 +188,7 @@ impl Telemetry {
     }
     pub async fn shutdown(self) {
         let _ = self.shutdown.send(true);
-        // Drain the local buffer into Redis; pending Redis jobs survive worker shutdown.
+        // Drain the local buffer into PostgreSQL; persisted jobs survive worker shutdown.
         for mut task in self.tasks {
             if tokio::time::timeout(Duration::from_secs(15), &mut task)
                 .await
@@ -210,18 +201,15 @@ impl Telemetry {
         }
     }
 }
-fn storage(
-    connection: app_resources::ConnectionManager,
-    prefix: &str,
-) -> apalis_redis::RedisStorage<TelegramLog> {
-    apalis_redis::RedisStorage::new(connection).with_config(
-        apalis_redis::Config::default()
-            .queue(format!("{prefix}:backend:queue:telegram-logs"))
+fn storage(pool: &PgPool) -> apalis_postgres::PostgresStorage<TelegramLog> {
+    apalis_postgres::PostgresStorage::new(pool).with_config(
+        apalis_postgres::Config::default()
+            .queue("backend:queue:telegram-logs")
             .batch_size(1),
     )
 }
 async fn publish(
-    redis: SharedRedis,
+    pool: PgPool,
     mut receiver: mpsc::Receiver<TelegramLog>,
     mut stop: watch::Receiver<bool>,
     dropped: Arc<AtomicUsize>,
@@ -248,8 +236,7 @@ async fn publish(
         let dispatch_id = uuid::Uuid::new_v4().to_string();
         loop {
             let result = async {
-                let connection = redis.connection().await?;
-                storage(connection, redis.queue_prefix())
+                storage(&pool)
                     .push_task(
                         TaskBuilder::new(log.clone())
                             .idempotency_key(dispatch_id.clone())
@@ -313,13 +300,15 @@ async fn stopping(mut signal: watch::Receiver<bool>) -> Result<(), std::io::Erro
     }
     Ok(())
 }
-async fn consume(redis: SharedRedis, settings: Arc<Settings>, mut signal: watch::Receiver<bool>) {
-    let connection = loop {
-        tokio::select! {
-            _ = stopping(signal.clone()) => return,
-            result = redis.connection() => match result { Ok(connection) => break connection, Err(_) => eprintln!("Telegram log worker waiting for Redis") }
-        }
-        tokio::select! { _ = signal.changed() => return, _ = tokio::time::sleep(Duration::from_secs(2)) => {} }
+/// Consume Telegram alerts only from the shared backend queue process.
+pub async fn run_worker(
+    source: &ConfigSource,
+    pool: PgPool,
+    signal: watch::Receiver<bool>,
+) -> Result<(), BoxDynError> {
+    let Some(settings) = Settings::load(source).map_err(std::io::Error::other)? else {
+        stopping(signal).await?;
+        return Ok(());
     };
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -340,13 +329,12 @@ async fn consume(redis: SharedRedis, settings: Arc<Settings>, mut signal: watch:
     .unwrap()
     .make_backoff();
     let worker = WorkerBuilder::new(format!("telegram-{}", uuid::Uuid::new_v4()))
-        .backend(storage(connection, redis.queue_prefix()))
+        .backend(storage(&pool))
         .data(sender)
         .retry(RetryPolicy::retries(2).with_backoff(backoff))
         .build(handle);
-    if worker.run_until(stopping(signal)).await.is_err() {
-        eprintln!("Telegram log worker stopped unexpectedly");
-    }
+    worker.run_until(stopping(signal)).await?;
+    Ok(())
 }
 
 #[cfg(test)]

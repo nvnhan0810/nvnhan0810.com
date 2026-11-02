@@ -11,48 +11,40 @@ use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 #[tokio::main]
 async fn main() {
     let source = config::ConfigSource::load().expect("Configuration loading failed");
-    let redis = app_resources::SharedRedis::new(
-        &source.required("REDIS_URL").expect("Missing REDIS_URL"),
-        &source
-            .required("REDIS_QUEUE_PREFIX")
-            .expect("Missing REDIS_QUEUE_PREFIX"),
-    )
-    .expect("Invalid Redis configuration");
-    let telemetry = app_telemetry::Telemetry::init(&source, redis.clone())
+    let database = config::AppConfig::from_source(&source)
+        .expect("Invalid application configuration")
+        .database;
+    let resources = app_resources::AppResources::connect(database.connect_options())
+        .await
+        .expect("PostgreSQL connection failed");
+    let telemetry = app_telemetry::Telemetry::init(&source, resources.database.clone())
         .expect("Logging initialization failed");
-    let result = tokio::spawn(run(source, redis)).await;
+    let result = tokio::spawn(run(source, resources.database.clone())).await;
     if result.is_err() {
         tracing::error!("API gateway stopped after a panic");
     }
     telemetry.shutdown().await;
+    resources.shutdown().await;
     if result.is_err() {
         std::process::exit(1);
     }
 }
 
-async fn run(source: config::ConfigSource, redis: app_resources::SharedRedis) {
+async fn run(source: config::ConfigSource, pool: sqlx::PgPool) {
     let config =
         config::AppConfig::from_source(&source).expect("Invalid application configuration");
-    let resources =
-        app_resources::AppResources::with_redis(config.database.connect_options(), redis)
-            .await
-            .expect("Shared connections initialization failed");
     let identity_state = identity::IdentityState::new(
         config.identity,
-        resources.database.clone(),
+        pool.clone(),
         &config.private_key_path,
         &config.public_key_path,
     )
     .await
     .expect("Identity database/key initialization failed");
 
-    let foreign = foreign::start(
-        identity_state.clone(),
-        resources.database.clone(),
-        resources.redis.clone(),
-    )
-    .await
-    .expect("Foreign initialization failed");
+    let foreign = foreign::start(identity_state.clone(), pool.clone())
+        .await
+        .expect("Foreign initialization failed");
     let cors = api_gateway::cors::layer(
         identity_state.store.clone(),
         config.admin_cors_origin,
@@ -72,7 +64,7 @@ async fn run(source: config::ConfigSource, redis: app_resources::SharedRedis) {
         .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
         .nest("/foreign", foreign.router())
-        .nest("/wallets", wallets::wallets_routes(identity_state.clone(), resources.database.clone()))
+        .nest("/wallets", wallets::wallets_routes(identity_state.clone(), pool.clone()))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
@@ -102,7 +94,6 @@ async fn run(source: config::ConfigSource, redis: app_resources::SharedRedis) {
     })
     .await;
     let shutdown_result = foreign.shutdown().await;
-    resources.shutdown().await;
     shutdown_result.expect("Foreign shutdown failed");
     result.expect("HTTP server failed");
 }

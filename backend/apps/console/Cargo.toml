@@ -18,6 +18,8 @@ uuid.workspace = true
 sqlx.workspace = true
 
 [dev-dependencies]
+apalis = "1"
+apalis-postgres = "1"
 tower = { version = "0.5", features = ["util"] }
 axum.workspace = true
 serde_json.workspace = true

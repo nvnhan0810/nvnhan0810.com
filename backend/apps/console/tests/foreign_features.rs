@@ -140,17 +140,7 @@ async fn setup(pool: &PgPool) -> (Router, Uuid, String, Uuid, String) {
     let (other, other_token) = users.pop().unwrap();
     let (user, token) = users.pop().unwrap();
     (
-        foreign::foreign_routes(
-            state,
-            pool.clone(),
-            app_resources::SharedRedis::new(
-                &std::env::var("FOREIGN_TEST_REDIS_URL")
-                    .expect("requires disposable FOREIGN_TEST_REDIS_URL without workers"),
-                "foreign-integration-test",
-            )
-            .unwrap(),
-        )
-        .unwrap(),
+        foreign::foreign_routes(state, pool.clone()).unwrap(),
         user,
         token,
         other,
@@ -158,7 +148,7 @@ async fn setup(pool: &PgPool) -> (Router, Uuid, String, Uuid, String) {
     )
 }
 #[tokio::test]
-#[ignore = "requires FOREIGN_TEST_TARGET (empty PostgreSQL) and FOREIGN_TEST_REDIS_URL (disposable Redis without workers)"]
+#[ignore = "requires FOREIGN_TEST_TARGET (empty PostgreSQL)"]
 async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import() {
     let pool = PgPool::connect(&std::env::var("FOREIGN_TEST_TARGET").unwrap())
         .await

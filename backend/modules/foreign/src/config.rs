@@ -1,4 +1,4 @@
-//! Foreign-owned queue settings. Redis connection details remain in REDIS_URL.
+//! Foreign job settings. All consumers run in the shared backend queue command.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Priority {
     High = 0,
@@ -28,8 +28,6 @@ pub struct QueueConfig {
     pub dispatch: DispatchConfig,
     /// Reserved worker counts in high, normal, low order.
     pub workers: [usize; 3],
-    /// Disable when running a dedicated console foreign:transcript-worker process.
-    pub api_worker_enabled: bool,
 }
 impl Default for QueueConfig {
     fn default() -> Self {
@@ -39,7 +37,6 @@ impl Default for QueueConfig {
             channels: vec![dispatch.channel.clone()],
             dispatch,
             workers: [2, 1, 1],
-            api_worker_enabled: true,
         }
     }
 }

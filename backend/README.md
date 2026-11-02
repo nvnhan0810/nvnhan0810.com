@@ -2,6 +2,10 @@
 
 Rust workspace, Axum API gateway. Binary `api-gateway` lắng nghe `0.0.0.0:8080`.
 
+Deployment hiện tại chạy trực tiếp bằng Supervisor, queue dùng PostgreSQL. Xem
+[Backend queue](#backend-queue-postgresql--supervisor) cho lệnh `console queue:work`.
+Các hướng dẫn Docker/k3s bên dưới là tài liệu triển khai cũ.
+
 ## Kiểm tra local trước push
 
 Từ root repo chạy một lần cho mỗi clone:
@@ -606,19 +610,72 @@ API JSON `GET /foreign/pages?path=...`, `POST /foreign/actions` và `POST /forei
 
 ## Telegram warning/error logs
 
-API gateway and the dedicated Foreign transcript worker keep stderr logging and optionally forward warning/error events to Telegram through Apalis Redis. Configure:
+API gateway publishes alerts; `console queue:work` consumes them from PostgreSQL.
 
-```env
+## Backend queue: PostgreSQL + Supervisor
+
+Run one command for all backend queue consumers:
+
+```sh
+cd backend
+./target/release/migrate up
+./target/release/console queue:work
+# Development: make queue-worker
+```
+
+This command registers Foreign transcript handlers and the Telegram log handler.
+New module job handlers belong in this shared registry; do not add module-specific
+worker commands. Wallets currently has one-shot maintenance commands, not Apalis
+consumers; their existing scheduling is independent of the queue worker.
+
+API processes only publish jobs. Neither transcript nor Telegram consumers start
+inside the API. Redis and Kubernetes are not required for this deployment. API and
+queue processes read the same DB_* settings from environment or `backend/.env`.
+Use separate databases for separate environments.
+
+`migrate up` applies application migrations and then Apalis' own migrations in the
+`apalis` schema (including its separate migration history). The migration role must
+be allowed to create the schema and the `hstore` extension used by Apalis. Normal
+application `migrate down` only rolls back application migrations; it does not
+remove the queue schema or queued jobs.
+
+A reviewed Supervisor template is provided in
+[`deploy/supervisor/backend-queue.conf`](deploy/supervisor/backend-queue.conf).
+Build with `make build`, run migrations once, install/adapt that template, and
+then use `supervisorctl reread` and `supervisorctl update`. Use
+`supervisorctl restart nvnhan0810-queue` when deploying a new worker binary.
+The template runs one process; Foreign reserves its lane concurrency internally.
+Unexpected consumer exit fails the whole process so Supervisor can restart it.
+SIGINT/SIGTERM stop consumers before the publisher and shared pool are closed.
+Allow 120 seconds for process shutdown.
+
+### Telegram warning/error alerts
+
+```dotenv
 TELEGRAM_LOG_ENABLED=true
-TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
-TELEGRAM_CHAT_ID=YOUR_CHAT_ID
+TELEGRAM_BOT_TOKEN=<bot-token>
+TELEGRAM_CHAT_ID=<chat-id>
 TELEGRAM_LOG_LEVEL=warning
 ```
 
-Use `error` to send only errors. Disabled by default; disabled logging needs no Telegram credentials. Restart the process after changing env. On k3s, update the backend Secret from `apps/backend.nvnhan0810.com/secret.env` using the normal deployment workflow; editing the local file alone does not update the cluster.
+Disabled by default. Enable identically in API and queue processes to publish and
+deliver alerts. Use `error` to capture only errors. Logs enter a bounded local
+1024-event buffer through `try_send`; a background publisher persists them to
+`backend:queue:telegram-logs`. The request path performs no queue or Telegram I/O.
+Duplicate event texts are suppressed for 60 seconds per publisher, sensitive fields
+and configured credentials are redacted, and messages are truncated to 3800
+characters. Telegram and Apalis internal events stay on stderr to avoid loops.
+The worker uses a five-second HTTP timeout and up to three delivery attempts.
+Persisted jobs survive process restarts; buffer overflow and forced process kills
+can lose unpublished events. Delivery may be duplicated after an ambiguous network
+failure. Monitor stderr and database growth, and define retention for completed
+jobs according to operations requirements.
 
-The tracing layer uses `try_send` into a bounded 1024-event buffer, without Redis or Telegram I/O in the request path. A background publisher persists jobs to `<REDIS_QUEUE_PREFIX>:backend:queue:telegram-logs`; an embedded Apalis worker sends plain text via Telegram, with a five-second HTTP timeout and up to three delivery attempts. Identical level/target/message/fields are suppressed for 60 seconds per publisher process. Messages are truncated to 3800 characters; credential fields and configured DB/Redis/Google/Telegram secret values are redacted before entering the queue. Telegram transport and Apalis internal logs stay on stderr to avoid notification loops. HTTP 5xx events from the gateway trace layer and panic events are captured too; ordinary 4xx responses are not alerts.
+### Switching from the old Redis deployment
 
-Redis connection managers are shared with other modules. During Redis outages, the publisher retries in the background. A full local buffer drops additional Telegram alerts and reports the count on stderr; stderr logging remains active. Shutdown attempts to persist buffered alerts for up to 15 seconds and stops the worker with a separate 15-second timeout. Persisted jobs survive restarts and may be delivered by another backend replica; in-memory events can be lost on process termination. Delivery can be duplicated if Telegram accepted a message before its HTTP response was lost.
-
-No real Telegram messages are sent by tests. HTTP tests use a localhost mock server. Seed/master-data/migration commands do not start the Telegram log worker.
+Deploy the updated API and shared worker together after migrations. Redis jobs are
+not automatically copied into PostgreSQL. If Redis is already unavailable, inspect
+media still marked queued/running and reconcile or requeue those entries before
+expecting them to progress. Remove the old transcript-worker Supervisor program if
+one exists. No queue migration, service reload or production restart is performed
+by editing these source files.
