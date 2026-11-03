@@ -6,6 +6,7 @@ rust-version.workspace = true
 autobins = false
 
 [dependencies]
+serde_json.workspace = true
 wallets = { path = "../../modules/wallets" }
 app-telemetry = { path = "../../crates/app-telemetry" }
 tracing.workspace = true
@@ -22,7 +23,6 @@ apalis = "1"
 apalis-postgres = "1"
 tower = { version = "0.5", features = ["util"] }
 axum.workspace = true
-serde_json.workspace = true
 url = "2"
 
 [[bin]]

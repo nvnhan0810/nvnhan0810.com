@@ -1,7 +1,3 @@
-<script setup lang="ts">
-import { LoaderCircle } from 'lucide-vue-next'
-</script>
-
 <template>
   <div
     class="page-loading"
@@ -9,36 +5,37 @@ import { LoaderCircle } from 'lucide-vue-next'
     aria-label="Đang xử lý"
     aria-live="polite"
   >
-    <LoaderCircle
-      class="page-loading-icon"
-      :size="40"
-      :stroke-width="2"
-      aria-hidden="true"
-    />
+    <span />
   </div>
 </template>
 
 <style scoped>
 .page-loading {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 3px;
   z-index: 10000;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--bg, #f8f9fa) 88%, transparent);
-  cursor: progress;
+  overflow: hidden;
+  pointer-events: none;
 }
-.page-loading-icon {
-  color: var(--primary, #4361ee);
-  animation: page-loading-spin 0.8s linear infinite;
+.page-loading span {
+  display: block;
+  width: 35%;
+  height: 100%;
+  background: var(--primary, #4361ee);
+  animation: page-loading-progress 1.2s ease-in-out infinite;
 }
-@keyframes page-loading-spin {
+@keyframes page-loading-progress {
+  from {
+    transform: translateX(-100%);
+  }
   to {
-    transform: rotate(360deg);
+    transform: translateX(300%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .page-loading-icon {
+  .page-loading span {
+    width: 100%;
     animation: none;
   }
 }

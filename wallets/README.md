@@ -39,7 +39,7 @@ Holiday imports accept CSV/TXT/XLS/XLSX, up to 5 MB and 10,000 rows. The first s
 
 ## Backend operations
 
-The shared migration runner includes `wallets_accounts`. The gateway mounts `/wallets/pages` and `/wallets/actions`; the owner comes from Identity authentication. This is a new schema; old Laravel data has not been imported.
+The shared migration runner creates typed finance tables (`wallets`, `transactions`, `loans`, `loan_periods`, `loan_payments`, recurring tables and debt goals) and a shared `holidays` calendar. The previous `wallets_accounts` document table is migrated and removed. The gateway mounts `/wallets/pages` and `/wallets/actions`; the owner comes from Identity authentication. For the legacy Laravel import command and schema upgrade/rollback instructions, see [database migration](../docs/wallets-database-migration.md).
 
 Scheduled console commands: `wallets:process-periods`, `wallets:auto-pay-due`, `wallets:process-reminders`. Configure cron separately; the old auto-pay schedule was 23:00 Asia/Ho_Chi_Minh. Telegram delivery requires backend `TELEGRAM_BOT_TOKEN`, `WALLETS_WEB_ORIGIN`, and enabled user settings with a chat ID. Reading pages never sends Telegram messages.
 

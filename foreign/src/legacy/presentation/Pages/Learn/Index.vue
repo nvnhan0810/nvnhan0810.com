@@ -17,7 +17,8 @@ import {
 import {
   buildMeaningsAiPrompt,
   copyTextToClipboard,
-  meaningsToPrettyJson,
+  entryToPrettyJson,
+  parseEntryJson,
   parseMeaningsJson,
   type DictionaryLookupResult,
   type Meaning,
@@ -92,11 +93,19 @@ let lastAutoSearchKey: string | null = null
 const saveForm = useForm<{
   word: string
   phonetic: string
+  audio_url: string
+  examples: string[]
+  synonyms: string[]
+  antonyms: string[]
   meanings: SaveMeaningPayload[]
   embed: boolean
 }>({
   word: '',
   phonetic: '',
+  audio_url: '',
+  examples: [],
+  synonyms: [],
+  antonyms: [],
   meanings: [],
   embed: false,
 })
@@ -210,10 +219,7 @@ function cleanWords(list: unknown): string[] {
 }
 
 function normalizeMeanings(result: DictionaryLookupResult): Meaning[] {
-  const entrySynonyms = cleanWords(result.synonyms)
-  const entryAntonyms = cleanWords(result.antonyms)
-
-  return (result.meanings ?? []).map((meaning, index): Meaning => {
+  return (result.meanings ?? []).map((meaning): Meaning => {
     const examples = cleanWords(meaning.examples)
     if (
       examples.length === 0 &&
@@ -223,12 +229,8 @@ function normalizeMeanings(result: DictionaryLookupResult): Meaning[] {
       examples.push(meaning.example.trim())
     }
 
-    let synonyms = cleanWords(meaning.synonyms)
-    let antonyms = cleanWords(meaning.antonyms)
-    if (index === 0) {
-      synonyms = [...new Set([...synonyms, ...entrySynonyms])]
-      antonyms = [...new Set([...antonyms, ...entryAntonyms])]
-    }
+    const synonyms = cleanWords(meaning.synonyms)
+    const antonyms = cleanWords(meaning.antonyms)
 
     return {
       part_of_speech:
@@ -263,7 +265,7 @@ function syncFromResult(
   localMeanings.value = normalizeMeanings(result)
   localSynonyms.value = cleanWords(result.synonyms)
   localAntonyms.value = cleanWords(result.antonyms)
-  jsonText.value = meaningsToPrettyJson(localMeanings.value)
+  jsonText.value = currentEntryJson()
   meaningsViewMode.value =
     draftFlag || localMeanings.value.length === 0
       ? MeaningsViewMode.Json
@@ -285,7 +287,7 @@ function restoreFromSession(): void {
   localMeanings.value = session.meanings
   localSynonyms.value = session.synonyms
   localAntonyms.value = session.antonyms
-  jsonText.value = session.jsonText || meaningsToPrettyJson(session.meanings)
+  jsonText.value = session.jsonText || currentEntryJson()
   meaningsViewMode.value =
     session.meaningsViewMode === MeaningsViewMode.Json
       ? MeaningsViewMode.Json
@@ -390,7 +392,7 @@ function setMeaningsViewMode(mode: MeaningsViewModeValue): void {
 
   try {
     if (mode === MeaningsViewMode.Json) {
-      jsonText.value = meaningsToPrettyJson(localMeanings.value)
+      jsonText.value = currentEntryJson()
     } else {
       applyJsonToLocal(false)
     }
@@ -404,6 +406,18 @@ function setMeaningsViewMode(mode: MeaningsViewModeValue): void {
   schedulePersist()
 }
 
+function currentEntryJson(): string {
+  return entryToPrettyJson(
+    {
+      ...activeResult.value,
+      word: activeResult.value?.word ?? '',
+      synonyms: localSynonyms.value,
+      antonyms: localAntonyms.value,
+    },
+    localMeanings.value,
+  )
+}
+
 function applyJsonToLocal(requireNonEmpty: boolean): void {
   const trimmed = jsonText.value.trim()
   if (trimmed === '' || trimmed === '[]') {
@@ -414,12 +428,18 @@ function applyJsonToLocal(requireNonEmpty: boolean): void {
     return
   }
 
-  localMeanings.value = parseMeaningsJson(jsonText.value)
+  const update = parseEntryJson(jsonText.value)
+  if (activeResult.value)
+    activeResult.value = { ...activeResult.value, ...update }
+  localMeanings.value = update.meanings
+  if (update.synonyms !== undefined) localSynonyms.value = update.synonyms
+  if (update.antonyms !== undefined) localAntonyms.value = update.antonyms
 }
 
 function readCurrentMeanings(): Meaning[] {
   if (meaningsViewMode.value === MeaningsViewMode.Json) {
-    return parseMeaningsJson(jsonText.value)
+    applyJsonToLocal(true)
+    return localMeanings.value
   }
   return localMeanings.value
 }
@@ -443,7 +463,20 @@ async function copyMeaningsPrompt(): Promise<void> {
         // Keep UI meanings if JSON is mid-edit / invalid.
       }
     }
-    await copyTextToClipboard(buildMeaningsAiPrompt(word, meaningsForPrompt))
+    await copyTextToClipboard(
+      buildMeaningsAiPrompt(word, meaningsForPrompt, {
+        ...activeResult.value,
+        ...(meaningsViewMode.value === MeaningsViewMode.Json
+          ? (() => {
+              try {
+                return parseEntryJson(jsonText.value)
+              } catch {
+                return {}
+              }
+            })()
+          : {}),
+      }),
+    )
     copyPromptLabel.value = 'Copied ✓'
     setTimeout((): void => {
       copyPromptLabel.value = 'Copy prompt'
@@ -473,11 +506,15 @@ function submitSave(): void {
   }
 
   localMeanings.value = meanings
-  jsonText.value = meaningsToPrettyJson(meanings)
+  jsonText.value = currentEntryJson()
   schedulePersist()
 
   saveForm.word = activeResult.value.word || ''
   saveForm.phonetic = activeResult.value.phonetic || ''
+  saveForm.audio_url = activeResult.value.audio_url || ''
+  saveForm.examples = activeResult.value.examples ?? []
+  saveForm.synonyms = localSynonyms.value
+  saveForm.antonyms = localAntonyms.value
   saveForm.meanings = meanings.map((meaning): SaveMeaningPayload => ({
     part_of_speech: meaning.part_of_speech || '',
     definition: meaning.definition || '',
@@ -508,7 +545,10 @@ const saveButtonLabel = computed((): string =>
     :hide-header="isEmbed"
     :disable-pull-to-refresh="isEmbed"
   >
-    <div class="lookup-page" :class="{ 'lookup-embed': isEmbed }">
+    <div
+      class="lookup-page"
+      :class="{ 'lookup-embed': isEmbed, 'lookup-has-save': canSave }"
+    >
       <form
         class="flc-form-submit lookup-search"
         @submit.prevent="submitSearch"
@@ -620,6 +660,7 @@ const saveButtonLabel = computed((): string =>
             :meanings="localMeanings"
             :synonyms="localSynonyms"
             :antonyms="localAntonyms"
+            :extra-examples="activeResult?.examples ?? []"
             :prefer-detail="false"
             :link-related="!isEmbed"
           />
@@ -630,10 +671,11 @@ const saveButtonLabel = computed((): string =>
               class="form-control lookup-json-input"
               :rows="isEmbed ? 10 : 12"
               spellcheck="false"
-              placeholder='[{"part_of_speech":"noun","definition":"...","examples":[],"synonyms":[],"antonyms":[]}]'
+              placeholder='{"phonetic":"","audio_url":"","examples":[],"synonyms":[],"antonyms":[],"meanings":[{"definition":"..."}]}'
             />
             <p class="muted lookup-json-hint">
-              Paste AI JSON here, then Update JSON / Save word.
+              Edit phonetic, audio_url, examples, synonyms, antonyms and
+              meanings, then Update JSON / Save word.
             </p>
           </div>
         </div>
@@ -667,3 +709,39 @@ const saveButtonLabel = computed((): string =>
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+.lookup-has-save {
+  padding-bottom: 88px;
+}
+.lookup-save-form {
+  position: fixed;
+  bottom: var(--user-nav-height);
+  left: 0;
+  right: 0;
+  z-index: 90;
+  margin: 0;
+  padding: 12px max(16px, var(--sal)) 12px max(16px, var(--sar));
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px var(--shadow-sticky);
+}
+.lookup-save-form button {
+  max-width: 640px;
+  margin-inline: auto;
+}
+.lookup-embed .lookup-save-form {
+  bottom: 0;
+  padding-bottom: max(12px, var(--sab));
+}
+@media (min-width: 1024px) {
+  .lookup-save-form {
+    left: var(--desktop-rail, 216px);
+    bottom: 0;
+    padding-bottom: max(12px, var(--sab));
+  }
+  .lookup-embed .lookup-save-form {
+    left: 0;
+  }
+}
+</style>

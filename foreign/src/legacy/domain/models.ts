@@ -10,8 +10,11 @@ export interface Vocabulary {
   id: number
   word: string
   phonetic: string | null
+  audio_url?: string | null
   meanings: Meaning[]
-  examples: { example: string; definition_ref?: string | null }[]
+  synonyms?: string[]
+  antonyms?: string[]
+  examples: (string | { example: string; definition_ref?: string | null })[]
 }
 export interface User {
   id: string

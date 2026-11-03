@@ -15,7 +15,7 @@ pub async fn remind(
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()?;
-    let owners: Vec<uuid::Uuid> = sqlx::query_scalar("SELECT user_id FROM wallets_accounts")
+    let owners: Vec<uuid::Uuid> = sqlx::query_scalar("SELECT user_id FROM finance_profiles")
         .fetch_all(pool)
         .await?;
     let mut sent = 0;

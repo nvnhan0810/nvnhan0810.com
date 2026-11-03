@@ -7,6 +7,12 @@ pub struct Entry {
     pub phonetic: String,
     #[serde(default)]
     pub phonetics: Vec<Phonetic>,
+    #[serde(default)]
+    pub examples: Vec<String>,
+    #[serde(default)]
+    pub synonyms: Vec<String>,
+    #[serde(default)]
+    pub antonyms: Vec<String>,
     pub meanings: Vec<Meaning>,
 }
 #[derive(Debug, Deserialize, Serialize)]
@@ -68,6 +74,22 @@ mod tests {
 #[cfg(test)]
 mod provider_contract_tests {
     use super::*;
+    #[test]
+    fn preserves_word_metadata_separately_from_meanings() {
+        let payload = serde_json::json!({"word":"hello","phonetic":"ipa","phonetics":[{"text":"ipa","audio":"https://example.com/hello.mp3"}],"examples":["Say hello."],"synonyms":["hi"],"antonyms":["goodbye"],"meanings":[{"partOfSpeech":"noun","definitions":[{"definition":"A greeting."}]}]});
+        let mut entry: Entry = serde_json::from_value(payload).unwrap();
+        crate::application::vocabulary::validate(&mut entry).unwrap();
+        let stored = serde_json::to_value(entry).unwrap();
+        let revealed = crate::domain::games::reveal(&stored);
+        assert_eq!(revealed["examples"][0], "Say hello.");
+        assert_eq!(revealed["synonyms"][0], "hi");
+        assert_eq!(revealed["antonyms"][0], "goodbye");
+        assert_eq!(
+            stored["phonetics"][0]["audio"],
+            "https://example.com/hello.mp3"
+        );
+        assert_eq!(revealed["meanings"][0]["synonyms"], serde_json::json!([]));
+    }
     #[test]
     fn decodes_meanings_and_optional_fields_without_fabricating_data() {
         let entries: Vec<Entry> = serde_json::from_str(r#"[{"word":"hello","phonetics":[{"text":"hello"}],"meanings":[{"partOfSpeech":"noun","definitions":[{"definition":"A greeting.","example":"Hello there."}]}]}]"#).unwrap();

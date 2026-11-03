@@ -87,6 +87,9 @@ pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec
             .map(|p| p.text.clone())
             .unwrap_or_default(),
         phonetics,
+        examples: vec![],
+        synonyms: vec![],
+        antonyms: vec![],
         meanings,
     }])
 }

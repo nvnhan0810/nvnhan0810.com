@@ -34,7 +34,12 @@ pub fn reveal(entry: &Value) -> Value {
             meanings.push(json!({"part_of_speech":meaning["partOfSpeech"],"definition":definition["definition"],"examples":definition["examples"],"example":definition["example"],"synonyms":terms("synonyms"),"antonyms":terms("antonyms")}));
         }
     }
-    json!({"word":entry["word"],"phonetic":entry["phonetic"],"meanings":meanings,"definition":definition(entry),"part_of_speech":entry["meanings"][0]["partOfSpeech"]})
+    let audio = entry["phonetics"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find_map(|p| p["audio"].as_str().filter(|s| !s.is_empty()));
+    json!({"word":entry["word"],"phonetic":entry["phonetic"],"audio_url":audio,"meanings":meanings,"examples":entry["examples"],"synonyms":entry["synonyms"],"antonyms":entry["antonyms"],"definition":definition(entry),"part_of_speech":entry["meanings"][0]["partOfSpeech"]})
 }
 pub fn start(mode: &str, entries: &[(i64, Value)], score: i64) -> Result<Value, &'static str> {
     let (id, entry) = entries

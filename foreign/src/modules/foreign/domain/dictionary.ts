@@ -1,4 +1,7 @@
 export interface DictionaryEntry {
+  examples?: string[]
+  synonyms?: string[]
+  antonyms?: string[]
   word: string
   phonetic: string
   phonetics: { text: string; audio: string }[]

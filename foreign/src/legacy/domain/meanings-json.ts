@@ -10,6 +10,7 @@ export type DictionaryLookupResult = {
   word: string
   phonetic?: string | null
   audio_url?: string | null
+  examples?: string[]
   meanings?: MeaningLike[]
   synonyms?: string[]
   antonyms?: string[]
@@ -124,50 +125,96 @@ export function meaningsToPrettyJson(meanings: readonly MeaningLike[]): string {
   return JSON.stringify(payload, null, 2)
 }
 
-/** Local AI prompt for meanings JSON — same template as the backend. */
+export function entryToPrettyJson(
+  entry: DictionaryLookupResult,
+  meanings: readonly MeaningLike[],
+): string {
+  return JSON.stringify(
+    {
+      phonetic: entry.phonetic ?? '',
+      audio_url: entry.audio_url ?? '',
+      examples: entry.examples ?? [],
+      synonyms: entry.synonyms ?? [],
+      antonyms: entry.antonyms ?? [],
+      meanings: JSON.parse(meaningsToPrettyJson(meanings)),
+    },
+    null,
+    2,
+  )
+}
+
+/** Legacy arrays update meanings only; omitted entry fields preserve existing values. */
+export function parseEntryJson(
+  raw: string,
+): Partial<DictionaryLookupResult> & { meanings: Meaning[] } {
+  const meanings = parseMeaningsJson(raw)
+  const decoded = JSON.parse(stripMarkdownFences(raw.trim()))
+  if (Array.isArray(decoded)) return { meanings }
+  const result: Partial<DictionaryLookupResult> & { meanings: Meaning[] } = {
+    meanings,
+  }
+  for (const key of ['phonetic', 'audio_url'] as const) {
+    if (!(key in decoded)) continue
+    if (decoded[key] !== null && typeof decoded[key] !== 'string')
+      throw new Error(`${key} must be a string or null.`)
+    result[key] = decoded[key]?.trim() ?? ''
+  }
+  if (result.audio_url) {
+    let url: URL
+    try {
+      url = new URL(result.audio_url)
+    } catch {
+      throw new Error('audio_url must be an HTTPS URL or empty.')
+    }
+    if (url.protocol !== 'https:' || url.username || url.password)
+      throw new Error('audio_url must be an HTTPS URL or empty.')
+  }
+  for (const key of ['examples', 'synonyms', 'antonyms'] as const) {
+    if (!(key in decoded)) continue
+    if (
+      !Array.isArray(decoded[key]) ||
+      decoded[key].some((v: unknown) => typeof v !== 'string')
+    )
+      throw new Error(`${key} must be an array of strings.`)
+    result[key] = stringList(decoded[key])
+  }
+  return result
+}
+
 export function buildMeaningsAiPrompt(
   word: string,
   currentMeanings: readonly MeaningLike[] = [],
+  entry: Partial<DictionaryLookupResult> = {},
 ): string {
-  const label = word.trim() !== '' ? word.trim() : '{WORD}'
-  const hasCurrent = currentMeanings.some(
-    (m) => typeof m.definition === 'string' && m.definition.trim() !== '',
-  )
-  const currentBlock = hasCurrent
-    ? `
-
-Current meanings JSON (starting point — refine, do not discard useful senses without reason):
-${meaningsToPrettyJson(currentMeanings)}
-`
-    : ''
-
   return `You are helping curate an English dictionary entry for FLC.
+Word / phrase: ${word.trim() || '{WORD}'}
+Current dictionary JSON (preserve valid information and improve missing details):
+${entryToPrettyJson({ ...entry, word }, currentMeanings)}
 
-Word / phrase: ${label}
-${currentBlock}
-Return ONLY a valid JSON array (no markdown fences, no commentary) of meanings in this exact schema:
-
-[
-  {
+Return ONLY a valid JSON object, without markdown or commentary, using this schema:
+{
+  "phonetic": "/ˈhæpi/",
+  "audio_url": "",
+  "examples": ["She looks happy today."],
+  "synonyms": ["joyful"],
+  "antonyms": ["sad"],
+  "meanings": [{
     "part_of_speech": "adjective",
     "definition": "Feeling or showing pleasure",
-    "examples": ["She looks happy today."],
-    "synonyms": ["joyful", "glad"],
-    "antonyms": ["sad", "unhappy"]
-  }
-]
-
+    "examples": ["I am happy to help."],
+    "synonyms": ["glad"],
+    "antonyms": ["unhappy"]
+  }]
+}
 Rules:
-- Top-level MUST be a JSON array (or optionally {"meanings":[...]}).
-- Each item MUST have a non-empty string "definition".
-- "part_of_speech" is optional (noun, verb, adjective, adverb, phrase, idiom, ...). Use null or omit if unknown.
-- "examples", "synonyms", "antonyms" MUST be arrays of strings. Use [] when empty.
-- Prefer clear learner-friendly English definitions.
-- ALL string values in the JSON MUST be English only. Do NOT put Vietnamese (or any non-English language) in definition, examples, synonyms, antonyms, or part_of_speech.
-- Include multiple meanings when the word has distinct senses.
-- Do not include extra keys (no "example" singular — use "examples").
-- Prefer one clear entry per distinct meaning; deduplicate overlapping senses.
-- If Current meanings JSON is present, improve that JSON: fix gaps, add missing senses/examples/synonyms/antonyms, keep valid existing senses.`
+- Describe the requested word, not the example word in the schema.
+- phonetic is IPA for the whole word. Use an empty string if unknown.
+- audio_url is a verified HTTPS pronunciation audio URL. Preserve a valid existing URL; never invent a URL. Use an empty string if unavailable.
+- Top-level examples, synonyms, and antonyms apply to the whole word. Sense-specific examples and related words belong inside meanings.
+- All examples, synonyms, and antonyms MUST be arrays of strings; use [] when empty.
+- Include at least one meaning with a non-empty definition and all distinct useful senses without duplication.
+- Use English only for definitions, examples, synonyms, antonyms, and part_of_speech. Use IPA for phonetic.
+- Use examples (plural), never example. Do not add extra keys.`
 }
 
 export async function copyTextToClipboard(text: string): Promise<void> {

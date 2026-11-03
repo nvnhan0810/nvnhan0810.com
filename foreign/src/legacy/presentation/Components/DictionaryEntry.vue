@@ -45,13 +45,9 @@ const entrySynonyms = computed(() => cleanWords(props.synonyms))
 const entryAntonyms = computed(() => cleanWords(props.antonyms))
 
 const normalizedMeanings = computed(() =>
-  (props.meanings || []).map((meaning, index) => {
-    let synonyms = cleanWords(meaning.synonyms || [])
-    let antonyms = cleanWords(meaning.antonyms || [])
-    if (index === 0) {
-      synonyms = [...new Set([...synonyms, ...entrySynonyms.value])]
-      antonyms = [...new Set([...antonyms, ...entryAntonyms.value])]
-    }
+  (props.meanings || []).map((meaning) => {
+    const synonyms = cleanWords(meaning.synonyms || [])
+    const antonyms = cleanWords(meaning.antonyms || [])
     let examples = (meaning.examples || [])
       .filter((text) => typeof text === 'string' && text.trim() !== '')
       .map((text) => text.trim())
@@ -137,8 +133,8 @@ const moreExamples = computed(() => {
         </div>
       </div>
     </template>
-    <template v-else>
-      <p class="muted">No detailed definitions yet.</p>
+    <p v-else class="muted">No detailed definitions yet.</p>
+    <div class="entry-related-words">
       <div v-if="entrySynonyms.length" class="related-group">
         <div class="related-label">Synonyms</div>
         <div class="related-words">
@@ -165,7 +161,7 @@ const moreExamples = computed(() => {
           >
         </div>
       </div>
-    </template>
+    </div>
 
     <template v-if="moreExamples.length">
       <h3 style="font-size: 15px; margin: 20px 0 10px">More examples</h3>

@@ -3,6 +3,7 @@ import { RouterLink } from 'vue-router'
 import { vueRouter } from '../app/router'
 import { action, request, WalletsError } from '../infrastructure/wallets-api'
 import { session } from '../app/services'
+import { preparePageComponent } from '../app/page-components'
 import { ApiError } from '../infrastructure/transport'
 import type { SharedPageProps } from '../types/inertia'
 import { importHolidays } from '../infrastructure/holidays'
@@ -63,6 +64,7 @@ export async function loadPage(path: string) {
     const result = await request<PagePayload>(
       `/pages?path=${encodeURIComponent(path)}`,
     )
+    await preparePageComponent(result.component)
     if (
       version !== requestVersion ||
       vueRouter.currentRoute.value.fullPath !== path
@@ -114,6 +116,8 @@ async function submit(
     const result = await action<PagePayload>(path, method, data)
     if (origin !== vueRouter.currentRoute.value.fullPath) return
     if (result.component) {
+      await preparePageComponent(result.component)
+      if (origin !== vueRouter.currentRoute.value.fullPath) return
       page.component = result.component
       page.props = { ...page.props, ...result.props, errors: {} }
       page.revision++

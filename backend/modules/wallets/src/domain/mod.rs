@@ -1,4 +1,5 @@
 pub mod finance;
+pub mod legacy;
 pub mod lending;
 pub mod reports;
 use chrono::{Datelike, NaiveDate, Utc};
@@ -9,6 +10,8 @@ pub type Result<T> = std::result::Result<T, String>;
 #[derive(Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Account {
+    #[serde(skip)]
+    pub original_holidays: Vec<Value>,
     pub next_id: i64,
     pub wallets: Vec<Value>,
     pub transactions: Vec<Value>,

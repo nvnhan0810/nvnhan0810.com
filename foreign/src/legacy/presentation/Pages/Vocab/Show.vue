@@ -21,6 +21,7 @@ async function pronounce() {
   const word = props.vocab.word
   await playPronunciation({
     word,
+    audioUrl: props.vocab.audio_url,
     fetchAudioUrl: () => fetchDictionaryPronounceUrl(word),
   })
 }
@@ -97,6 +98,8 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
       <DictionaryEntry
         :meanings="vocab.meanings || []"
+        :synonyms="vocab.synonyms || []"
+        :antonyms="vocab.antonyms || []"
         :extra-examples="vocab.examples || []"
         prefer-detail
       />

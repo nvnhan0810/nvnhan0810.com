@@ -62,7 +62,9 @@ mod local_callback_tests {
         assert!(policy.validate(&redirects[0], "profile").is_ok());
         for callback in [
             "http://127.0.0.1:5173/auth/callback",
-            "http://localhost:5173/auth/callback",
+            "http://localhost:5174/auth/callback",
+            "http://localhost:5173/auth/callback/",
+            "http://localhost:5173/auth/callback?extra=1",
             "https://identity.nvnhan0810.com/auth/callback",
         ] {
             assert_eq!(

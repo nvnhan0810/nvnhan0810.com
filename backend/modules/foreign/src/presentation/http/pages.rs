@@ -58,7 +58,6 @@ async fn vocab(pool: &sqlx::PgPool, owner: Uuid, id: i64) -> Result<Value, ApiEr
     let (id, entry) = row.ok_or_else(missing)?;
     let mut item = games::reveal(&entry);
     item["id"] = json!(id);
-    item["examples"] = json!([]);
     Ok(item)
 }
 async fn page(state: &ForeignState, owner: Uuid, path: &str) -> Result<Value, ApiError> {
@@ -77,7 +76,6 @@ async fn page(state: &ForeignState, owner: Uuid, path: &str) -> Result<Value, Ap
                 .map(|(id, entry)| {
                     let mut value = games::reveal(&entry);
                     value["id"] = json!(id);
-                    value["examples"] = json!([]);
                     value
                 })
                 .collect();
@@ -255,7 +253,7 @@ pub async fn action(
     if (path == "/home/lookup/save" || path == "/lookup/save") && input.method == "POST" {
         let meanings:Vec<_>=data["meanings"].as_array().into_iter().flatten().map(|m|json!({"partOfSpeech":m["part_of_speech"].as_str().unwrap_or(""),"synonyms":m["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":m["antonyms"].as_array().cloned().unwrap_or_default(),"definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"example":m["example"].as_str().unwrap_or(""),"examples":m["examples"].as_array().cloned().unwrap_or_default()}]})).collect();
         let mut entry: Entry = serde_json::from_value(
-            json!({"word":data["word"],"phonetic":data["phonetic"],"meanings":meanings}),
+            json!({"word":data["word"],"phonetic":data["phonetic"],"examples":data["examples"].as_array().cloned().unwrap_or_default(),"synonyms":data["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":data["antonyms"].as_array().cloned().unwrap_or_default(),"meanings":meanings}),
         )
         .map_err(|_| bad("Invalid word"))?;
         crate::application::vocabulary::validate(&mut entry).map_err(bad)?;
@@ -265,10 +263,24 @@ pub async fn action(
                 .fetch_optional(&state.pool)
                 .await
                 .map_err(internal)?;
-        if let Some(existing) = existing {
+        if let Some(audio) = data.get("audio_url") {
+            let audio = audio.as_str().ok_or_else(|| bad("Invalid audio URL"))?;
+            if !audio.is_empty() {
+                let url = reqwest::Url::parse(audio).map_err(|_| bad("Invalid audio URL"))?;
+                if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some()
+                {
+                    return Err(bad("Invalid audio URL"));
+                }
+            }
+            entry.phonetics = vec![crate::domain::dictionary::Phonetic {
+                text: entry.phonetic.clone(),
+                audio: audio.to_owned(),
+            }];
+        } else if let Some(existing) = existing {
             entry.phonetics =
                 serde_json::from_value(existing["phonetics"].clone()).unwrap_or_default();
         }
+        crate::application::vocabulary::validate(&mut entry).map_err(bad)?;
 
         let id = vocabulary::save(&state.pool, owner, &entry)
             .await

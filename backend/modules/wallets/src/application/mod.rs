@@ -35,6 +35,16 @@ pub fn action(a: &mut Account, path: &str, method: &str, d: &Value) -> Result<Va
             {
                 return Err("Ví có giao dịch/khoản vay, hãy ngừng hoạt động thay vì xóa".into());
             }
+            for template in &mut a.templates {
+                for key in ["default_wallet_id", "from_wallet_id", "to_wallet_id"] {
+                    if number(template, key) == id {
+                        template[key] = Value::Null;
+                    }
+                }
+            }
+            if number(&a.goal, "wallet_id") == id {
+                a.goal["wallet_id"] = Value::Null;
+            }
             a.wallets.retain(|w| number(w, "id") != id);
             "/wallets".into()
         }
@@ -72,6 +82,11 @@ pub fn action(a: &mut Account, path: &str, method: &str, d: &Value) -> Result<Va
             let id = id.ok_or("Thiếu mẫu")?;
             if !a.templates.iter().any(|t| number(t, "id") == id) {
                 return Err("Không tìm thấy mẫu".into());
+            }
+            for transaction in &mut a.transactions {
+                if number(transaction, "transaction_template_id") == id {
+                    transaction["transaction_template_id"] = Value::Null;
+                }
             }
             a.templates.retain(|t| number(t, "id") != id);
             "/transaction-templates".into()
@@ -159,6 +174,11 @@ pub fn action(a: &mut Account, path: &str, method: &str, d: &Value) -> Result<Va
             a.reminders.retain(|r| {
                 number(r, "recurring_item_id") != id.unwrap() || text(r, "status") == "posted"
             });
+            for row in a.transactions.iter_mut().chain(&mut a.reminders) {
+                if number(row, "recurring_item_id") == id.unwrap() {
+                    row["recurring_item_id"] = Value::Null;
+                }
+            }
             "/recurring-items".into()
         }
         ("settings", "POST") => {
