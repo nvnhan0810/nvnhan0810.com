@@ -15,8 +15,8 @@ pub async fn master_data_all(
 pub async fn seed_all(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
     identity::master_data::run(
         pool,
-        "http://localhost:5174",
-        "http://localhost:5174/auth/callback",
+        "http://localhost:5173",
+        "http://localhost:5173/auth/callback",
     )
     .await?;
     commands::create_foreign_local_client::insert(pool).await?;

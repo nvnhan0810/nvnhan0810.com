@@ -29,18 +29,18 @@ mod tests {
         let config = IdentityMasterDataConfig::from_source(&ConfigSource::from_values([
             (
                 "IDENTITY_CORS_ORIGIN".into(),
-                "http://localhost:5174".into(),
+                "http://localhost:5173".into(),
             ),
             (
                 "IDENTITY_REDIRECT_URI".into(),
-                "http://localhost:5174/sso/callback".into(),
+                "http://localhost:5173/sso/callback".into(),
             ),
         ]));
-        assert_eq!(config.redirect_uri, "http://localhost:5174/sso/callback");
+        assert_eq!(config.redirect_uri, "http://localhost:5173/sso/callback");
         let fallback = IdentityMasterDataConfig::from_source(&ConfigSource::from_values([(
             "IDENTITY_CORS_ORIGIN".into(),
-            "http://localhost:5174/".into(),
+            "http://localhost:5173/".into(),
         )]));
-        assert_eq!(fallback.redirect_uri, "http://localhost:5174/auth/callback");
+        assert_eq!(fallback.redirect_uri, "http://localhost:5173/auth/callback");
     }
 }

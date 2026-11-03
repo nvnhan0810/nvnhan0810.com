@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn client_domain_is_an_exact_browser_origin() {
         let mut client = input();
-        for domain in ["https://new.example", "http://localhost:5174"] {
+        for domain in ["https://new.example", "http://localhost:5173"] {
             client.domain = Some(domain.into());
             assert!(validate(Uuid::new_v4(), &client, None).is_ok());
         }

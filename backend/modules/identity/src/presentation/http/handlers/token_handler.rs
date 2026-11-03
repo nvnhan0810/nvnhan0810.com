@@ -179,7 +179,7 @@ mod tests {
             response.headers()[header::WWW_AUTHENTICATE],
             "Basic realm=\"identity\""
         );
-        headers.insert(header::ORIGIN, "http://localhost:5174".parse().unwrap());
+        headers.insert(header::ORIGIN, "http://localhost:5173".parse().unwrap());
         let browser_response = client_response(Err(IdentityError::unauthorized()), &headers);
         assert!(
             !browser_response

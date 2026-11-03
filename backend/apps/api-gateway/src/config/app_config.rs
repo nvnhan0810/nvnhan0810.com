@@ -142,9 +142,9 @@ mod tests {
                 .unwrap(),
             "https://identity.example"
         );
-        assert!(make("local", "http://localhost:5174").is_ok());
+        assert!(make("local", "http://localhost:5173").is_ok());
         for origin in [
-            "http://localhost:5174",
+            "http://localhost:5173",
             "https://a.example,https://b.example",
             "*",
             "null",

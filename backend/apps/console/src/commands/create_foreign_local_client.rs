@@ -7,9 +7,9 @@ pub async fn insert(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::error::Error
     let input = ClientInput {
         client_id: "foreign-web".into(),
         name: "Foreign Local".into(),
-        domain: Some("http://localhost:5174".into()),
+        domain: Some("http://localhost:5173".into()),
         client_type: "public".into(),
-        redirect_uris: vec!["http://localhost:5174/auth/callback".into()],
+        redirect_uris: vec!["http://localhost:5173/auth/callback".into()],
         scopes: vec!["profile".into()],
         enabled: true,
     };

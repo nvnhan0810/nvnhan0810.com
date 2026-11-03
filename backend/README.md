@@ -520,7 +520,7 @@ identity.clients.manage. `IDENTITY_REDIRECT_URI` đăng ký một callback chín
 vào `redirect_uris` khi tạo client. 
 
 ```dotenv
-IDENTITY_REDIRECT_URI=http://localhost:5174/auth/callback
+IDENTITY_REDIRECT_URI=http://localhost:5173/auth/callback
 ```
 
 URI này phải khớp callback frontend gửi khi login. Đổi env không cập nhật client
@@ -592,7 +592,7 @@ cả hai cookie. /auth/logout vẫn kết thúc phiên SSO trung tâm. Không c�
 ### Seed local và master data production
 
 - `make seed` hoặc `make command CMD=seed`: tạo client `identity` và `foreign-web`
-  cho `http://localhost:5174/auth/callback`, scope admin/profile tương ứng.
+  cho `http://localhost:5173/auth/callback`, scope admin/profile tương ứng.
   Chỉ trỏ DB_* đến DB dev/test. Không tạo user Google giả. Hai FE dùng luân phiên port 5174.
 - `make master-data` hoặc `make command CMD=master-data`: tạo duy nhất client
   Identity Admin theo IDENTITY_CORS_ORIGIN và IDENTITY_REDIRECT_URI (mặc định domain production).

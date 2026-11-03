@@ -179,7 +179,7 @@ mod tests {
             .enabled
             .lock()
             .unwrap()
-            .push("http://localhost:5174".into());
+            .push("http://localhost:5173".into());
         let app = Router::new()
             .route("/api", get(|| async { "ok" }))
             .layer(layer(origins.clone(), None, true));
@@ -189,7 +189,7 @@ mod tests {
             "https://app.example/path",
             "https://app.example/",
             "https://app.example?x=1",
-            "http://localhost:5174",
+            "http://localhost:5173",
         ] {
             assert!(
                 !request(&app, origin, true)
@@ -203,10 +203,10 @@ mod tests {
             .route("/api", get(|| async { "ok" }))
             .layer(layer(origins, None, false));
         assert_eq!(
-            request(&local, "http://localhost:5174", true)
+            request(&local, "http://localhost:5173", true)
                 .await
                 .headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
-            "http://localhost:5174"
+            "http://localhost:5173"
         );
     }
 }

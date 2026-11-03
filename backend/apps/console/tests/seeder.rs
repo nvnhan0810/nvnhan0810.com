@@ -105,10 +105,10 @@ async fn identity_master_client_is_created_once_without_overwriting_existing_dat
     console::seed_all(&pool).await.unwrap();
     for id in ["identity", "foreign-web"] {
         let client = store.client(id).await.unwrap();
-        assert_eq!(client.domain.as_deref(), Some("http://localhost:5174"));
+        assert_eq!(client.domain.as_deref(), Some("http://localhost:5173"));
         assert_eq!(
             client.redirect_uris,
-            ["http://localhost:5174/auth/callback"]
+            ["http://localhost:5173/auth/callback"]
         );
         assert_eq!(client.client_type, "public");
     }
