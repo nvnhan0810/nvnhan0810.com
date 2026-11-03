@@ -62,6 +62,11 @@ impl IdentityRepository for IdentityStore {
             .bind(hash).bind(id).bind(version).fetch_optional(&self.0).await?
             .ok_or(IdentityError {code:"version_conflict",status:409})
     }
+    async fn rotate_client_id(&self, id: Uuid, version: i64, client_id: &str) -> Result<Client> {
+        sqlx::query_as("UPDATE sso_clients SET client_id=$1,version=version+1,updated_at=now() WHERE id=$2 AND version=$3 RETURNING *")
+            .bind(client_id).bind(id).bind(version).fetch_optional(&self.0).await?
+            .ok_or(IdentityError {code:"version_conflict",status:409})
+    }
     async fn list_clients(&self, after: Option<Uuid>, limit: i64) -> Result<Vec<Client>> {
         Ok(sqlx::query_as(
             "SELECT * FROM sso_clients WHERE ($1::uuid IS NULL OR id>$1) ORDER BY id LIMIT $2",

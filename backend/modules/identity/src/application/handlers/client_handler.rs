@@ -2,7 +2,7 @@ use crate::{
     IdentityState,
     application::{
         error::{IdentityError, Result},
-        models::{Client, ClientInput, ClientUpdate},
+        models::{Client, ClientInput, ClientRegistration, ClientUpdate},
     },
     domain::{
         entities::sso_client::SsoClient,
@@ -56,6 +56,22 @@ pub(crate) fn validate(id: Uuid, input: &ClientInput, secret: Option<&str>) -> R
     .map_err(|_| invalid())
 }
 
+pub async fn register_generated(
+    state: &IdentityState,
+    registration: ClientRegistration,
+) -> Result<(Client, Option<String>)> {
+    let input = ClientInput {
+        client_id: generated_client_id(),
+        name: registration.name,
+        domain: registration.domain,
+        client_type: registration.client_type,
+        redirect_uris: registration.redirect_uris,
+        scopes: registration.scopes,
+        enabled: registration.enabled,
+    };
+    register(state, input).await
+}
+
 pub async fn register(
     state: &IdentityState,
     input: ClientInput,
@@ -75,6 +91,17 @@ pub async fn register(
         )
         .await?;
     Ok((client, secret))
+}
+
+fn generated_client_id() -> String {
+    Uuid::new_v4().to_string()
+}
+
+pub async fn rotate_client_id(state: &IdentityState, id: Uuid, version: i64) -> Result<Client> {
+    state
+        .store
+        .rotate_client_id(id, version, &generated_client_id())
+        .await
 }
 
 pub async fn update(state: &IdentityState, id: Uuid, update: ClientUpdate) -> Result<Client> {

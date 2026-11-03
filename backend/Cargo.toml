@@ -5,6 +5,7 @@ members = [
     "modules/ordering",
     "modules/foreign",
     "modules/wallets",
+    "modules/todos",
     "apps/api-gateway",
     "apps/console",
     "crates/app-config",

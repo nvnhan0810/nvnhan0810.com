@@ -4,7 +4,7 @@ use crate::{
     application::{
         error::Result,
         handlers::client_handler as clients,
-        models::{ClientInput, ClientUpdate},
+        models::{ClientRegistration, ClientUpdate},
     },
 };
 use axum::{
@@ -18,14 +18,25 @@ use uuid::Uuid;
 pub async fn create(
     State(state): State<IdentityState>,
     headers: HeaderMap,
-    Json(input): Json<ClientInput>,
+    Json(input): Json<ClientRegistration>,
 ) -> Result<impl axum::response::IntoResponse> {
     admin(&state, &headers, true).await?;
-    let (client, secret) = clients::register(&state, input).await?;
+    let (client, secret) = clients::register_generated(&state, input).await?;
     Ok((
         StatusCode::CREATED,
         [(axum::http::header::CACHE_CONTROL, "no-store")],
         Json(serde_json::json!({"client":client,"client_secret":secret})),
+    ))
+}
+pub async fn rotate_id(
+    State(state): State<IdentityState>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(input): Json<Version>,
+) -> Result<Json<serde_json::Value>> {
+    admin(&state, &headers, true).await?;
+    Ok(Json(
+        serde_json::json!({"client":clients::rotate_client_id(&state,id,input.version).await?}),
     ))
 }
 #[derive(Deserialize)]

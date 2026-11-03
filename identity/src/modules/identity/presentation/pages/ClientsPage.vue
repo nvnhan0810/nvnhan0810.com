@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import {
-    Blocks,
-    Check,
-    ChevronRight,
-    Copy,
-    KeyRound,
-    LoaderCircle,
-    MoreHorizontal,
-    Pencil,
-    Plus,
-    RefreshCw,
-    Search,
-    ShieldCheck,
-    SlidersHorizontal,
-    ToggleLeft,
-    ToggleRight,
+  Blocks,
+  Check,
+  ChevronRight,
+  Copy,
+  KeyRound,
+  LoaderCircle,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../../../../app/services.ts'
@@ -152,6 +152,28 @@ async function rotate(client: IdentityClient) {
       secret.value = result.client_secret
       secretClient.value = client.client_id
     }
+  } catch (cause) {
+    notify(errorMessage(cause), 'error')
+  } finally {
+    actionId.value = ''
+  }
+}
+async function rotateId(client: IdentityClient) {
+  if (
+    !(await confirmAction({
+      title: 'Đổi Client ID?',
+      message: `Client ID hiện tại của “${client.name}” sẽ mất hiệu lực ngay. Cập nhật ID mới trong cấu hình mọi app đang dùng client này trước khi đăng nhập lại.`,
+      label: 'Rotate ID',
+      danger: true,
+    }))
+  )
+    return
+  actionId.value = client.id
+  try {
+    const result = await api.rotateClientId(client.id, client.version)
+    replace(result.client)
+    if (selected.value?.id === result.client.id) selected.value = result.client
+    notify('Đã tạo Client ID mới. Cập nhật cấu hình ứng dụng.')
   } catch (cause) {
     notify(errorMessage(cause), 'error')
   } finally {
@@ -347,9 +369,10 @@ onMounted(() => load())
     ><ClientForm
       v-if="editorOpen"
       :client="selected"
-      :busy="saving"
+      :busy="saving || (!!selected && actionId === selected.id)"
       :error="formError"
       @save="save"
+      @rotate-id="rotateId"
       @cancel="editorOpen = false"
   /></Modal>
   <Modal :open="!!secret" title="Lưu client secret của bạn" @close="clearSecret"

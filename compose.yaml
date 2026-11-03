@@ -79,6 +79,20 @@ services:
     networks:
       - backend-network
 
+  todos:
+    build:
+      context: ./todos
+      dockerfile: Dockerfile
+    container_name: todos
+    ports:
+      - "5176:5173"
+    volumes:
+      - ./todos:/app
+    depends_on:
+      - backend
+    networks:
+      - backend-network
+
 volumes:
   backend-target:
   cargo-registry:

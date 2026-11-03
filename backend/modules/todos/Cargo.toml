@@ -1,0 +1,24 @@
+[package]
+name = "todos"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { workspace = true, features = ["uuid", "json"] }
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+identity = { path = "../identity" }
+app-config = { path = "../../crates/app-config" }
+url = "2"
+futures-util = "0.3"
+web-push = { version = "0.11", default-features = false, features = ["hyper-client"] }
+base64 = "0.22"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

@@ -21,6 +21,7 @@ pub async fn seed_all(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::error::Err
     .await?;
     commands::create_foreign_local_client::insert(pool).await?;
     commands::create_wallets_local_client::insert(pool).await?;
+    commands::create_todos_local_client::insert(pool).await?;
     Ok(())
 }
 

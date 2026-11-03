@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { ArrowRight, LoaderCircle } from 'lucide-vue-next'
+import { ArrowRight, Copy, LoaderCircle, RefreshCw } from 'lucide-vue-next'
+import { copyText } from '../../../../shared/notifications'
 import type { ClientInput, IdentityClient } from '../../domain/models'
 import { clientInput } from '../../application/client-form'
 import type { ClientDraft } from '../../application/client-form'
 const props = defineProps<{ client: IdentityClient | null; busy: boolean; error: string }>()
-const emit = defineEmits<{ save: [input: ClientInput]; cancel: [] }>()
+const emit = defineEmits<{
+  save: [input: ClientInput]
+  cancel: []
+  rotateId: [client: IdentityClient]
+}>()
 const localError = ref('')
 const draft = reactive<ClientDraft>({
-  client_id: props.client?.client_id || '',
   name: props.client?.name || '',
   domain: props.client?.domain || '',
   client_type: props.client?.client_type || 'public',
@@ -41,19 +45,32 @@ function submit() {
             maxlength="255"
             placeholder="Ví dụ: Wallets"
             :disabled="busy" /></label
-        ><label class="field"
-          >Client ID<span class="required">*</span
-          ><input
-            v-model="draft.client_id"
-            required
-            maxlength="64"
-            pattern="[a-z0-9][a-z0-9\-]*"
-            placeholder="wallets-web"
-            :disabled="busy || !!client"
-          /><small>{{
-            client ? 'Client ID không thay đổi sau khi tạo.' : 'Chữ thường, số và dấu gạch ngang.'
-          }}</small></label
+        ><label v-if="client" class="field"
+          >Client ID<span class="field-input-suffix"
+            ><input :value="client.client_id" readonly /><span class="suffix-actions"
+              ><button
+                type="button"
+                class="icon-button"
+                aria-label="Sao chép Client ID"
+                title="Sao chép Client ID"
+                @click="copyText(client.client_id)"
+              >
+                <Copy :size="15" /></button
+              ><button
+                type="button"
+                class="icon-button"
+                aria-label="Rotate Client ID"
+                title="Rotate Client ID"
+                :disabled="busy"
+                @click="emit('rotateId', client)"
+              >
+                <RefreshCw :size="15" /></button></span></span
+          ><small>ID UUID ngẫu nhiên do Identity tạo.</small></label
         >
+        <div v-else class="field generated-id-hint">
+          <strong>Client ID tự sinh</strong
+          ><small>Identity sẽ tạo ID ngẫu nhiên khi lưu client.</small>
+        </div>
       </div>
       <label class="field"
         >Domain<input

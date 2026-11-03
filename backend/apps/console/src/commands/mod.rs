@@ -7,3 +7,5 @@ pub mod create_wallets_local_client;
 pub mod wallets;
 
 pub mod migrate_wallets_legacy;
+
+pub mod create_todos_local_client;

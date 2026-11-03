@@ -64,6 +64,7 @@ async fn run(source: config::ConfigSource, pool: sqlx::PgPool) {
         .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
         .nest("/foreign", foreign.router())
+        .nest("/todos", todos::routes(identity_state.clone(), pool.clone(), todos::infrastructure::worker::PushConfig::from_source(&source)))
         .nest("/wallets", wallets::wallets_routes(identity_state.clone(), pool.clone()))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request

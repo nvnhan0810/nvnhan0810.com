@@ -6,6 +6,7 @@ rust-version.workspace = true
 autobins = false
 
 [dependencies]
+todos = { path = "../../modules/todos" }
 serde_json.workspace = true
 wallets = { path = "../../modules/wallets" }
 app-telemetry = { path = "../../crates/app-telemetry" }

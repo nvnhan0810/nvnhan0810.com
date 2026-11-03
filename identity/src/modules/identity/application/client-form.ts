@@ -1,6 +1,5 @@
 import type { ClientInput } from '../domain/models'
 export interface ClientDraft {
-  client_id: string
   name: string
   domain: string
   client_type: 'public' | 'confidential'
@@ -14,8 +13,6 @@ export function clientInput(draft: ClientDraft): ClientInput {
     .map((line) => line.trim())
     .filter(Boolean)
   const scopes = draft.scopes.split(/\s+/).filter(Boolean)
-  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(draft.client_id))
-    throw new Error('Client ID chỉ gồm chữ thường, số và dấu gạch ngang; tối đa 64 ký tự.')
   if (!draft.name.trim() || draft.name.trim().length > 255)
     throw new Error('Tên client phải có từ 1 đến 255 ký tự.')
   if (!redirects.length || redirects.length > 20)
@@ -51,7 +48,6 @@ export function clientInput(draft: ClientDraft): ClientInput {
     throw new Error('Scopes chưa hợp lệ. Tách các scope bằng khoảng trắng hoặc xuống dòng.')
   if (new Set(scopes).size !== scopes.length) throw new Error('Scopes không được trùng nhau.')
   return {
-    client_id: draft.client_id,
     name: draft.name.trim(),
     domain: draft.domain.trim() || null,
     client_type: draft.client_type,

@@ -27,6 +27,10 @@ pub fn identity_routes(state: IdentityState) -> Router {
             "/admin/sso-clients/{id}/rotate-secret",
             post(clients::rotate),
         )
+        .route(
+            "/admin/sso-clients/{id}/rotate-id",
+            post(clients::rotate_id),
+        )
         .route("/admin/users", get(users::list))
         .route("/admin/users/{id}", get(users::get).patch(users::update))
         .route("/admin/users/{id}/revoke", post(users::revoke))

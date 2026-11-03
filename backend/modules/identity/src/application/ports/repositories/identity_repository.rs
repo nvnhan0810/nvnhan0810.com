@@ -24,6 +24,7 @@ pub trait IdentityRepository:
     ) -> Result<Client>;
     async fn update_client(&self, id: Uuid, version: i64, input: &ClientInput) -> Result<Client>;
     async fn rotate_secret(&self, id: Uuid, version: i64, hash: &str) -> Result<Client>;
+    async fn rotate_client_id(&self, id: Uuid, version: i64, client_id: &str) -> Result<Client>;
     async fn list_clients(&self, after: Option<Uuid>, limit: i64) -> Result<Vec<Client>>;
     async fn browser_user(&self, hash: &str) -> Result<Option<Uuid>>;
     async fn save_attempt(&self, state_hash: &str, attempt: LoginAttempt) -> Result<()>;

@@ -10,7 +10,6 @@ export interface IdentityClient {
   version: number
 }
 export interface ClientInput {
-  client_id: string
   name: string
   domain: string | null
   client_type: 'public' | 'confidential'

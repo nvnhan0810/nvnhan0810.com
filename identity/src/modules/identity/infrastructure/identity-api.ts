@@ -51,6 +51,11 @@ export class IdentityApi {
       version,
     })
   }
+  rotateClientId(id: string, version: number): Promise<{ client: ClientResult['client'] }> {
+    return this.request(`/admin/sso-clients/${encodeURIComponent(id)}/rotate-id`, 'POST', {
+      version,
+    })
+  }
   users(after?: string): Promise<UserList> {
     return this.request(
       `/admin/users?limit=25${after ? `&after=${encodeURIComponent(after)}` : ''}`,

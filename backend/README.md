@@ -679,3 +679,12 @@ media still marked queued/running and reconcile or requeue those entries before
 expecting them to progress. Remove the old transcript-worker Supervisor program if
 one exists. No queue migration, service reload or production restart is performed
 by editing these source files.
+
+## Todo
+
+`modules/todos` provides relational project/task management, an Eisenhower matrix,
+server-persisted Pomodoro, live sync and Web Push under `/todos`. Its background
+worker is registered in `console queue:work`. Run the shared migrations before
+starting updated gateway/worker binaries. See [Todo setup](../todos/README.md) and
+[feature port](../docs/todos-feature-port.md). Local seed registers `todos-web`
+at port 5177. No legacy data is imported implicitly.

@@ -7,6 +7,7 @@ edition = "2024"
 rust-version.workspace = true
 
 [dependencies]
+todos = { path = "../../modules/todos" }
 wallets = { path = "../../modules/wallets" }
 app-telemetry = { path = "../../crates/app-telemetry" }
 app-resources = { path = "../../crates/app-resources" }

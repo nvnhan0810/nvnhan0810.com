@@ -30,6 +30,17 @@ pub struct ClientInput {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ClientRegistration {
+    pub name: String,
+    pub domain: Option<String>,
+    pub client_type: String,
+    pub redirect_uris: Vec<String>,
+    pub scopes: Vec<String>,
+    pub enabled: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ClientUpdate {
     pub version: i64,
     pub name: String,

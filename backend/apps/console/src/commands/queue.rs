@@ -10,6 +10,9 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     sqlx::query("SELECT id FROM apalis.jobs LIMIT 0")
         .execute(&resources.database)
         .await?;
+    sqlx::query("SELECT user_id FROM todo_pomodoro_states LIMIT 0")
+        .execute(&resources.database)
+        .await?;
     let queue = foreign::infrastructure::postgres_queue::Config::new()?;
     let telemetry = app_telemetry::Telemetry::init(&source, resources.database.clone())?;
     let (shutdown, signal) = watch::channel(false);
@@ -19,6 +22,12 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     workers.spawn(async move {
         foreign::infrastructure::transcript_queue::run(pool, queue, transcript_signal).await;
         Ok::<_, String>(())
+    });
+    let pool = resources.database.clone();
+    let todo_config = todos::infrastructure::worker::PushConfig::from_source(&source);
+    let todo_signal = signal.clone();
+    workers.spawn(async move {
+        todos::infrastructure::worker::run(pool, todo_config, todo_signal).await
     });
     let pool = resources.database.clone();
     workers.spawn(async move {

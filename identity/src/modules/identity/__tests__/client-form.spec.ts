@@ -3,7 +3,6 @@ import { clientInput } from '../application/client-form'
 import type { ClientDraft } from '../application/client-form'
 function draft(): ClientDraft {
   return {
-    client_id: 'wallets-web',
     name: ' Wallets ',
     domain: '',
     client_type: 'public',
@@ -15,7 +14,6 @@ function draft(): ClientDraft {
 describe('client editing contract', () => {
   it('produces the Identity create payload without removed audience properties', () => {
     expect(clientInput(draft())).toEqual({
-      client_id: 'wallets-web',
       name: 'Wallets',
       domain: null,
       client_type: 'public',
