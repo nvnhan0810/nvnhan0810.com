@@ -64,7 +64,6 @@ const rows = ref<EditRow[]>(
 const saving = ref(false)
 const formError = ref<string | null>(null)
 const currentTime = ref(0)
-const isPlaying = ref(false)
 const focusedRowIndex = ref(0)
 const playerRef = ref<InstanceType<typeof YouTubeSyncedPlayer> | null>(null)
 
@@ -105,10 +104,6 @@ const targetRowIndex = computed((): number => {
   }
   return rows.value.length > 0 ? 0 : -1
 })
-
-const playbackLabel = computed((): string =>
-  isPlaying.value ? 'Pause' : 'Play',
-)
 
 const fieldErrors = reactive<Record<string, string>>({})
 
@@ -237,10 +232,6 @@ function onPlayerTimeUpdate(seconds: number): void {
   currentTime.value = seconds
 }
 
-function onPlayingChange(playing: boolean): void {
-  isPlaying.value = playing
-}
-
 function togglePlayback(): void {
   if (!canEmbedYoutube.value) {
     return
@@ -353,20 +344,11 @@ function save(): void {
             :video-id="item.source_id"
             :title="item.title"
             @timeupdate="onPlayerTimeUpdate"
-            @playingchange="onPlayingChange"
           />
           <p v-else class="muted media-transcript-edit-player-empty">
             No embedded player for this media.
           </p>
           <div v-if="canEmbedYoutube" class="media-transcript-edit-playback">
-            <button
-              type="button"
-              class="btn btn-sm"
-              :aria-pressed="isPlaying"
-              @click="togglePlayback"
-            >
-              {{ playbackLabel }}
-            </button>
             <p class="media-transcript-edit-clock muted">
               Now: {{ formatClockPrecise(currentTime) }}
               <span aria-hidden="true"> · </span>

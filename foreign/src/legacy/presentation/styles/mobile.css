@@ -3428,6 +3428,12 @@ body.media-add-modal-open {
   width: min(100%, calc(min(36vh, 280px) * 16 / 9));
 }
 
+/* The custom player includes controls below its 16:9 video. */
+.media-transcript-edit-player .video-embed.simple-youtube-player {
+  height: auto;
+  padding-bottom: 0;
+}
+
 .media-transcript-edit-player-empty {
   margin: 0;
   padding: 16px;
