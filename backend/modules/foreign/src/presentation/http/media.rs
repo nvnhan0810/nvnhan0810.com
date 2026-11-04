@@ -202,7 +202,6 @@ pub async fn action(
             return Err(bad("Too many subtitle lines"));
         }
         let mut normalized = Vec::new();
-        let mut previous = 0.0;
         for segment in segments {
             let start = segment["start"]
                 .as_f64()
@@ -211,17 +210,11 @@ pub async fn action(
                 .as_f64()
                 .ok_or_else(|| bad("Invalid subtitle time"))?;
             let text = segment["text"].as_str().unwrap_or("").trim();
-            if start < 0.0
-                || end <= start
-                || start < previous
-                || text.is_empty()
-                || text.len() > 10000
-            {
+            if end <= start || text.is_empty() || text.len() > 10000 {
                 return Err(bad(
-                    "Subtitle lines need increasing times, an end after start, and text.",
+                    "Subtitle lines need an end after start and text.",
                 ));
             }
-            previous = start;
             normalized.push(json!({"start":start,"end":end,"text":text}));
         }
         payload["transcript_task_id"] = Value::Null;

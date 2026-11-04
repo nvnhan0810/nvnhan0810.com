@@ -145,11 +145,13 @@ function validateRows(): TranscriptSegment[] | null {
       continue
     }
 
-    segments.push({
-      start,
-      end: end > start ? end : start + 0.01,
-      text,
-    })
+    if (end <= start) {
+      fieldErrors[row.id] = 'End must be after start'
+      hasInvalid = true
+      continue
+    }
+
+    segments.push({ start, end, text })
   }
 
   if (hasInvalid) {
@@ -198,6 +200,16 @@ function removeRow(index: number): void {
   }
 
   rows.value.splice(index, 1)
+}
+
+function usePreviousEnd(index: number): void {
+  const row = rows.value[index]
+  const previous = rows.value[index - 1]
+  if (!row || !previous) return
+  const end = parseClock(previous.endInput)
+  if (end === null) return
+  row.startInput = formatClockPrecise(end)
+  clearRowError(row.id)
 }
 
 function useCurrentTime(index: number, field: 'start' | 'end'): void {
@@ -429,6 +441,17 @@ function save(): void {
               </p>
 
               <div class="media-transcript-edit-row-actions">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary"
+                  :disabled="
+                    index === 0 ||
+                    parseClock(rows[index - 1]?.endInput ?? '') === null
+                  "
+                  @click="usePreviousEnd(index)"
+                >
+                  Start = previous
+                </button>
                 <button
                   type="button"
                   class="btn btn-sm btn-secondary"
