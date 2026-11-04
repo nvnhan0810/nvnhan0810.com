@@ -182,13 +182,14 @@ pub async fn list_videos(
         let playlist = videos_playlist(&id).ok_or_else(missing)?;
         let youtube = state.youtube.clone();
         requests.spawn(async move {
+            let page_size = PAGE_SIZE.to_string();
             let data = youtube
                 .get(
                     "playlistItems",
                     &[
                         ("part", "snippet,contentDetails"),
                         ("playlistId", &playlist),
-                        ("maxResults", "24"),
+                        ("maxResults", page_size.as_str()),
                         ("pageToken", &position.token),
                     ],
                 )
@@ -220,7 +221,7 @@ pub async fn list_videos(
         .filter_map(|item| item["video_id"].as_str().map(str::to_owned))
         .collect();
     if !ids.is_empty() {
-        // Fetch durations for the whole displayed page in one request (<= 24 IDs).
+        // Fetch durations for the whole displayed page in one request (<= 50 IDs).
         let details = state
             .youtube
             .get(

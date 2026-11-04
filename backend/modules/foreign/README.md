@@ -90,7 +90,7 @@ Open Listen → YouTube channels (`/youtube/channels` in the Foreign app).
 Save a channel URL, `@handle`, channel ID, or legacy `/user/name` URL.
 Each user owns their channel list (up to 20 channels); removing a channel keeps
 videos already saved in listening. Browse all saved channels or filter one channel,
-with Previous/Next pagination (24 entries per page). Shorts and live streams are excluded using the channel Videos-tab playlist
+with Previous/Next pagination (50 entries per page). Shorts and live streams are excluded using the channel Videos-tab playlist
 (`UULF`); private/deleted entries are omitted. Existing channels use this playlist
 automatically without re-saving. Listening videos show Saved and link to their media detail page.
 Adding a video uses the existing transcript queue. Duplicate imports, including
@@ -104,7 +104,7 @@ every video request; the backend excludes longer videos and videos with unknown
 or invalid durations. Videos exactly at the limit remain visible. Switching the
 filter or changing its limit restarts pagination from page one. Cursors are bound
 to the active duration limit. Skipped entries still advance the upstream cursor;
-a filtered page can contain fewer than 24 videos or be empty while Next remains
+a filtered page can contain fewer than 50 videos or be empty while Next remains
 available. No extra pages are scanned automatically, keeping upstream calls bounded.
 
 Setup:
@@ -147,3 +147,7 @@ This is a YouTube convention rather than a documented Data API guarantee.
 Missing Videos-tab playlists return an empty list; the API never falls back to
 mixed uploads containing Shorts. Pagination from the previous mixed-upload
 catalog expires; refresh once after upgrading to start video-only pagination.
+
+Video pages request YouTube's maximum `maxResults=50`; duration details are fetched
+in one batch for those up to 50 videos. Changing page size invalidates old cursors;
+reload the Channels page once after upgrading to restart pagination.

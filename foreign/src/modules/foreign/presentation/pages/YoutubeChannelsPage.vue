@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import {
+  Plus,
+  X,
+  Check,
+  RefreshCw,
+  Search,
+  Youtube,
+  LayoutGrid,
+  Headphones,
+  ListPlus,
+  ChevronLeft,
+  ChevronRight,
+  LoaderCircle,
+} from 'lucide-vue-next'
 import AppLayout from '../../../../legacy/presentation/Layouts/AppLayout.vue'
 import { Head } from '../../../../legacy/application/navigation'
 import { RoutePath } from '../../../../app/router/paths'
@@ -15,7 +29,29 @@ import { durationLabel } from '../duration'
 
 const channels = ref<YoutubeChannel[]>([])
 const selected = ref('')
+const channelSearch = ref('')
+const filteredChannels = computed(() => {
+  const query = channelSearch.value.trim().toLocaleLowerCase()
+  return channels.value.filter((channel) =>
+    channel.title.toLocaleLowerCase().includes(query),
+  )
+})
+async function chooseChannel(id: string) {
+  if (changingChannels.value || selected.value === id) return
+  selected.value = id
+  await loadVideos(0, true)
+}
 const channelUrl = ref('')
+const channelDialog = ref<HTMLDialogElement | null>(null)
+const channelError = ref('')
+function openChannelDialog() {
+  channelUrl.value = ''
+  channelError.value = ''
+  channelDialog.value?.showModal()
+}
+function closeChannelDialog() {
+  if (!changingChannels.value) channelDialog.value?.close()
+}
 const loading = ref(true)
 const changingChannels = ref(false)
 const error = ref('')
@@ -46,6 +82,14 @@ const activeDurationLimit = ref<number | null>(
   savedDurationSettings.enabled ? savedDurationSettings.minutes * 60 : null,
 )
 const durationSettingsError = ref('')
+const durationDialog = ref<HTMLDialogElement | null>(null)
+function openDurationDialog() {
+  durationSettingsError.value = ''
+  durationDialog.value?.showModal()
+}
+function closeDurationDialog() {
+  durationDialog.value?.close()
+}
 async function applyDurationSettings() {
   const minutes = Number(maxDurationMinutes.value)
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
@@ -88,9 +132,6 @@ const pageIndex = ref(0)
 const saving = ref(new Set<string>())
 let request: AbortController | undefined
 let generation = 0
-const currentChannel = computed(() =>
-  channels.value.find((c) => c.channel_id === selected.value),
-)
 const busy = computed(() => loading.value || changingChannels.value)
 
 function message(cause: unknown): string {
@@ -179,16 +220,17 @@ async function initialize() {
 async function saveChannel() {
   if (!channelUrl.value.trim() || busy.value) return
   changingChannels.value = true
-  error.value = ''
+  channelError.value = ''
   notice.value = ''
   try {
     await youtubeApi.saveChannel(channelUrl.value.trim())
     channelUrl.value = ''
     await refreshChannels()
+    channelDialog.value?.close()
     notice.value = 'Channel saved.'
     await loadVideos(0, true)
   } catch (cause) {
-    error.value = message(cause)
+    channelError.value = message(cause)
   } finally {
     changingChannels.value = false
   }
@@ -203,13 +245,14 @@ async function removeChannel(channel: YoutubeChannel) {
     return
   changingChannels.value = true
   error.value = ''
+  channelError.value = ''
   notice.value = ''
   try {
     await youtubeApi.removeChannel(channel.channel_id)
     await refreshChannels()
     await loadVideos(0, true)
   } catch (cause) {
-    error.value = message(cause)
+    channelError.value = message(cause)
   } finally {
     changingChannels.value = false
   }
@@ -273,226 +316,197 @@ onBeforeUnmount(() => {
     disable-pull-to-refresh
   >
     <div class="channels-page">
-      <div class="channels-intro">
-        <div>
-          <p class="channels-eyebrow">YOUR LISTENING SOURCES</p>
-          <h2>Learn from your favorite channels</h2>
-          <p class="muted">
-            Save a channel, browse its videos, and pick your next listening
-            practice. Shorts are excluded.
-          </p>
+      <div class="channel-toolbar">
+        <div class="channel-search">
+          <Search :size="18" aria-hidden="true" />
+          <input
+            id="channel-search"
+            v-model="channelSearch"
+            type="search"
+            class="form-control"
+            placeholder="Search channels"
+            aria-label="Search channels"
+            :disabled="changingChannels"
+          />
         </div>
         <button
           type="button"
-          class="btn btn-secondary"
-          :disabled="busy"
-          @click="initialize"
+          class="channel-icon-button"
+          :class="{ 'channel-icon-primary': activeDurationLimit !== null }"
+          aria-label="Duration settings"
+          title="Duration settings"
+          aria-haspopup="dialog"
+          :disabled="changingChannels"
+          @click="openDurationDialog"
         >
-          Refresh
+          {{
+            activeDurationLimit !== null
+              ? activeDurationLimit / 60
+              : maxDurationMinutes
+          }}
+        </button>
+        <button
+          type="button"
+          class="channel-icon-button"
+          aria-label="Refresh videos"
+          title="Refresh"
+          :disabled="busy"
+          @click="loadVideos(pageIndex)"
+        >
+          <RefreshCw
+            :size="19"
+            :class="{ spinning: loading }"
+            aria-hidden="true"
+          />
+        </button>
+        <button
+          type="button"
+          class="channel-icon-button channel-icon-primary"
+          aria-label="Add channel"
+          title="Add channel"
+          :disabled="busy"
+          @click="openChannelDialog"
+        >
+          <Plus :size="21" aria-hidden="true" />
         </button>
       </div>
-      <form class="channel-add" @submit.prevent="saveChannel">
-        <label for="channel-url">YouTube channel</label>
-        <div class="channel-add-row">
-          <input
-            id="channel-url"
-            v-model="channelUrl"
-            class="form-control"
-            placeholder="https://www.youtube.com/@channel"
-            required
-            maxlength="500"
-            :disabled="busy"
-          /><button
-            class="btn"
-            type="submit"
-            :disabled="busy || !channelUrl.trim()"
-          >
-            {{ changingChannels ? 'Saving…' : 'Save channel' }}
-          </button>
-        </div>
-        <p class="muted">
-          Paste a channel URL, @handle or channel ID. Up to 20 channels.
-        </p>
-      </form>
-      <p v-if="error" class="alert alert-error" role="alert">
-        {{ error }}
-        <button type="button" :disabled="busy" @click="initialize">
-          Retry
+      <div class="channel-tags" role="group" aria-label="Filter by channel">
+        <button
+          type="button"
+          class="channel-tag"
+          :class="{ active: selected === '' }"
+          :aria-pressed="selected === ''"
+          data-channel-id=""
+          :disabled="changingChannels"
+          @click="chooseChannel('')"
+        >
+          <LayoutGrid :size="16" aria-hidden="true" />All
         </button>
-      </p>
-      <p v-if="notice" class="alert alert-success" role="status">
-        {{ notice }}
-      </p>
-      <section
-        v-if="channels.length"
-        aria-label="Saved channels"
-        class="saved-channels"
-      >
-        <div
-          v-for="channel in channels"
+        <button
+          v-for="channel in filteredChannels"
           :key="channel.channel_id"
-          class="channel-chip"
+          type="button"
+          class="channel-tag"
+          :class="{ active: selected === channel.channel_id }"
+          :aria-pressed="selected === channel.channel_id"
+          :data-channel-id="channel.channel_id"
+          :disabled="changingChannels"
+          @click="chooseChannel(channel.channel_id)"
         >
           <img
             v-if="channel.thumbnail_url"
             :src="channel.thumbnail_url"
             alt=""
-            width="28"
-            height="28"
+            width="20"
+            height="20"
             loading="lazy"
             referrerpolicy="no-referrer"
           />
-          <span>{{ channel.title }}</span
-          ><button
-            type="button"
-            :aria-label="`Remove ${channel.title}`"
-            :disabled="busy"
-            @click="removeChannel(channel)"
-          >
-            ×
-          </button>
-        </div>
-      </section>
-      <div v-if="channels.length" class="channel-controls">
-        <div class="form-group">
-          <label for="channel-filter">Channel</label
-          ><select
-            id="channel-filter"
-            v-model="selected"
-            class="form-control"
-            :disabled="changingChannels"
-            @change="loadVideos(0, true)"
-          >
-            <option value="">All saved channels</option>
-            <option
-              v-for="channel in channels"
-              :key="channel.channel_id"
-              :value="channel.channel_id"
-            >
-              {{ channel.title }}
-            </option>
-          </select>
-        </div>
+          <Youtube v-else :size="16" aria-hidden="true" />
+          {{ channel.title }}
+        </button>
+        <span
+          v-if="channelSearch.trim() && !filteredChannels.length"
+          class="muted channel-search-empty"
+          >No channels found.</span
+        >
       </div>
-      <form
-        v-if="channels.length"
-        class="duration-filter-settings"
-        aria-label="Video duration settings"
-        @submit.prevent="applyDurationSettings"
-      >
-        <div class="duration-filter-toggle">
-          <label for="duration-filter-enabled">Filter by duration</label>
-          <input
-            id="duration-filter-enabled"
-            v-model="durationFilterEnabled"
-            type="checkbox"
-            role="switch"
-            :disabled="changingChannels"
-            @change="applyDurationSettings"
-          />
-        </div>
-        <div class="duration-limit-field">
-          <label for="max-duration-minutes">Maximum duration (minutes)</label>
-          <input
-            id="max-duration-minutes"
-            v-model.number="maxDurationMinutes"
-            type="number"
-            min="1"
-            max="1440"
-            step="1"
-            class="form-control"
-            :disabled="!durationFilterEnabled || changingChannels"
-            @change="applyDurationSettings"
-          />
-        </div>
-        <p v-if="durationSettingsError" class="alert alert-error" role="alert">
-          {{ durationSettingsError }}
-        </p>
-        <p v-else class="muted duration-filter-hint">
-          {{
-            activeDurationLimit !== null
-              ? `Only videos up to ${activeDurationLimit / 60} minutes. Videos without a known duration are skipped.`
-              : 'Duration filter is off. All video lengths are shown.'
-          }}
-        </p>
-      </form>
+      <p v-if="error" class="alert alert-error channel-alert" role="alert">
+        {{ error
+        }}<button
+          type="button"
+          class="channel-icon-button"
+          aria-label="Retry"
+          title="Retry"
+          :disabled="busy"
+          @click="initialize"
+        >
+          <RefreshCw :size="18" aria-hidden="true" />
+        </button>
+      </p>
+      <p v-if="notice" class="alert alert-success" role="status">
+        {{ notice }}
+      </p>
       <section :aria-busy="loading" aria-label="Channel videos">
-        <p v-if="loading" class="empty-state" role="status">Loading videos…</p>
-        <div v-else-if="!channels.length && !error" class="empty-state">
-          No channels saved yet. Add your first channel above to discover
-          videos.
-        </div>
-        <div v-else-if="!page.items.length && !error" class="empty-state">
+        <p v-if="loading" class="empty-state" role="status">Loading…</p>
+        <p v-else-if="!channels.length && !error" class="empty-state">
+          No channels yet.
+        </p>
+        <p v-else-if="!page.items.length && !error" class="empty-state">
           {{
             activeDurationLimit !== null
-              ? 'No videos within your duration limit on this page. Increase the limit, turn off the filter, or continue to the next page.'
-              : 'No public videos on this page. Try another channel or continue to the next page.'
+              ? 'No videos within your duration limit on this page.'
+              : 'No videos on this page.'
           }}
-        </div>
-        <template v-if="!loading && channels.length">
-          <div class="channel-results-heading">
-            <h3>{{ currentChannel?.title ?? 'All saved channels' }}</h3>
-            <span class="muted">Page {{ pageIndex + 1 }}</span>
-          </div>
-          <div class="channel-video-grid">
-            <article
-              v-for="video in page.items"
-              :key="video.video_id"
-              class="channel-video-card"
-              :data-video-id="video.video_id"
+        </p>
+        <div v-if="!loading && channels.length" class="channel-video-grid">
+          <article
+            v-for="video in page.items"
+            :key="video.video_id"
+            class="channel-video-card"
+            :data-video-id="video.video_id"
+          >
+            <a
+              :href="`https://www.youtube.com/watch?v=${video.video_id}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="channel-video-thumb"
+              :aria-label="`Watch ${video.title} on YouTube`"
             >
-              <a
-                :href="`https://www.youtube.com/watch?v=${video.video_id}`"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="channel-video-thumb"
-                :aria-label="`Watch ${video.title} on YouTube`"
-                ><img
-                  :src="video.thumbnail_url"
-                  :alt="video.title"
-                  loading="lazy"
-                /><span v-if="video.media_id" class="channel-saved-badge"
-                  >✓ Saved</span
-                ><span
-                  v-if="durationLabel(video.duration)"
-                  class="channel-video-duration"
-                  :aria-label="`Duration ${durationLabel(video.duration)}`"
-                  >{{ durationLabel(video.duration) }}</span
-                ></a
+              <img
+                :src="video.thumbnail_url"
+                :alt="video.title"
+                loading="lazy"
+              />
+              <span v-if="video.media_id" class="channel-saved-badge"
+                ><Check :size="12" aria-hidden="true" />Saved</span
               >
-              <div class="channel-video-body">
-                <p class="muted channel-video-meta">
-                  {{ video.channel_title
-                  }}<template v-if="dateLabel(video.published_at)">
-                    · {{ dateLabel(video.published_at) }}</template
-                  >
-                </p>
-                <h4>{{ video.title }}</h4>
+              <span
+                v-if="durationLabel(video.duration)"
+                class="channel-video-duration"
+                :aria-label="`Duration ${durationLabel(video.duration)}`"
+                >{{ durationLabel(video.duration) }}</span
+              >
+            </a>
+            <div class="channel-video-body">
+              <p class="muted channel-video-meta">
+                {{ video.channel_title
+                }}<template v-if="dateLabel(video.published_at)">
+                  · {{ dateLabel(video.published_at) }}</template
+                >
+              </p>
+              <h4>{{ video.title }}</h4>
+              <div class="channel-video-actions">
                 <RouterLink
                   v-if="video.media_id"
                   :to="
                     RoutePath.mediaDetail.replace(':id', String(video.media_id))
                   "
-                  class="btn btn-secondary"
-                  >Open listening →</RouterLink
-                >
+                  class="channel-icon-button channel-open-listening"
+                  aria-label="Open listening"
+                  title="Open listening"
+                  ><Headphones :size="21" aria-hidden="true"
+                /></RouterLink>
                 <button
                   v-else
-                  class="btn"
                   type="button"
+                  class="channel-icon-button channel-icon-primary"
+                  aria-label="Add to listening"
+                  title="Add to listening"
                   :disabled="saving.has(video.video_id)"
                   @click="chooseDifficulty(video)"
                 >
-                  {{
-                    saving.has(video.video_id)
-                      ? 'Adding…'
-                      : '+ Add to listening'
-                  }}
+                  <LoaderCircle
+                    v-if="saving.has(video.video_id)"
+                    :size="21"
+                    class="spinning"
+                    aria-hidden="true"
+                  /><ListPlus v-else :size="21" aria-hidden="true" />
                 </button>
               </div>
-            </article>
-          </div>
-        </template>
+            </div>
+          </article>
+        </div>
         <nav
           v-if="channels.length"
           class="channel-pagination"
@@ -500,23 +514,171 @@ onBeforeUnmount(() => {
         >
           <button
             type="button"
-            class="btn btn-secondary"
+            class="channel-icon-button"
+            aria-label="Previous page"
+            title="Previous page"
             :disabled="busy || pageIndex === 0"
             @click="loadVideos(pageIndex - 1)"
           >
-            ← Previous</button
-          ><span>Page {{ pageIndex + 1 }}</span
-          ><button
+            <ChevronLeft :size="21" aria-hidden="true" />
+          </button>
+          <span class="muted">Page {{ pageIndex + 1 }}</span>
+          <button
             type="button"
-            class="btn btn-secondary"
+            class="channel-icon-button"
+            aria-label="Next page"
+            title="Next page"
             :disabled="busy || !page.next_cursor"
             @click="loadVideos(pageIndex + 1)"
           >
-            Next →
+            <ChevronRight :size="21" aria-hidden="true" />
           </button>
         </nav>
       </section>
     </div>
+
+    <dialog
+      ref="durationDialog"
+      class="duration-settings-dialog"
+      aria-labelledby="duration-dialog-title"
+      @cancel.prevent="closeDurationDialog"
+    >
+      <div class="channel-dialog-header">
+        <h2 id="duration-dialog-title">Duration filter</h2>
+        <button
+          type="button"
+          class="channel-icon-button"
+          aria-label="Close duration settings"
+          title="Close"
+          @click="closeDurationDialog"
+        >
+          <X :size="20" aria-hidden="true" />
+        </button>
+      </div>
+      <form
+        class="duration-filter-settings"
+        aria-label="Video duration settings"
+        @submit.prevent="applyDurationSettings"
+      >
+        <label class="duration-toggle-row" for="duration-filter-enabled"
+          ><span>Filter by duration</span
+          ><input
+            id="duration-filter-enabled"
+            v-model="durationFilterEnabled"
+            class="duration-switch"
+            type="checkbox"
+            role="switch"
+            aria-label="Filter by duration"
+            :disabled="changingChannels"
+            @change="applyDurationSettings"
+        /></label>
+        <label class="duration-limit-label" for="max-duration-minutes"
+          >Maximum duration (minutes)</label
+        >
+        <input
+          id="max-duration-minutes"
+          v-model.number="maxDurationMinutes"
+          type="number"
+          min="1"
+          max="1440"
+          step="1"
+          class="form-control"
+          aria-label="Maximum duration (minutes)"
+          :disabled="!durationFilterEnabled || changingChannels"
+          @change="applyDurationSettings"
+        />
+        <p v-if="durationSettingsError" class="alert alert-error" role="alert">
+          {{ durationSettingsError }}
+        </p>
+      </form>
+    </dialog>
+
+    <dialog
+      ref="channelDialog"
+      class="channel-dialog"
+      aria-labelledby="channel-dialog-title"
+      @cancel.prevent="closeChannelDialog"
+    >
+      <div class="channel-dialog-header">
+        <h2 id="channel-dialog-title">Channels</h2>
+        <button
+          type="button"
+          class="channel-icon-button"
+          aria-label="Close channels"
+          title="Close"
+          :disabled="changingChannels"
+          @click="closeChannelDialog"
+        >
+          <X :size="20" aria-hidden="true" />
+        </button>
+      </div>
+      <form
+        id="channel-add-form"
+        class="channel-add"
+        @submit.prevent="saveChannel"
+      >
+        <input
+          id="channel-url"
+          v-model="channelUrl"
+          class="form-control"
+          aria-label="YouTube channel URL or handle"
+          placeholder="YouTube URL or @handle"
+          required
+          maxlength="500"
+          :disabled="busy"
+        />
+        <button
+          type="submit"
+          class="channel-icon-button channel-icon-primary"
+          aria-label="Save channel"
+          title="Save channel"
+          :disabled="busy || !channelUrl.trim()"
+        >
+          <LoaderCircle
+            v-if="changingChannels"
+            :size="20"
+            class="spinning"
+            aria-hidden="true"
+          /><Check v-else :size="20" aria-hidden="true" />
+        </button>
+      </form>
+      <p v-if="channelError" class="alert alert-error" role="alert">
+        {{ channelError }}
+      </p>
+      <div
+        v-if="channels.length"
+        class="saved-channels"
+        aria-label="Saved channels"
+      >
+        <div
+          v-for="channel in channels"
+          :key="channel.channel_id"
+          class="channel-row"
+        >
+          <img
+            v-if="channel.thumbnail_url"
+            :src="channel.thumbnail_url"
+            alt=""
+            width="32"
+            height="32"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+          />
+          <span>{{ channel.title }}</span>
+          <button
+            type="button"
+            class="channel-icon-button"
+            :aria-label="`Remove ${channel.title}`"
+            :title="`Remove ${channel.title}`"
+            :disabled="busy"
+            @click="removeChannel(channel)"
+          >
+            <X :size="17" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog
       ref="addDialog"
       class="add-listening-dialog"
@@ -525,11 +687,23 @@ onBeforeUnmount(() => {
       @cancel.prevent="closeAddDialog"
     >
       <form v-if="pendingVideo" @submit.prevent="addVideo">
-        <h2 id="add-listening-title">Add to listening</h2>
+        <div class="channel-dialog-header">
+          <h2 id="add-listening-title">Add to listening</h2>
+          <button
+            type="button"
+            class="channel-icon-button"
+            aria-label="Cancel adding video"
+            title="Cancel"
+            :disabled="addingVideo"
+            @click="closeAddDialog"
+          >
+            <X :size="20" aria-hidden="true" />
+          </button>
+        </div>
         <p id="add-listening-video" class="muted">{{ pendingVideo.title }}</p>
         <div class="form-group">
-          <label for="video-difficulty">Difficulty</label>
-          <select
+          <label for="video-difficulty">Difficulty</label
+          ><select
             id="video-difficulty"
             v-model="difficulty"
             class="form-control"
@@ -544,16 +718,15 @@ onBeforeUnmount(() => {
           {{ addError }}
         </p>
         <div class="add-listening-actions">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            :disabled="addingVideo"
-            @click="closeAddDialog"
-          >
-            Cancel
-          </button>
           <button type="submit" class="btn" :disabled="addingVideo">
-            {{ addingVideo ? 'Adding…' : 'Add to listening' }}
+            <LoaderCircle
+              v-if="addingVideo"
+              :size="18"
+              class="spinning"
+              aria-hidden="true"
+            /><Check v-else :size="18" aria-hidden="true" />{{
+              addingVideo ? 'Adding…' : 'Add'
+            }}
           </button>
         </div>
       </form>
@@ -562,58 +735,248 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.duration-filter-settings {
-  padding: 16px;
-  margin-bottom: 20px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--card);
+.channels-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 0 24px;
 }
-.duration-filter-toggle {
+.channel-toolbar {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  font-weight: 600;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.duration-filter-toggle input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--primary);
+.channel-search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.channel-search > svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.channel-search input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding-left: 38px;
+}
+.channel-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding: 0 0 8px;
+  margin-bottom: 16px;
+}
+.channel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 14px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
   cursor: pointer;
 }
-.duration-limit-field {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.channel-tag img {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.channel-tag svg {
+  flex-shrink: 0;
+}
+.channel-tag.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.channel-tag:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -3px;
+}
+.channel-tag:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.channel-search-empty {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+.channel-icon-button {
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
 }
-.duration-limit-field input {
-  width: 110px;
+.channel-icon-button:hover:not(:disabled) {
+  background: var(--primary-soft);
+  color: var(--primary);
 }
-.duration-filter-hint {
-  font-size: 0.8rem;
-  margin: 12px 0 0;
+.channel-icon-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
-
+.channel-icon-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+.channel-icon-primary:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+  filter: brightness(1.08);
+}
+.channel-icon-button:focus-visible,
+.duration-switch:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.duration-filter-settings {
+  margin: 0;
+}
+.duration-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.duration-limit-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+.duration-settings-dialog .alert {
+  margin-top: 16px;
+}
+.duration-switch {
+  appearance: none;
+  position: relative;
+  width: 32px;
+  height: 20px;
+  margin: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.duration-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.15s;
+}
+.duration-switch:checked {
+  background: var(--primary);
+}
+.duration-switch:checked::before {
+  transform: translateX(12px);
+}
+.duration-switch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.channel-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.duration-settings-dialog,
+.channel-dialog,
 .add-listening-dialog {
   width: min(420px, calc(100% - 32px));
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   margin: auto;
-  padding: 24px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--card);
   color: var(--text);
 }
+.duration-settings-dialog::backdrop,
+.channel-dialog::backdrop,
 .add-listening-dialog::backdrop {
   background: rgb(0 0 0 / 50%);
 }
-.add-listening-dialog h2 {
-  font-size: 1.2rem;
-  margin: 0 0 12px;
+.channel-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.channel-dialog-header h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+.channel-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.channel-add input {
+  flex: 1;
+  min-width: 0;
+}
+.saved-channels {
+  display: grid;
+  gap: 4px;
+  margin-top: 20px;
+}
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.channel-row:last-child {
+  border-bottom: 0;
+}
+.channel-row img {
+  border-radius: 50%;
+}
+.channel-row span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
 }
 .add-listening-dialog p {
   margin-bottom: 20px;
@@ -622,106 +985,7 @@ onBeforeUnmount(() => {
 .add-listening-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
   margin-top: 20px;
-}
-
-.channels-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 20px 16px 36px;
-}
-.channels-intro {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.channels-intro h2 {
-  font-size: 1.4rem;
-  margin: 6px 0 10px;
-}
-.channels-eyebrow {
-  color: var(--primary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-.channel-add {
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--card);
-  margin-bottom: 20px;
-}
-.channel-add label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.channel-add-row {
-  display: flex;
-  gap: 10px;
-}
-.channel-add-row input {
-  min-width: 0;
-  flex: 1;
-}
-.channel-add-row button {
-  flex-shrink: 0;
-}
-.channel-add p {
-  margin: 10px 0 0;
-  font-size: 0.8rem;
-}
-.saved-channels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 22px;
-}
-.channel-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 6px 8px;
-  font-size: 0.8rem;
-  max-width: 100%;
-}
-.channel-chip img {
-  border-radius: 50%;
-}
-.channel-chip span {
-  overflow-wrap: anywhere;
-}
-.channel-chip button {
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  font-size: 1.3rem;
-  padding: 0 8px;
-  min-width: 32px;
-  min-height: 32px;
-  cursor: pointer;
-}
-.channel-controls {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-.channel-results-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  margin: 14px 0;
-}
-.channel-results-heading h3 {
-  font-size: 1rem;
 }
 .channel-video-grid {
   display: grid;
@@ -765,6 +1029,9 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 10px;
   right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border-radius: 20px;
   padding: 5px 10px;
   background: #166534;
@@ -776,7 +1043,7 @@ onBeforeUnmount(() => {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
 }
 .channel-video-meta {
@@ -789,9 +1056,13 @@ onBeforeUnmount(() => {
   margin: 0 0 8px;
   overflow-wrap: anywhere;
 }
-.channel-video-body .btn {
+.channel-video-actions {
+  display: flex;
+  justify-content: flex-end;
   margin-top: auto;
-  text-align: center;
+}
+.channel-open-listening {
+  color: var(--primary);
 }
 .channel-pagination {
   display: flex;
@@ -800,19 +1071,29 @@ onBeforeUnmount(() => {
   gap: 12px;
   margin-top: 24px;
 }
-@media (max-width: 480px) {
-  .channels-intro {
-    align-items: flex-start;
+.spinning {
+  animation: channel-spin 1s linear infinite;
+}
+@keyframes channel-spin {
+  to {
+    transform: rotate(360deg);
   }
-  .channel-add-row {
-    flex-direction: column;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
   }
-  .channel-controls {
-    grid-template-columns: 1fr;
-    gap: 0;
+  .duration-switch,
+  .duration-switch::before {
+    transition: none;
   }
-  .channels-intro h2 {
-    font-size: 1.15rem;
+}
+@media (max-width: 400px) {
+  .channel-toolbar {
+    gap: 6px;
+  }
+  .channel-toolbar .channel-icon-button {
+    width: 36px;
   }
 }
 </style>

@@ -2,8 +2,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const PAGE_SIZE: usize = 24;
-pub const VIDEO_CURSOR_VERSION: u8 = 1;
+/// Maximum maxResults accepted by YouTube playlistItems.list.
+pub const PAGE_SIZE: usize = 50;
+pub const VIDEO_CURSOR_VERSION: u8 = 2;
 
 /// YouTube's Videos-tab playlist excludes Shorts and live streams.
 /// Derive it at read time so existing saved channels also use video-only results.
@@ -387,6 +388,8 @@ mod tests {
     fn old_mixed_upload_cursors_have_a_different_version() {
         let old: Cursor = serde_json::from_str(r#"{"channels":{}}"#).unwrap();
         assert_ne!(old.version, VIDEO_CURSOR_VERSION);
+        let old_page_size: Cursor = serde_json::from_str(r#"{"version":1,"channels":{}}"#).unwrap();
+        assert_ne!(old_page_size.version, VIDEO_CURSOR_VERSION);
         let cursor = Cursor {
             version: VIDEO_CURSOR_VERSION,
             ..Cursor::default()
@@ -472,7 +475,7 @@ mod tests {
         let page = |id: &str, month: &str| {
             UploadPage {
             channel_id: id.into(), next_token: "older".into(),
-            items: (0..24).map(|i| json!({"contentDetails":{"videoId":format!("video{i:06}"), "videoPublishedAt":format!("2026-{month}-{:02}",24-i)}, "snippet":{"title":"Video", "publishedAt":format!("2026-{month}-{:02}",24-i)}})).collect(),
+            items: (0..PAGE_SIZE).map(|i| json!({"contentDetails":{"videoId":format!("video{i:06}"), "videoPublishedAt":format!("2026-{month}-01T00:{:02}:00Z",PAGE_SIZE-1-i)}, "snippet":{"title":"Video", "publishedAt":format!("2026-{month}-01T00:{:02}:00Z",PAGE_SIZE-1-i)}})).collect(),
         }
         };
         let pages = vec![page("new", "11"), page("old", "10")];
@@ -482,12 +485,12 @@ mod tests {
                 .channels
                 .insert(page.channel_id.clone(), Position::default());
         }
-        assert_eq!(merge_pages(&pages, &mut cursor).len(), 24);
+        assert_eq!(merge_pages(&pages, &mut cursor).len(), PAGE_SIZE);
         assert_eq!(cursor.channels["new"].token, "older");
         assert_eq!(cursor.channels["old"].offset, 0);
         assert_eq!(cursor.channels["old"].token, "");
         let older = [page("old", "10")];
-        assert_eq!(merge_pages(&older, &mut cursor).len(), 24);
+        assert_eq!(merge_pages(&older, &mut cursor).len(), PAGE_SIZE);
         assert_eq!(cursor.channels["old"].token, "older");
     }
 }
