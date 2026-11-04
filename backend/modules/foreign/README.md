@@ -32,7 +32,8 @@ lookup itself does not write the DB. Separate vocabulary endpoints save/list own
 Errors: 400 `invalid_word`, 404 `word_not_found`, 502 `dictionary_unavailable`,
 503 `dictionary_busy`. Missing `q` is rejected by Axum's query extractor.
 Input: 1–100 ASCII bytes after trimming, letters/spaces/apostrophes/hyphens.
-Provider: HTTPS fixed host, no redirects, 3-second timeout per provider, 2 MiB response limit,
+Provider: HTTPS fixed host, explicit `foreign-dictionary/1.0` User-Agent and JSON
+Accept header, no redirects, 3-second timeout per provider, 2 MiB response limit,
 8 concurrent requests; gateway rate limiting still applies. No persistent cache.
 
 Validation: `cargo test --locked -p foreign`, `cargo check --locked -p api-gateway`.

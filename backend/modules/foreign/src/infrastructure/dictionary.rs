@@ -6,6 +6,21 @@ use std::{
 };
 use tokio::sync::{Mutex, Semaphore};
 mod providers;
+const PROVIDERS: [&str; 3] = [
+    "https://api.dictionaryapi.dev/api/v2/entries/en/",
+    "https://freedictionaryapi.com/api/v1/entries/en/",
+    "https://api.suvankar.cc/dictionaryapi/v1/definitions/en/",
+];
+fn provider_url(index: usize, word: &str) -> reqwest::Url {
+    let mut url = reqwest::Url::parse(PROVIDERS[index]).expect("static provider URL");
+    // A trailing slash is an empty path segment. Remove it before adding the word,
+    // otherwise Url::push produces /en//hello and providers redirect/reject it.
+    url.path_segments_mut().unwrap().pop_if_empty().push(word);
+    if index == 2 {
+        url.set_query(Some("compact=true"));
+    }
+    url
+}
 #[derive(Clone)]
 pub struct Dictionary {
     client: reqwest::Client,
@@ -27,6 +42,15 @@ impl Dictionary {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
+                .user_agent("foreign-dictionary/1.0")
+                .default_headers(
+                    [(
+                        reqwest::header::ACCEPT,
+                        reqwest::header::HeaderValue::from_static("application/json"),
+                    )]
+                    .into_iter()
+                    .collect(),
+                )
                 .timeout(Duration::from_secs(3))
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
@@ -36,30 +60,30 @@ impl Dictionary {
         }
     }
     async fn fetch(&self, index: usize, word: &str) -> Result<Vec<Entry>, (LookupError, Duration)> {
-        let base = [
-            "https://api.dictionaryapi.dev/api/v2/entries/en/",
-            "https://freedictionaryapi.com/api/v1/entries/en/",
-            "https://api.suvankar.cc/dictionaryapi/v1/definitions/en/",
-        ][index];
         let unavailable = || (LookupError::Unavailable, Duration::from_secs(900));
-        let mut url = reqwest::Url::parse(base).unwrap();
-        url.path_segments_mut().unwrap().push(word);
-        if index == 2 {
-            url.set_query(Some("compact=true"));
-        }
-        let mut response = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .map_err(|_| unavailable())?;
+        let url = provider_url(index, word);
+        let mut response = self.client.get(url).send().await.map_err(|error| {
+            tracing::warn!(
+                provider = index,
+                timeout = error.is_timeout(),
+                connect = error.is_connect(),
+                "Dictionary upstream request failed"
+            );
+            unavailable()
+        })?;
         if response.status() == 404 {
             return Err((LookupError::NotFound, Duration::ZERO));
         }
         if response.status() == 429 {
+            tracing::warn!(provider = index, "Dictionary upstream rate limited");
             return Err((LookupError::Unavailable, Duration::from_secs(3600)));
         }
         if !response.status().is_success() {
+            tracing::warn!(
+                provider = index,
+                status = response.status().as_u16(),
+                "Dictionary upstream returned an error"
+            );
             return Err(unavailable());
         }
         let mut body = Vec::new();
@@ -111,6 +135,40 @@ impl Dictionary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn provider_urls_have_one_separator_and_encode_the_word_as_a_segment() {
+        for (index, expected) in [
+            "https://api.dictionaryapi.dev/api/v2/entries/en/hello",
+            "https://freedictionaryapi.com/api/v1/entries/en/hello",
+            "https://api.suvankar.cc/dictionaryapi/v1/definitions/en/hello?compact=true",
+        ]
+        .iter()
+        .enumerate()
+        {
+            assert_eq!(provider_url(index, "hello").as_str(), *expected);
+            assert!(
+                provider_url(index, "ice cream")
+                    .path()
+                    .ends_with("/en/ice%20cream")
+            );
+        }
+    }
+    #[tokio::test]
+    #[ignore = "requires live dictionary providers; no database or user session needed"]
+    async fn live_provider_lookup() {
+        let dictionary = Dictionary::new();
+        let entries = dictionary
+            .lookup("hello")
+            .await
+            .expect("Live dictionary lookup failed");
+        assert!(!entries.is_empty());
+        assert!(entries.iter().any(|entry| {
+            entry
+                .meanings
+                .iter()
+                .any(|meaning| !meaning.definitions.is_empty())
+        }));
+    }
     #[tokio::test]
     async fn falls_back_and_skips_unavailable_sources_on_next_lookup() {
         let dictionary = Dictionary::new();

@@ -14,7 +14,7 @@ use crate::{
 use axum::{
     Json,
     extract::{Query, State},
-    http::HeaderMap,
+    http::{HeaderMap, StatusCode},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -212,7 +212,18 @@ async fn lookup(state: &ForeignState, owner: Uuid, word: &str) -> Result<Value, 
             Err(crate::infrastructure::dictionary::LookupError::NotFound) => {
                 json!({"word":word,"phonetic":"","meanings":[]})
             }
-            Err(_) => return Err(bad("Dictionary unavailable. Please retry.")),
+            Err(crate::infrastructure::dictionary::LookupError::Busy) => {
+                return Err((
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    Json(json!({"error":"Dictionary is busy. Please retry."})),
+                ));
+            }
+            Err(_) => {
+                return Err((
+                    StatusCode::BAD_GATEWAY,
+                    Json(json!({"error":"Dictionary unavailable. Please retry."})),
+                ));
+            }
         }
     };
     // Preserve the source app's dictionary cache and pronunciation across a subsequent JSON save.
