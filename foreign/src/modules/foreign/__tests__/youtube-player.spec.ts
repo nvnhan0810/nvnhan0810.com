@@ -85,3 +85,73 @@ it('retries caption suppression after playback starts and cancels retries on unm
     vi.useRealTimers()
   }
 })
+
+it('supports keyboard playback and bounded ten-second seeking, ignoring typing and cleaning up', async () => {
+  const player = {
+    getCurrentTime: () => 5,
+    getDuration: () => 100,
+    seekTo: vi.fn(),
+    playVideo: vi.fn(),
+    pauseVideo: vi.fn(),
+    destroy: vi.fn(),
+    getPlayerState: () => 2,
+  }
+  vi.mocked(createYoutubePlayer).mockImplementation(async (options) => {
+    options.onReady?.(player)
+    return player
+  })
+  const wrapper = mount(Player, {
+    props: { videoId: 'example', title: 'Video' },
+  })
+  const press = (code: string, options: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keydown', {
+      code,
+      cancelable: true,
+      ...options,
+    })
+    window.dispatchEvent(event)
+    return event
+  }
+  try {
+    await flushPromises()
+    expect(press('Space').defaultPrevented).toBe(true)
+    press('Space', { repeat: true })
+    expect(player.pauseVideo).not.toHaveBeenCalled()
+    press('Space')
+    expect(player.pauseVideo).toHaveBeenCalledTimes(1)
+    press('ArrowLeft')
+    expect(player.seekTo).toHaveBeenLastCalledWith(0, true)
+    press('ArrowRight')
+    expect(player.seekTo).toHaveBeenLastCalledWith(10, true)
+    for (let i = 0; i < 12; i++) press('ArrowRight')
+    expect(player.seekTo).toHaveBeenLastCalledWith(100, true)
+    expect(player.playVideo).toHaveBeenCalledTimes(1)
+    player.seekTo.mockClear()
+    press('ArrowRight', { ctrlKey: true })
+    press('ArrowRight', { isComposing: true })
+    for (const tag of ['input', 'textarea', 'select']) {
+      const input = document.createElement(tag)
+      document.body.append(input)
+      try {
+        for (const code of ['Space', 'ArrowLeft', 'ArrowRight']) {
+          const event = new KeyboardEvent('keydown', {
+            code,
+            bubbles: true,
+            cancelable: true,
+          })
+          input.dispatchEvent(event)
+          expect(event.defaultPrevented).toBe(false)
+        }
+      } finally {
+        input.remove()
+      }
+    }
+    expect(player.seekTo).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+  expect(press('ArrowRight').defaultPrevented).toBe(false)
+  press('Space')
+  expect(player.seekTo).not.toHaveBeenCalled()
+  expect(player.playVideo).toHaveBeenCalledTimes(1)
+})

@@ -202,6 +202,33 @@ function togglePlayback(): boolean {
   return true
 }
 
+function onPlaybackKeydown(event: KeyboardEvent): void {
+  if (
+    !ready.value ||
+    event.defaultPrevented ||
+    event.isComposing ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.shiftKey
+  )
+    return
+  const target = event.target
+  if (
+    target instanceof HTMLElement &&
+    (target.closest('input, textarea, select, [role="textbox"]') ||
+      target.isContentEditable)
+  )
+    return
+
+  const key = event.code || event.key
+  if (!['Space', ' ', 'ArrowLeft', 'ArrowRight'].includes(key)) return
+  event.preventDefault()
+  if ((key === 'Space' || key === ' ') && event.repeat) return
+  if (key === 'Space' || key === ' ') togglePlayback()
+  else seekTo(currentTime.value + (key === 'ArrowLeft' ? -10 : 10), false)
+}
+
 function formatTime(seconds: number): string {
   const value = Math.max(0, Math.floor(seconds))
   const hours = Math.floor(value / 3600)
@@ -222,10 +249,12 @@ watch(
 )
 
 onMounted(() => {
+  window.addEventListener('keydown', onPlaybackKeydown)
   void mountPlayer()
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onPlaybackKeydown)
   destroyPlayer()
 })
 
@@ -297,6 +326,7 @@ defineExpose({
         /></a>
       </div>
     </div>
+    <p class="simple-player-shortcuts">Space = play/pause · ← / → = 10s</p>
     <p v-if="playerError" role="alert">
       Player unavailable. Open in YouTube to watch.
     </p>
@@ -370,6 +400,12 @@ defineExpose({
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.simple-player-shortcuts {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
 }
 .simple-youtube-player p {
   padding: 0 12px 12px;

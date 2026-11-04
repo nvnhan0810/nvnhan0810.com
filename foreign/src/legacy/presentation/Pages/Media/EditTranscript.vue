@@ -3,7 +3,7 @@ import { RoutePath } from '../../../../app/router/paths'
 
 import { appPath } from '@/path'
 import { Head, Link, router } from '@/application/navigation'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import YouTubeSyncedPlayer from '@/Components/media/YouTubeSyncedPlayer.vue'
 import {
@@ -237,50 +237,8 @@ function useCurrentTime(index: number, field: 'start' | 'end'): void {
   clearRowError(row.id)
 }
 
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  const tag = target.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-    return true
-  }
-
-  return target.isContentEditable
-}
-
 function onPlayerTimeUpdate(seconds: number): void {
   currentTime.value = seconds
-}
-
-function togglePlayback(): void {
-  if (!canEmbedYoutube.value) {
-    return
-  }
-
-  playerRef.value?.togglePlayback()
-}
-
-function onGlobalKeydown(event: KeyboardEvent): void {
-  if (event.code !== 'Space' && event.key !== ' ') {
-    return
-  }
-
-  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
-    return
-  }
-
-  if (isTypingTarget(event.target)) {
-    return
-  }
-
-  if (!canEmbedYoutube.value) {
-    return
-  }
-
-  event.preventDefault()
-  togglePlayback()
 }
 
 function seekRow(index: number): void {
@@ -301,12 +259,7 @@ function focusRow(index: number): void {
   focusedRowIndex.value = index
 }
 
-onMounted(() => {
-  window.addEventListener('keydown', onGlobalKeydown)
-})
-
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onGlobalKeydown)
   clearTimeout(toastTimer)
 })
 
@@ -387,8 +340,6 @@ function save(): void {
           <div v-if="canEmbedYoutube" class="media-transcript-edit-playback">
             <p class="media-transcript-edit-clock muted">
               Now: {{ formatClockPrecise(currentTime) }}
-              <span aria-hidden="true"> · </span>
-              Space = play/pause
             </p>
           </div>
           <p v-else class="media-transcript-edit-clock muted">
