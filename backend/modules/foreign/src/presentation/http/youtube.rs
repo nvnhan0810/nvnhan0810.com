@@ -278,7 +278,10 @@ pub async fn add_listening(
     }
     let data = state
         .youtube
-        .get("videos", &[("part", "snippet,status"), ("id", &video)])
+        .get(
+            "videos",
+            &[("part", "snippet,status,contentDetails"), ("id", &video)],
+        )
         .await
         .map_err(upstream)?;
     let item = data["items"]
@@ -290,7 +293,7 @@ pub async fn add_listening(
     }
     let channel = item["snippet"]["channelId"].as_str().ok_or_else(missing)?;
     let title = item["snippet"]["title"].as_str().unwrap_or("YouTube video");
-    let payload = json!({"type":"youtube","source_id":video,"title":title,"url":format!("https://www.youtube.com/watch?v={video}"),"thumbnail_url":format!("https://i.ytimg.com/vi/{video}/hqdefault.jpg"),"channel_id":channel,"difficulty":input.difficulty,"transcript":"","transcript_segments":[]});
+    let payload = json!({"type":"youtube","source_id":video,"title":title,"url":format!("https://www.youtube.com/watch?v={video}"),"thumbnail_url":format!("https://i.ytimg.com/vi/{video}/hqdefault.jpg"),"channel_id":channel,"duration":item["contentDetails"]["duration"],"difficulty":input.difficulty,"transcript":"","transcript_segments":[]});
     let mut tx = state.pool.begin().await.map_err(internal)?;
     sqlx::query("SELECT id FROM identity_users WHERE id=$1 FOR UPDATE")
         .bind(owner)

@@ -475,7 +475,7 @@ onBeforeUnmount(() => {
                   · {{ dateLabel(video.published_at) }}</template
                 >
               </p>
-              <h4>{{ video.title }}</h4>
+              <h4 :title="video.title">{{ video.title }}</h4>
               <div class="channel-video-actions">
                 <RouterLink
                   v-if="video.media_id"
@@ -736,8 +736,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .channels-page {
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
   padding: 0 0 24px;
 }
 .channel-toolbar {
@@ -990,9 +991,12 @@ onBeforeUnmount(() => {
 .channel-video-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
   gap: 18px;
 }
 .channel-video-card {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
@@ -1001,6 +1005,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 .channel-video-thumb {
+  flex-shrink: 0;
   display: block;
   position: relative;
   aspect-ratio: 16 / 9;
@@ -1047,10 +1052,19 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 .channel-video-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.75rem;
   margin: 0;
 }
 .channel-video-body h4 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 3em;
+  max-height: 3em;
   font-size: 0.95rem;
   line-height: 1.5;
   margin: 0 0 8px;

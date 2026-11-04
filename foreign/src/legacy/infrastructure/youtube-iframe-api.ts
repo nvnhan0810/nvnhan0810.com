@@ -114,6 +114,14 @@ export type CreateYoutubePlayerParams = {
   onStateChange?: (state: number, player: YoutubePlayer) => void
 }
 
+function disableCaptions(player: YoutubePlayer): void {
+  try {
+    player.unloadModule?.('captions')
+  } catch {
+    // Caption control is optional and must not interrupt player initialization.
+  }
+}
+
 export async function createYoutubePlayer(
   params: CreateYoutubePlayerParams,
 ): Promise<YoutubePlayer> {
@@ -135,10 +143,10 @@ export async function createYoutubePlayer(
     },
     events: {
       onApiChange: (event): void => {
-        event.target.unloadModule?.('captions')
+        disableCaptions(event.target)
       },
       onReady: (event): void => {
-        event.target.unloadModule?.('captions')
+        disableCaptions(event.target)
         params.onReady?.(event.target)
       },
       onStateChange: (event): void => {

@@ -70,8 +70,16 @@ pub async fn preview(
         .await
         .map_err(|error| bad(&error))?;
     let payload: Value = serde_json::from_slice(&body).map_err(|_| bad("Preview unavailable"))?;
+    let details = state
+        .youtube
+        .get("videos", &[("part", "contentDetails"), ("id", &id)])
+        .await
+        .ok();
+    let duration = details
+        .as_ref()
+        .and_then(|data| data["items"][0]["contentDetails"]["duration"].as_str());
     Ok(Json(
-        json!({"data":{"url":canonical,"title":payload["title"],"source_id":id,"thumbnail_url":format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg")}}),
+        json!({"data":{"url":canonical,"title":payload["title"],"source_id":id,"duration":duration,"thumbnail_url":format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg")}}),
     ))
 }
 pub async fn get(pool: &sqlx::PgPool, user: uuid::Uuid, id: i64) -> Result<Value, ApiError> {
@@ -95,7 +103,15 @@ pub async fn action(
         if !["beginner", "intermediate", "advanced"].contains(&difficulty) {
             return Err(bad("Invalid difficulty"));
         }
-        let payload = json!({"title":title,"type":"youtube","url":format!("https://www.youtube.com/watch?v={id}"),"source_id":id,"difficulty":difficulty,"transcript":"","transcript_segments":[],"thumbnail_url":format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg")});
+        let details = state
+            .youtube
+            .get("videos", &[("part", "contentDetails"), ("id", &id)])
+            .await
+            .ok();
+        let duration = details
+            .as_ref()
+            .and_then(|data| data["items"][0]["contentDetails"]["duration"].as_str());
+        let payload = json!({"duration":duration,"title":title,"type":"youtube","url":format!("https://www.youtube.com/watch?v={id}"),"source_id":id,"difficulty":difficulty,"transcript":"","transcript_segments":[],"thumbnail_url":format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg")});
         let mut tx = state.pool.begin().await.map_err(internal)?;
         sqlx::query("SELECT id FROM identity_users WHERE id=$1 FOR UPDATE")
             .bind(user)

@@ -22,6 +22,7 @@ export interface User {
   email: string
 }
 export interface MediaSummary {
+  duration?: string | null
   id: number
   title: string
   type: string

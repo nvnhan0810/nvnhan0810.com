@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RoutePath } from '../../../../app/router/paths'
+import { durationLabel } from '../../../../modules/foreign/presentation/duration'
 import { Youtube } from 'lucide-vue-next'
 
 import { apiFetch } from '@/application/navigation'
@@ -187,11 +188,11 @@ onUnmounted(() => {
         No media at this difficulty.
       </p>
 
-      <div class="media-list">
+      <div class="media-list listening-video-grid">
         <div
           v-for="item in filteredItems"
           :key="item.id"
-          class="list-item media-list-item"
+          class="list-item media-list-item listening-video-card"
         >
           <Link
             :href="
@@ -199,11 +200,26 @@ onUnmounted(() => {
             "
             class="media-list-item-link"
           >
-            <div class="list-item-icon">
-              {{ item.type === 'youtube' ? '▶️' : '🎵' }}
+            <div class="listening-video-thumb">
+              <img
+                v-if="item.thumbnail_url || item.source_id"
+                :src="
+                  item.thumbnail_url ||
+                  `https://i.ytimg.com/vi/${item.source_id}/hqdefault.jpg`
+                "
+                :alt="item.title"
+                loading="lazy"
+              />
+              <span v-else class="listening-video-placeholder">▶</span>
+              <span
+                v-if="durationLabel(item.duration)"
+                class="listening-video-duration"
+                :aria-label="`Duration ${durationLabel(item.duration)}`"
+                >{{ durationLabel(item.duration) }}</span
+              >
             </div>
             <div class="list-item-body">
-              <p class="title">{{ item.title }}</p>
+              <p class="title" :title="item.title">{{ item.title }}</p>
               <p class="subtitle">
                 <span
                   class="difficulty-tag"
@@ -215,7 +231,6 @@ onUnmounted(() => {
                 · {{ String(item.type || '').toUpperCase() }}
               </p>
             </div>
-            <span class="chevron">›</span>
           </Link>
           <div class="action-menu">
             <button
@@ -360,6 +375,87 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.listening-video-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: 18px;
+}
+.listening-video-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  overflow: visible;
+}
+.listening-video-card .media-list-item-link {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  width: 100%;
+}
+.listening-video-thumb {
+  flex-shrink: 0;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 15px 15px 0 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+.listening-video-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.listening-video-placeholder {
+  display: grid;
+  height: 100%;
+  place-items: center;
+}
+.listening-video-duration {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 80%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.listening-video-card .list-item-body {
+  padding: 16px 48px 16px 16px;
+  min-width: 0;
+}
+.listening-video-card .title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 3em;
+  max-height: 3em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.listening-video-card .action-menu {
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+}
+
 .media-header {
   grid-template-columns: 84px minmax(0, 1fr) 84px;
 }

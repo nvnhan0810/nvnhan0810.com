@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, expect, it, vi } from 'vitest'
+import Media from '../../../legacy/presentation/Pages/Media/Index.vue'
 import Vocab from '../../../legacy/presentation/Pages/Vocab/Index.vue'
 import VocabShow from '../../../legacy/presentation/Pages/Vocab/Show.vue'
 import Hub from '../../../legacy/presentation/Pages/Quiz/Hub.vue'
@@ -73,5 +74,32 @@ it('shows vocabulary review after quiz resolution and sends the chosen answer', 
     reveal: vocab,
   })
   expect(wrapper.get('.puzzle-reveal-card').text()).toContain('Eat an apple.')
+  wrapper.unmount()
+})
+
+it('renders listening thumbnails and saved video duration', () => {
+  const wrapper = mount(Media, {
+    props: {
+      items: [
+        {
+          id: 7,
+          title: 'Listening video',
+          type: 'youtube',
+          url: 'https://www.youtube.com/watch?v=abcdefghijk',
+          source_id: 'abcdefghijk',
+          difficulty: 'intermediate',
+          duration: 'PT12M34S',
+        },
+      ],
+    },
+    global,
+  })
+  expect(wrapper.get('.listening-video-thumb img').attributes('src')).toContain(
+    'abcdefghijk',
+  )
+  expect(wrapper.get('.listening-video-duration').text()).toBe('12:34')
+  expect(wrapper.get('.media-list-item-link').attributes('href')).toBe(
+    '/media/7',
+  )
   wrapper.unmount()
 })

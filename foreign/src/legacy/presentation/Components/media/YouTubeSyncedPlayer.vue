@@ -29,6 +29,31 @@ const ready = ref(false)
 const isPlaying = ref(false)
 const playerError = ref(false)
 let generation = 0
+let captionTimers: number[] = []
+
+function clearCaptionTimers(): void {
+  captionTimers.forEach((timer) => window.clearTimeout(timer))
+  captionTimers = []
+}
+
+function disableCaptions(player: YoutubePlayer): void {
+  clearCaptionTimers()
+  const request = generation
+  const disable = (): void => {
+    if (request !== generation) return
+    // iOS can initialize captions after ready or restore them on playback.
+    // This optional player method is best-effort; failure must not break playback.
+    try {
+      player.unloadModule?.('captions')
+    } catch {
+      // Some embedded players do not expose caption module controls.
+    }
+  }
+  disable()
+  captionTimers = [250, 1000, 2500].map((delay) =>
+    window.setTimeout(disable, delay),
+  )
+}
 
 function clearPoll(): void {
   if (pollTimer.value !== null) {
@@ -66,6 +91,7 @@ function startPoll(player: YoutubePlayer): void {
 
 function handleStateChange(state: number, player: YoutubePlayer): void {
   if (state === YoutubePlayerState.Playing) {
+    disableCaptions(player)
     setPlaying(true)
     startPoll(player)
     return
@@ -96,10 +122,13 @@ async function mountPlayer(): Promise<void> {
         if (request !== generation) return
         ready.value = true
         playerRef.value = readyPlayer
+        disableCaptions(readyPlayer)
         emit('ready')
         emitCurrentTime(readyPlayer)
       },
-      onStateChange: handleStateChange,
+      onStateChange: (state, changedPlayer): void => {
+        if (request === generation) handleStateChange(state, changedPlayer)
+      },
     })
 
     if (request !== generation) {
@@ -114,6 +143,7 @@ async function mountPlayer(): Promise<void> {
 
 function destroyPlayer(): void {
   generation += 1
+  clearCaptionTimers()
   ready.value = false
   currentTime.value = 0
   duration.value = 0
@@ -215,10 +245,7 @@ defineExpose({
   >
     <div class="simple-youtube-video">
       <div ref="hostRef" class="youtube-player-host" />
-      <div
-        class="simple-youtube-interaction-shield"
-        aria-hidden="true"
-      />
+      <div class="simple-youtube-interaction-shield" aria-hidden="true" />
     </div>
     <div class="simple-player-controls">
       <input
