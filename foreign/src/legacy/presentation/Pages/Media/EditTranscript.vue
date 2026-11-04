@@ -2,7 +2,7 @@
 import { RoutePath } from '../../../../app/router/paths'
 
 import { appPath } from '@/path'
-import { Head, Link, router, usePage } from '@/application/navigation'
+import { Head, Link, router } from '@/application/navigation'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import YouTubeSyncedPlayer from '@/Components/media/YouTubeSyncedPlayer.vue'
@@ -38,11 +38,6 @@ const props = defineProps<{
   item: MediaEditItem
 }>()
 
-const page = usePage()
-const isFlcApp = computed(() =>
-  Boolean((page.props as { isFlcApp?: boolean }).isFlcApp),
-)
-
 let rowSeq = 0
 
 function nextRowId(): string {
@@ -73,28 +68,8 @@ const isPlaying = ref(false)
 const focusedRowIndex = ref(0)
 const playerRef = ref<InstanceType<typeof YouTubeSyncedPlayer> | null>(null)
 
-const youtubeWatchUrl = computed((): string | null => {
-  if (props.item.url) {
-    return props.item.url
-  }
-  if (props.item.source_id) {
-    return `https://www.youtube.com/watch?v=${props.item.source_id}`
-  }
-  return null
-})
-
-const youtubeThumbUrl = computed((): string | null => {
-  if (!props.item.source_id) {
-    return null
-  }
-  return `https://i.ytimg.com/vi/${props.item.source_id}/hqdefault.jpg`
-})
-
 const canEmbedYoutube = computed(
-  (): boolean =>
-    props.item.type === 'youtube' &&
-    Boolean(props.item.source_id) &&
-    !isFlcApp.value,
+  (): boolean => props.item.type === 'youtube' && Boolean(props.item.source_id),
 )
 
 const previewSegments = computed((): TranscriptSegment[] => {
@@ -190,6 +165,19 @@ function validateRows(): TranscriptSegment[] | null {
   return segments
 }
 
+function addRowBefore(index: number): void {
+  const current = rows.value[index]
+  const end = current ? (parseClock(current.startInput) ?? 0) : 0
+  const previous = rows.value[index - 1]
+  const start = Math.min(
+    end,
+    previous ? (parseClock(previous.endInput) ?? 0) : 0,
+  )
+  const next = toEditRow({ start, end, text: '' })
+  rows.value.splice(index, 0, next)
+  focusedRowIndex.value = index
+}
+
 function addRowAfter(index: number): void {
   const current = rows.value[index]
   const after = current ? (parseClock(current.endInput) ?? 0) : 0
@@ -266,7 +254,7 @@ function onGlobalKeydown(event: KeyboardEvent): void {
     return
   }
 
-  if (event.metaKey || event.ctrlKey || event.altKey) {
+  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
     return
   }
 
@@ -359,28 +347,8 @@ function save(): void {
     <div class="media-transcript-edit-page">
       <div class="media-transcript-edit-main">
         <aside class="media-transcript-edit-player">
-          <a
-            v-if="
-              item.type === 'youtube' &&
-              item.source_id &&
-              isFlcApp &&
-              youtubeWatchUrl
-            "
-            :href="youtubeWatchUrl"
-            class="video-embed video-embed--external video-embed--compact"
-            :aria-label="`Open ${item.title} in YouTube`"
-          >
-            <img
-              v-if="youtubeThumbUrl"
-              :src="youtubeThumbUrl"
-              :alt="item.title"
-              class="video-embed-thumb"
-            />
-            <span class="video-embed-play" aria-hidden="true">▶</span>
-            <span class="video-embed-label">Open in YouTube</span>
-          </a>
           <YouTubeSyncedPlayer
-            v-else-if="canEmbedYoutube && item.source_id"
+            v-if="canEmbedYoutube && item.source_id"
             ref="playerRef"
             :video-id="item.source_id"
             :title="item.title"
@@ -499,7 +467,14 @@ function save(): void {
                   :disabled="!canEmbedYoutube"
                   @click="seekRow(index)"
                 >
-                  Seek
+                  Play from start
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary"
+                  @click="addRowBefore(index)"
+                >
+                  + Above
                 </button>
                 <button
                   type="button"
