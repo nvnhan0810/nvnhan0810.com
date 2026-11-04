@@ -4,7 +4,7 @@ SERVICES := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 # Chuyển các từ đó thành target ảo để Make không báo lỗi "No rule to make target"
 $(eval $(SERVICES):;@:)
 
-.PHONY: up down restart log clean
+.PHONY: up down restart log clean queue-retry-failed
 
 up:
 	@if [ -z "$(SERVICES)" ]; then \
@@ -55,3 +55,7 @@ migrate-down:
 seed:
 	@echo "Seeding the database..."
 	docker compose exec backend make seed
+
+# Retry failed jobs in the backend's configured PostgreSQL database.
+queue-retry-failed:
+	docker compose exec backend make queue-retry-failed

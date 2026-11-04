@@ -1,6 +1,51 @@
-/* The source profile header is a shell slot, so it must not inherit main-content negative gutters. */
-.user-shell > .profile-header {
-  margin-inline: 0;
+/* The account header lives in the shell, outside the content gutters. */
+.flc-app .user-shell > .profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: calc(6px + var(--sat)) calc(16px + var(--sar)) 6px
+    calc(16px + var(--sal));
+  border-radius: 0;
+  text-align: left;
+}
+.profile-header .profile-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 20px;
+}
+.profile-header-main {
+  flex: 1;
+  min-width: 0;
+}
+.profile-header-main h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.profile-header-main p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+.profile-header-main h2,
+.profile-header-main p {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.profile-header form {
+  flex-shrink: 0;
+}
+.profile-header form .btn {
+  margin: 0;
+}
+@media (min-width: 768px) {
+  .flc-app .user-shell > .profile-header {
+    padding: calc(8px + var(--sat)) calc(24px + var(--sar)) 8px
+      calc(24px + var(--sal));
+  }
 }
 .login-theme {
   display: flex;

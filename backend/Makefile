@@ -1,4 +1,4 @@
-.PHONY: dev build check clean clean-cache migrate migrate-down seed master-data command queue-worker
+.PHONY: dev build check clean clean-cache migrate migrate-down seed master-data command queue-worker queue-retry-failed
 
 # Tùy chọn: make migrate-down TARGET=0 hoặc TARGET=<migration-version>
 TARGET ?=
@@ -73,3 +73,7 @@ command:
 # One consumer process for all backend job types (Supervisor runs the release binary).
 queue-worker:
 	cargo run --locked --package console --bin console -- queue:work
+
+# Requeue all failed jobs across all channels; running/completed jobs are unchanged.
+queue-retry-failed:
+	cargo run --locked --package console --bin console -- queue:retry-failed

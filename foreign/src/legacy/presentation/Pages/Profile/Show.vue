@@ -58,11 +58,13 @@ function logout() {
     <template #header>
       <div class="profile-header">
         <div class="profile-avatar">{{ initial }}</div>
-        <h2 style="margin: 0; font-size: 20px">{{ user.name || 'User' }}</h2>
-        <p style="margin: 4px 0 0; opacity: 0.8; font-size: 14px">
-          {{ user.email }}
-        </p>
-        <form style="margin-top: 16px" @submit.prevent="logout">
+        <div class="profile-header-main">
+          <h2>{{ user.name || 'User' }}</h2>
+          <p>
+            {{ user.email }}
+          </p>
+        </div>
+        <form @submit.prevent="logout">
           <button
             type="submit"
             class="btn btn-secondary btn-sm"

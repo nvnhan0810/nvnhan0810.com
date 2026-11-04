@@ -74,6 +74,19 @@ is 1, and failures retry twice with 30/60-second backoff (three total attempts).
 `default` always exists. A custom dispatch channel must be explicitly declared.
 The API does not start consumers; use the shared `console queue:work` command.
 
+Caption fetching first reads the public watch-page track. If that track is empty
+or unusable, it requests fresh track metadata from YouTube's public player endpoint
+and retries the timedtext request as JSON3. The player key comes from the watch
+page, separately from `GOOGLE_API_KEY`. The entire fetch is capped at 45 seconds.
+An empty response for an existing track is reported as a fetch failure, rather
+than claiming the video has no subtitles.
+
+Queue workers log job start/completion/failure and attempts. Transcript logs also
+include media ID, task ID, fallback attempts and the number of segments written;
+signed caption URLs and caption text are not logged. A running `queue:work` process
+must be restarted after worker code changes (API hot reload does not restart it).
+After deploying the fix, use Fetch captions to retry media with failed jobs.
+
 Media JSON records the task token and visible status/error. Manual edits and newer
 requests fence stale results. The job and media task token are committed in one PostgreSQL transaction.
 Media creation precedes dispatch; dispatch errors propagate to the request, and

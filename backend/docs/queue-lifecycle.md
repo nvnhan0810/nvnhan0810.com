@@ -136,8 +136,9 @@ TELEGRAM_LOG_LEVEL=warning
 ```
 
 `GOOGLE_API_KEY` dùng cho API danh sách kênh/video. Handler transcript hiện lấy
-caption qua trang YouTube và timedtext trong `captions.rs`; nó không gọi YouTube
-Data API bằng key này.
+caption qua trang YouTube và timedtext trong `captions.rs`, với public player
+endpoint làm fallback khi track trả rỗng/lỗi. Player key được đọc từ trang YouTube;
+luồng này không dùng `GOOGLE_API_KEY`.
 
 ## 4. Lifecycle khi worker khởi động
 
@@ -222,7 +223,10 @@ và chưa có transcript do người dùng nhập. Nếu job đã cũ, handler b
 Với job hợp lệ:
 
 1. Đặt media thành `running`, commit transaction.
-2. Gọi YouTube bên ngoài transaction DB.
+2. Gọi YouTube bên ngoài transaction DB. Thử track từ watch page trước, rồi lấy
+   metadata track mới từ public player endpoint nếu cần. Tổng thời gian fetch tối
+   đa 45 giây. Phản hồi rỗng của track có tồn tại được báo là lỗi tải, không đồng
+   nghĩa video không có phụ đề.
 3. Có caption: `complete()` khóa media và kiểm tra lại token trước khi ghi segments,
    transcript, trạng thái `completed` và xóa lỗi.
 4. Có lỗi: lưu lỗi, chuyển media về `queued` nếu còn lượt thử; attempt thứ ba chuyển
@@ -264,8 +268,7 @@ với retry **thực thi job** của Apalis.
 
 Nếu Telegram bị tắt ở worker nhưng vẫn có job đã lưu, handler trả lỗi
 `Telegram delivery is disabled`; job vẫn chịu giới hạn attempts. Cần bật cấu hình
-tương ứng khi muốn xử lý các alert đó. Không có command retry Telegram thủ công
-riêng trong code hiện tại.
+tương ứng khi muốn xử lý các alert đó, sau đó dùng command retry bên dưới.
 
 Job đã ghi vào PostgreSQL tồn tại qua restart process. Sự kiện còn nằm trong RAM
 có thể mất khi process bị kill hoặc buffer đầy. Delivery không bảo đảm exactly-once;
@@ -431,6 +434,34 @@ Foreign. Chưa có cơ chế tự quét mọi module để tìm channel hoặc h
 Đăng ký handler không tự tạo channel mới; `kind` và channel được khai báo riêng.
 
 ## 12. Quan sát và kiểm tra
+
+Terminal worker hiện log `Queue job started`, `Queue job completed` hoặc
+`Queue job failed`, kèm loại job, attempt và elapsed time. Transcript còn log media
+ID, task ID, fallback và số segments được ghi. Log chung dùng target
+`apalis::backend_queue` để không sinh vòng lặp Telegram alert khi Telegram job lỗi.
+Không log nội dung phụ đề hoặc signed caption URL.
+
+`queue:work` không tự hot-reload source. Sau khi cập nhật code, Ctrl+C process cũ
+rồi chạy lại command. Khởi động lại worker không tự reset job đã hết lượt.
+
+Retry toàn bộ job `Failed` (mọi loại job và channel):
+
+```sh
+# Từ root repository, chạy qua Docker
+make queue-retry-failed
+
+# Từ thư mục backend, chạy trực tiếp bằng Cargo
+make queue-retry-failed
+
+# Production: chạy trong thư mục backend với environment giống worker Supervisor
+./target/release/console queue:retry-failed
+```
+
+Command đưa job `Failed` về `Pending`, reset attempts về 0, chạy ngay và xóa
+lock/kết quả lỗi cũ. Giữ nguyên ID, payload và task token; không thay đổi job
+`Running`, `Pending` hoặc `Done`. Worker đang chạy sẽ tự lấy job, không cần restart
+Supervisor. Transcript có task token cũ sẽ được bỏ qua theo cơ chế chống ghi đè.
+Command in số job đã đưa lại vào queue; chạy lại khi không còn failed trả về 0.
 
 Xem số job theo queue/trạng thái:
 

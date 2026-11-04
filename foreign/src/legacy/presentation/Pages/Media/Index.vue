@@ -361,7 +361,7 @@ onUnmounted(() => {
 
 <style scoped>
 .media-header {
-  grid-template-columns: 92px 1fr 92px;
+  grid-template-columns: 84px minmax(0, 1fr) 84px;
 }
 
 .media-header-actions {

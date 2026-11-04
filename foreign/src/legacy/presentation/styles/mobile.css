@@ -192,11 +192,11 @@ a {
   background: var(--card);
   border-bottom: 1px solid var(--border);
   display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 8px;
-  padding-top: calc(12px + var(--sat));
-  padding-bottom: 12px;
+  padding-top: calc(6px + var(--sat));
+  padding-bottom: 6px;
   padding-left: calc(16px + var(--sal));
   padding-right: calc(16px + var(--sar));
   position: sticky;
@@ -206,7 +206,7 @@ a {
 
 .user-header h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
@@ -686,8 +686,16 @@ a {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.transcript-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .transcript-panel-title {
@@ -1088,8 +1096,8 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
   color: var(--primary);
   font-size: 22px;
@@ -1102,8 +1110,8 @@ a {
 }
 
 .user-header-spacer {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
 }
 
 .flc-app .user-login-page {
@@ -1545,8 +1553,8 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -3311,7 +3319,7 @@ body.media-add-modal-open {
 }
 
 .media-show-header {
-  grid-template-columns: auto minmax(0, 1fr) 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   gap: 10px;
 }
 
@@ -3334,10 +3342,6 @@ body.media-add-modal-open {
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-
-.media-show-header-main .difficulty-tag {
-  flex-shrink: 0;
 }
 
 .media-show-header-main h1 {

@@ -13,3 +13,5 @@ apalis = { version = "1", features = ["retry"] }
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
+
+tracing.workspace = true

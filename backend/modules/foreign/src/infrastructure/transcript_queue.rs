@@ -71,6 +71,7 @@ pub async fn enqueue(
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
+    tracing::info!(media_id, task_id = %task.id, channel = %config.dispatch.channel, "Transcript job queued");
     Ok(())
 }
 fn empty_transcript(payload: &Value) -> bool {
@@ -138,8 +139,10 @@ where
             .fetch_optional(&mut *tx)
             .await?;
     let Some(mut payload) = payload.filter(|payload| current_task(payload, task)) else {
+        tracing::info!(media_id = task.media_id, task_id = %task.id, attempt, "Transcript job skipped: media changed or was deleted");
         return Ok(false);
     };
+    tracing::info!(media_id = task.media_id, task_id = %task.id, attempt, "Fetching transcript");
     payload["transcript_status"] = json!("running");
     sqlx::query("UPDATE foreign_media SET payload=$2 WHERE id=$1")
         .bind(task.media_id)
@@ -156,10 +159,12 @@ where
     });
     match result {
         Ok(segments) => {
-            complete(pool, task, &segments).await?;
-            Ok(true)
+            let updated = complete(pool, task, &segments).await?;
+            tracing::info!(media_id = task.media_id, task_id = %task.id, attempt, segments = segments.len(), updated, "Transcript fetch completed");
+            Ok(updated)
         }
         Err(error) => {
+            tracing::warn!(media_id = task.media_id, task_id = %task.id, attempt, retrying = attempt < 3, error = %error, "Transcript fetch failed");
             sqlx::query("UPDATE foreign_media SET payload=payload || jsonb_build_object('transcript_status',$3::text,'transcript_error',$4::text) WHERE id=$1 AND payload->>'transcript_task_id'=$2")
                 .bind(task.media_id).bind(task.id.to_string()).bind(if attempt >= 3 { "failed" } else { "queued" }).bind(error.chars().take(1000).collect::<String>()).execute(pool).await?;
             Err(std::io::Error::other(error).into())

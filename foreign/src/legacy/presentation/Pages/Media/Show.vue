@@ -143,11 +143,6 @@ function onTranscriptSeek(seconds: number): void {
           >←</Link
         >
         <div class="media-show-header-main">
-          <span
-            class="difficulty-tag"
-            :class="`difficulty-tag--${item.difficulty || 'intermediate'}`"
-            >{{ difficultyLabel }}</span
-          >
           <h1>{{ item.title }}</h1>
         </div>
         <span class="user-header-spacer" aria-hidden="true" />
@@ -191,7 +186,14 @@ function onTranscriptSeek(seconds: number): void {
 
         <section class="transcript-panel" aria-label="Transcript">
           <div class="transcript-panel-head">
-            <h2 class="transcript-panel-title">Transcript</h2>
+            <div class="transcript-panel-heading">
+              <h2 class="transcript-panel-title">Transcript</h2>
+              <span
+                class="difficulty-tag"
+                :class="`difficulty-tag--${item.difficulty || 'intermediate'}`"
+                >{{ difficultyLabel }}</span
+              >
+            </div>
             <div class="transcript-panel-actions">
               <button
                 v-if="!item.transcript && !hasTimedTranscript"

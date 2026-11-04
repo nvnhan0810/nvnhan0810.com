@@ -93,7 +93,21 @@ impl Registry {
     }
 }
 async fn handle(job: Job, registry: Data<Registry>, attempt: Attempt) -> Result<(), BoxDynError> {
-    registry.execute(job, attempt.current()).await
+    let kind = job.kind.clone();
+    let attempt = attempt.current();
+    let started = std::time::Instant::now();
+    // Keep worker diagnostics out of Telegram capture to avoid failure-alert loops.
+    tracing::info!(target: "apalis::backend_queue", job_kind = %kind, attempt, "Queue job started");
+    let result = registry.execute(job, attempt).await;
+    match &result {
+        Ok(()) => {
+            tracing::info!(target: "apalis::backend_queue", job_kind = %kind, attempt, elapsed_ms = started.elapsed().as_millis() as u64, "Queue job completed")
+        }
+        Err(error) => {
+            tracing::warn!(target: "apalis::backend_queue", job_kind = %kind, attempt, elapsed_ms = started.elapsed().as_millis() as u64, error = %error, "Queue job failed")
+        }
+    }
+    result
 }
 async fn stopping(mut signal: watch::Receiver<bool>) -> Result<(), std::io::Error> {
     while !*signal.borrow() {
@@ -149,6 +163,16 @@ pub async fn run(
     workers.shutdown().await;
     result?;
     drained.map_err(|_| "Queue shutdown timed out".to_owned())?
+}
+
+/// Retry all failed job types/channels. A single conditional UPDATE prevents
+/// concurrent commands from resetting a job that another worker has claimed.
+/// Application payloads and task tokens are deliberately preserved.
+pub async fn retry_failed(pool: &PgPool) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        "UPDATE apalis.jobs SET status='Pending',attempts=0,run_at=now(),lock_at=NULL,lock_by=NULL,done_at=NULL,last_result=NULL WHERE status='Failed'",
+    ).execute(pool).await?;
+    Ok(result.rows_affected())
 }
 
 /// Idempotent upgrade, run with the old workers stopped and drained.

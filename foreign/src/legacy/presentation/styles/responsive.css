@@ -2,7 +2,7 @@ html {
   scrollbar-gutter: stable;
 }
 
-/* Mobile CSS is preserved byte-for-byte. Desktop overrides begin at 768px. */
+/* Tablet and desktop layout adjustments. */
 @media (min-width: 768px) {
   .user-shell {
     max-width: none;
@@ -12,10 +12,11 @@ html {
     min-width: 0;
   }
   .user-header {
-    padding: 20px 32px;
+    padding: calc(8px + var(--sat)) calc(24px + var(--sar)) 8px
+      calc(24px + var(--sal));
   }
   .user-header h1 {
-    font-size: 20px;
+    font-size: 18px;
   }
   .user-nav {
     max-width: none;
