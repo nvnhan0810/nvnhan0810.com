@@ -34,6 +34,7 @@ const video = {
   channel_id: channel.channel_id,
   channel_title: channel.title,
   thumbnail_url: '',
+  duration: 'PT12M34S',
   published_at: '2026-11-04T10:00:00Z',
   media_id: null,
 }
@@ -64,6 +65,7 @@ it('paginates, filters saved channels and resets the cursor when the filter chan
   const wrapper = mountPage()
   await flushPromises()
   expect(wrapper.text()).toContain(video.title)
+  expect(wrapper.get('.channel-video-duration').text()).toBe('12:34')
   const next = () =>
     wrapper.findAll('button').find((b) => b.text() === 'Next →')!
   await next().trigger('click')

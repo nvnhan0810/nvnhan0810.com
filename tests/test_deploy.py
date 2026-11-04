@@ -43,6 +43,19 @@ class DeployTest(unittest.TestCase):
             tool.write_text('''#!/usr/bin/env bash
 printf '%s|%s|%s\\n' "${PWD##*/}" "${0##*/}" "$*" >> "$DEPLOY_TEST_LOG"
 if [[ -n "${DEPLOY_TEST_FAIL:-}" && "$*" == *"$DEPLOY_TEST_FAIL"* ]]; then exit 7; fi
+if [[ "${0##*/}" == supervisorctl ]]; then
+  if [[ "$1" == status ]]; then
+    state=RUNNING
+    if [[ -f "$DEPLOY_TEST_LOG.state.$2" ]]; then state="$(cat "$DEPLOY_TEST_LOG.state.$2")"; fi
+    printf '%s %s\\n' "$2" "$state"
+    [[ "$state" == RUNNING ]] || exit 3
+  elif [[ "$1" == stop || "$1" == start ]]; then
+    state=STOPPED
+    [[ "$1" != start ]] || state=RUNNING
+    shift
+    for service in "$@"; do printf '%s' "$state" > "$DEPLOY_TEST_LOG.state.$service"; done
+  fi
+fi
 ''')
             tool.chmod(0o755)
 
@@ -81,12 +94,18 @@ if [[ -n "${DEPLOY_TEST_FAIL:-}" && "$*" == *"$DEPLOY_TEST_FAIL"* ]]; then exit 
         self.deploy()
         self.assertEqual(self.calls(), [
             'backend|cargo|build --release --locked --workspace',
-            'deployment|supervisorctl|restart nvnhan0810-backend nvnhan0810-backend-queue',
+            'deployment|supervisorctl|status nvnhan0810-backend-queue',
+            'deployment|supervisorctl|stop nvnhan0810-backend-queue',
+            'deployment|supervisorctl|status nvnhan0810-backend',
+            'deployment|supervisorctl|stop nvnhan0810-backend',
+            'backend|cargo|run --release --locked -p console --bin migrate -- up',
+            'backend|cargo|run --release --locked -p console --bin console -- master-data',
+            'deployment|supervisorctl|start nvnhan0810-backend nvnhan0810-backend-queue',
         ])
         self.assertEqual(self.git('rev-parse', 'HEAD', cwd=self.checkout),
                          self.git('rev-parse', 'HEAD', cwd=self.author))
         self.deploy()
-        self.assertEqual(len(self.calls()), 2)
+        self.assertEqual(len(self.calls()), 8)
 
     def test_frontend_selection_and_only_portfolio_restarts(self):
         self.change('foreign/src/new.ts', 'portfolio/src/new.ts')
@@ -143,7 +162,7 @@ if [[ -n "${DEPLOY_TEST_FAIL:-}" && "$*" == *"$DEPLOY_TEST_FAIL"* ]]; then exit 
         self.assertIn('backend|cargo|build --release --locked --workspace', self.calls())
         self.assertIn('portfolio|npm|run build', self.calls())
         self.assertEqual(self.calls()[-1],
-                         'deployment|supervisorctl|restart nvnhan0810-backend nvnhan0810-backend-queue nvnhan0810-com')
+                         'deployment|supervisorctl|restart nvnhan0810-com')
 
     def test_all_retry_keeps_full_build_plan_without_git_changes(self):
         self.deploy('--all', fail='run build', check=False)
@@ -153,6 +172,20 @@ if [[ -n "${DEPLOY_TEST_FAIL:-}" && "$*" == *"$DEPLOY_TEST_FAIL"* ]]; then exit 
         for app in APPS:
             self.assertIn(f'{app}|npm|run build', self.calls())
         self.assertFalse(any('index|' in call or 'ai-embedding' in call for call in self.calls()))
+
+    def test_database_update_failure_leaves_backend_stopped_and_can_retry(self):
+        for failing_step in ['--bin migrate', '-- master-data']:
+            with self.subTest(step=failing_step):
+                result = self.deploy('--all', fail=failing_step, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any('|supervisorctl|start ' in call for call in self.calls()))
+                self.assertFalse(any('|supervisorctl|restart ' in call for call in self.calls()))
+                if failing_step == '--bin migrate':
+                    self.assertFalse(any('-- master-data' in call for call in self.calls()))
+                self.log.unlink()
+                self.deploy()
+                self.assertIn('deployment|supervisorctl|start nvnhan0810-backend nvnhan0810-backend-queue', self.calls())
+                self.log.unlink()
 
     def test_retired_sources_are_not_deployed(self):
         self.change('index/removed.txt', 'ai-embedding-enrichment/removed.txt')

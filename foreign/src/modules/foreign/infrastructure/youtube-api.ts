@@ -11,6 +11,7 @@ export interface YoutubeVideo {
   channel_id: string
   channel_title: string
   thumbnail_url: string
+  duration: string | null
   published_at: string | null
   media_id: number | null
 }

@@ -108,8 +108,9 @@ Setup:
 The catalog uses `channels.list`, `playlistItems.list` on the Videos-tab playlist,
 and `videos.list` to validate selected videos: 1 quota unit per request, with a
 default shared allowance of 10,000 units/project/day for these endpoints. An
-all-channel page makes one request per active channel; a single-channel page
-makes one. Adding a video makes one validation request. No `search.list` calls or
+all-channel page makes one request per active channel plus one batched `videos.list`
+request for durations of the displayed videos; a single-channel page makes two
+requests when it has videos. Empty pages do not fetch durations. Adding a video makes one validation request. No `search.list` calls or
 paid third-party services are used. Quota is shared by all users; exhaustion shows
 a retry-later message. See [Google's quota table](https://developers.google.com/youtube/data/determine_quota_cost).
 

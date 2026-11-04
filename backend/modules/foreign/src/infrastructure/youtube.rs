@@ -78,6 +78,18 @@ impl Youtube {
     }
 }
 
+/// Match by video ID because Google can reorder or omit unavailable video details.
+pub fn apply_durations(items: &mut [Value], details: &Value) {
+    for item in items {
+        item["duration"] = details["items"]
+            .as_array()
+            .and_then(|videos| videos.iter().find(|video| video["id"] == item["video_id"]))
+            .and_then(|video| video["contentDetails"]["duration"].as_str())
+            .map(|duration| serde_json::json!(duration))
+            .unwrap_or(Value::Null);
+    }
+}
+
 fn api_error(value: &Value) -> &'static str {
     let reasons: Vec<_> = ["errors", "details"]
         .into_iter()
@@ -244,6 +256,24 @@ pub fn merge_pages(pages: &[UploadPage], cursor: &mut Cursor) -> Vec<Value> {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn matches_durations_by_id_and_keeps_missing_values_unknown() {
+        let mut items = vec![
+            json!({"video_id":"first"}),
+            json!({"video_id":"missing"}),
+            json!({"video_id":"last"}),
+        ];
+        apply_durations(
+            &mut items,
+            &json!({"items":[
+                {"id":"last","contentDetails":{"duration":"PT1H2M3S"}},
+                {"id":"first","contentDetails":{"duration":"PT12M34S"}}
+            ]}),
+        );
+        assert_eq!(items[0]["duration"], "PT12M34S");
+        assert!(items[1]["duration"].is_null());
+        assert_eq!(items[2]["duration"], "PT1H2M3S");
+    }
     #[test]
     fn uses_videos_tab_instead_of_mixed_uploads() {
         assert_eq!(

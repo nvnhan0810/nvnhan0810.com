@@ -36,7 +36,7 @@ branch detached, branch chưa có upstream hoặc lịch sử local ahead/diverg
 
 | Source thay đổi | Build | Supervisor restart |
 | --- | --- | --- |
-| `backend/` | `cargo build --release --locked --workspace` | `nvnhan0810-backend`, `nvnhan0810-backend-queue` |
+| `backend/` | Release build → migrate up → master-data | Stop/start `nvnhan0810-backend`, `nvnhan0810-backend-queue` |
 | `portfolio/` | `npm i --include=dev --no-save`, `npm run build` | `nvnhan0810-com` |
 | `identity/` | Như portfolio | Không cần restart |
 | `foreign/` | Như portfolio | Không cần restart |
@@ -65,8 +65,10 @@ production `target/release`.
 6. So sánh tên file giữa mốc đã deploy và HEAD mới, chọn app cần build. Rename được
    xét như xóa/thêm để nhận ra cả thư mục nguồn cũ và mới.
 7. Build backend nếu được chọn, rồi lần lượt cài/build từng FE được chọn.
-8. Sau khi mọi build thành công mới restart các service tương ứng.
-9. Sau khi restart thành công mới ghi nhận HEAD mới là revision deploy thành công.
+8. Sau khi mọi build thành công, nếu backend thay đổi: dừng/drain queue rồi dừng
+   API, chạy migrate up, chạy master-data, khởi động lại API và queue.
+9. Restart `nvnhan0810-com` nếu portfolio thay đổi.
+10. Sau khi restart thành công mới ghi nhận HEAD mới là revision deploy thành công.
 
 Nếu build/restart lỗi, script trả exit code khác 0 và giữ mốc deploy cũ. Chạy lại
 cùng lệnh sẽ thử lại các phần còn thay đổi kể cả khi lần trước đã pull xong.
@@ -85,10 +87,26 @@ chạy lại. Các build hoàn tất trước lỗi có thể đã cập nhật 
 
 ## Migration database
 
-Migration là bước vận hành riêng khi bản deploy có thay đổi schema/queue payload.
-Với lần chuyển queue cũ sang `default`, dùng binary mới và quy trình drain/migrate
-được mô tả trong [queue lifecycle](../backend/docs/queue-lifecycle.md).
-Script deploy hiện thực hiện pull, build và restart theo danh sách trên.
+Mỗi khi backend được chọn deploy, script tự chạy các lệnh sau từ `backend`, sau
+release build và sau khi các FE được chọn đã build xong:
+
+```sh
+supervisorctl stop nvnhan0810-backend-queue
+supervisorctl stop nvnhan0810-backend
+cargo run --release --locked -p console --bin migrate -- up
+cargo run --release --locked -p console --bin console -- master-data
+supervisorctl start nvnhan0810-backend nvnhan0810-backend-queue
+```
+
+Script kiểm tra trạng thái trước khi stop; service đã dừng được bỏ qua để có thể
+thử lại sau lỗi. Với `--sudo`, các lệnh Supervisor ở trên chạy qua sudo.
+Dừng/drain queue trước migration cho phép chuyển queue cũ sang `default` an toàn.
+Master-data dùng cấu hình backend hiện tại để cập nhật dữ liệu nền tảng.
+
+Nếu migrate hoặc master-data thất bại, backend/API và queue được giữ dừng, checkpoint
+không được nâng, portfolio chưa được restart. Sửa lỗi rồi chạy lại deploy; script
+sẽ thử lại cả migrate và master-data trước khi start services. Các migration đã
+commit trước lỗi không tự rollback. Xem thêm [queue lifecycle](../backend/docs/queue-lifecycle.md).
 
 ## Kiểm tra script
 

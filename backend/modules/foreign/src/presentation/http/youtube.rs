@@ -4,8 +4,8 @@ use super::{
     vocabulary::{ApiError, internal, user},
 };
 use crate::infrastructure::youtube::{
-    Cursor, PAGE_SIZE, Position, UploadPage, VIDEO_CURSOR_VERSION, channel_selector, merge_pages,
-    valid_id, videos_playlist,
+    Cursor, PAGE_SIZE, Position, UploadPage, VIDEO_CURSOR_VERSION, apply_durations,
+    channel_selector, merge_pages, valid_id, videos_playlist,
 };
 use axum::{
     Json,
@@ -208,6 +208,18 @@ pub async fn list_videos(
         .iter()
         .filter_map(|item| item["video_id"].as_str().map(str::to_owned))
         .collect();
+    if !ids.is_empty() {
+        // Fetch durations for the whole displayed page in one request (<= 24 IDs).
+        let details = state
+            .youtube
+            .get(
+                "videos",
+                &[("part", "contentDetails"), ("id", &ids.join(","))],
+            )
+            .await
+            .map_err(upstream)?;
+        apply_durations(&mut items, &details);
+    }
     let saved: Vec<(String, i64)> = sqlx::query_as("SELECT payload->>'source_id',min(id) FROM foreign_media WHERE user_id=$1 AND payload->>'type'='youtube' AND payload->>'source_id'=ANY($2) GROUP BY payload->>'source_id'")
         .bind(owner).bind(ids).fetch_all(&state.pool).await.map_err(internal)?;
     for item in &mut items {

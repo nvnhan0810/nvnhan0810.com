@@ -11,6 +11,7 @@ import {
   type YoutubeVideoPage,
 } from '../../infrastructure/youtube-api'
 import { ApiError } from '../../infrastructure/transport'
+import { durationLabel } from '../duration'
 
 const channels = ref<YoutubeChannel[]>([])
 const selected = ref('')
@@ -351,6 +352,11 @@ onBeforeUnmount(() => {
                   loading="lazy"
                 /><span v-if="video.media_id" class="channel-saved-badge"
                   >✓ Saved</span
+                ><span
+                  v-if="durationLabel(video.duration)"
+                  class="channel-video-duration"
+                  :aria-label="`Duration ${durationLabel(video.duration)}`"
+                  >{{ durationLabel(video.duration) }}</span
                 ></a
               >
               <div class="channel-video-body">
@@ -605,6 +611,19 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.channel-video-duration {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 80%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
 }
 .channel-saved-badge {
   position: absolute;
