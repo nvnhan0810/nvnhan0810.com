@@ -12,6 +12,8 @@ export type WebLookupSession = {
   savedVocabularyId: number | string | null
   meaningsViewMode: LookupViewMode
   jsonText: string
+  /** Last persisted entry, kept separate from unsaved JSON edits. */
+  savedEntryJson?: string | null
   meanings: Meaning[]
   synonyms: string[]
   antonyms: string[]

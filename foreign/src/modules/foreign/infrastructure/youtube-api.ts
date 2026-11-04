@@ -35,10 +35,17 @@ export const youtubeApi = {
     foreignRequest(`/youtube/channels/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     }),
-  videos: (channel: string, cursor: string | null, signal: AbortSignal) => {
+  videos: (
+    channel: string,
+    cursor: string | null,
+    signal: AbortSignal,
+    maxDurationSeconds: number | null = null,
+  ) => {
     const query = new URLSearchParams()
     if (channel) query.set('channel_id', channel)
     if (cursor) query.set('cursor', cursor)
+    if (maxDurationSeconds !== null)
+      query.set('max_duration_seconds', String(maxDurationSeconds))
     return foreignRequest<YoutubeVideoPage>(`/youtube/videos?${query}`, {
       signal,
     })

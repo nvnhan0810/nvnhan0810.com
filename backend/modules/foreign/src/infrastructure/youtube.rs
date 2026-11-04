@@ -90,6 +90,63 @@ pub fn apply_durations(items: &mut [Value], details: &Value) {
     }
 }
 
+/// Parse YouTube's day/hour/minute/second ISO 8601 duration without guessing
+/// unknown values. Checked arithmetic rejects malformed or overflowing input.
+pub fn duration_seconds(duration: &str) -> Option<u64> {
+    let body = duration.strip_prefix('P')?;
+    let (date, time) = match body.split_once('T') {
+        Some((date, time)) if !time.is_empty() => (date, Some(time)),
+        Some(_) => return None,
+        None => (body, None),
+    };
+    let mut total = 0u64;
+    let mut seen = false;
+    if !date.is_empty() {
+        let days = date.strip_suffix('D')?;
+        if days.is_empty() || !days.bytes().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        total = days.parse::<u64>().ok()?.checked_mul(86400)?;
+        seen = true;
+    }
+    let mut number = 0u64;
+    let mut digits = false;
+    let mut previous_rank = 4;
+    for byte in time.unwrap_or("").bytes() {
+        if byte.is_ascii_digit() {
+            number = number.checked_mul(10)?.checked_add((byte - b'0') as u64)?;
+            digits = true;
+            continue;
+        }
+        let (rank, factor) = match byte {
+            b'H' => (3, 3600),
+            b'M' => (2, 60),
+            b'S' => (1, 1),
+            _ => return None,
+        };
+        if !digits || rank >= previous_rank {
+            return None;
+        }
+        total = total.checked_add(number.checked_mul(factor)?)?;
+        previous_rank = rank;
+        number = 0;
+        digits = false;
+        seen = true;
+    }
+    if !seen || digits { None } else { Some(total) }
+}
+
+pub fn filter_duration(items: &mut Vec<Value>, maximum: Option<u32>) {
+    if let Some(maximum) = maximum {
+        items.retain(|item| {
+            item["duration"]
+                .as_str()
+                .and_then(duration_seconds)
+                .is_some_and(|seconds| seconds <= u64::from(maximum))
+        });
+    }
+}
+
 fn api_error(value: &Value) -> &'static str {
     let reasons: Vec<_> = ["errors", "details"]
         .into_iter()
@@ -187,6 +244,8 @@ pub struct Position {
 #[serde(deny_unknown_fields)]
 pub struct Cursor {
     #[serde(default)]
+    pub max_duration_seconds: Option<u32>,
+    #[serde(default)]
     pub version: u8,
     pub channels: std::collections::BTreeMap<String, Position>,
 }
@@ -256,6 +315,47 @@ pub fn merge_pages(pages: &[UploadPage], cursor: &mut Cursor) -> Vec<Value> {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn duration_parser_handles_units_and_rejects_bad_values() {
+        for (input, expected) in [
+            ("PT12M34S", 754),
+            ("PT1H2M3S", 3723),
+            ("P1DT2H", 93600),
+            ("PT0S", 0),
+        ] {
+            assert_eq!(duration_seconds(input), Some(expected));
+        }
+        for input in [
+            "",
+            "P",
+            "PT",
+            "PT1M1H",
+            "PT1M2M",
+            "PT-1S",
+            "PT1",
+            "P1Y",
+            "PT999999999999999999999H",
+        ] {
+            assert_eq!(duration_seconds(input), None, "{input}");
+        }
+    }
+    #[test]
+    fn enabled_duration_filter_includes_boundary_and_skips_long_or_unknown_videos() {
+        let source = vec![
+            json!({"duration":"PT9M59S"}),
+            json!({"duration":"PT10M"}),
+            json!({"duration":"PT10M1S"}),
+            json!({"duration":null}),
+        ];
+        let mut filtered = source.clone();
+        filter_duration(&mut filtered, Some(600));
+        assert_eq!(filtered, source[..2]);
+        filter_duration(&mut filtered, None);
+        assert_eq!(filtered.len(), 2);
+        let mut unfiltered = source.clone();
+        filter_duration(&mut unfiltered, None);
+        assert_eq!(unfiltered, source);
+    }
     #[test]
     fn matches_durations_by_id_and_keeps_missing_values_unknown() {
         let mut items = vec![

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::infrastructure::youtube::{
     Cursor, PAGE_SIZE, Position, UploadPage, VIDEO_CURSOR_VERSION, apply_durations,
-    channel_selector, merge_pages, valid_id, videos_playlist,
+    channel_selector, filter_duration, merge_pages, valid_id, videos_playlist,
 };
 use axum::{
     Json,
@@ -113,6 +113,7 @@ pub async fn remove_channel(
 }
 #[derive(Deserialize)]
 pub struct VideoQuery {
+    max_duration_seconds: Option<u32>,
     channel_id: Option<String>,
     cursor: Option<String>,
 }
@@ -122,6 +123,14 @@ pub async fn list_videos(
     Query(query): Query<VideoQuery>,
 ) -> Result<Json<Value>, ApiError> {
     let owner = user(&state, &headers).await?;
+    if query
+        .max_duration_seconds
+        .is_some_and(|seconds| !(1..=86400).contains(&seconds))
+    {
+        return Err(bad(
+            "Maximum duration must be between 1 second and 24 hours.",
+        ));
+    }
     let mut channels = channels(&state.pool, owner).await?;
     if let Some(id) = &query.channel_id {
         channels.retain(|channel| channel["channel_id"].as_str() == Some(id));
@@ -135,6 +144,7 @@ pub async fn list_videos(
         }
         Some(_) => return Err(bad("youtube_invalid_cursor")),
         None => Cursor {
+            max_duration_seconds: query.max_duration_seconds,
             version: VIDEO_CURSOR_VERSION,
             channels: channels
                 .iter()
@@ -147,7 +157,8 @@ pub async fn list_videos(
                 .collect(),
         },
     };
-    if cursor.version != VIDEO_CURSOR_VERSION
+    if cursor.max_duration_seconds != query.max_duration_seconds
+        || cursor.version != VIDEO_CURSOR_VERSION
         || cursor.channels.len() != channels.len()
         || channels.iter().any(|c| {
             !cursor
@@ -220,6 +231,9 @@ pub async fn list_videos(
             .map_err(upstream)?;
         apply_durations(&mut items, &details);
     }
+    // The merge already advanced the cursor for skipped videos, so they will
+    // not reappear on the next page. Filtering may produce a shorter/empty page.
+    filter_duration(&mut items, query.max_duration_seconds);
     let saved: Vec<(String, i64)> = sqlx::query_as("SELECT payload->>'source_id',min(id) FROM foreign_media WHERE user_id=$1 AND payload->>'type'='youtube' AND payload->>'source_id'=ANY($2) GROUP BY payload->>'source_id'")
         .bind(owner).bind(ids).fetch_all(&state.pool).await.map_err(internal)?;
     for item in &mut items {

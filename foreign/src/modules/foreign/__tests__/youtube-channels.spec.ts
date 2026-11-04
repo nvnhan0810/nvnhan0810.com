@@ -49,6 +49,7 @@ function mountPage() {
 }
 beforeEach(() => {
   vi.resetAllMocks()
+  localStorage.clear()
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute('open', '')
   }
@@ -74,6 +75,7 @@ it('paginates, filters saved channels and resets the cursor when the filter chan
     '',
     'next-page',
     expect.any(AbortSignal),
+    null,
   )
   expect(wrapper.text()).toContain('Page 2')
   await wrapper.get('#channel-filter').setValue(channel.channel_id)
@@ -82,6 +84,7 @@ it('paginates, filters saved channels and resets the cursor when the filter chan
     channel.channel_id,
     null,
     expect.any(AbortSignal),
+    null,
   )
   expect(wrapper.text()).toContain('Page 1')
   wrapper.unmount()
@@ -209,5 +212,98 @@ it('keeps the selected difficulty and shows save errors inside the dialog', asyn
   expect(
     (wrapper.get('#video-difficulty').element as HTMLSelectElement).value,
   ).toBe('advanced')
+  wrapper.unmount()
+})
+
+it('uses saved duration settings on the initial video request', async () => {
+  localStorage.setItem(
+    'foreign.youtube.duration-filter',
+    JSON.stringify({ enabled: true, minutes: 10 }),
+  )
+  const wrapper = mountPage()
+  await flushPromises()
+  expect(youtubeApi.videos).toHaveBeenLastCalledWith(
+    '',
+    null,
+    expect.any(AbortSignal),
+    600,
+  )
+  expect(
+    (wrapper.get('#duration-filter-enabled').element as HTMLInputElement)
+      .checked,
+  ).toBe(true)
+  expect(
+    (wrapper.get('#max-duration-minutes').element as HTMLInputElement).value,
+  ).toBe('10')
+  wrapper.unmount()
+})
+it('reloads from page one when duration settings change and sends no limit when switched off', async () => {
+  const wrapper = mountPage()
+  await flushPromises()
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Next →')!
+    .trigger('click')
+  await flushPromises()
+  await wrapper.get('#duration-filter-enabled').setValue(true)
+  await flushPromises()
+  expect(youtubeApi.videos).toHaveBeenLastCalledWith(
+    '',
+    null,
+    expect.any(AbortSignal),
+    900,
+  )
+  expect(wrapper.text()).toContain('Page 1')
+  await wrapper.get('#max-duration-minutes').setValue('8')
+  await flushPromises()
+  expect(youtubeApi.videos).toHaveBeenLastCalledWith(
+    '',
+    null,
+    expect.any(AbortSignal),
+    480,
+  )
+  expect(
+    JSON.parse(localStorage.getItem('foreign.youtube.duration-filter')!),
+  ).toEqual({ enabled: true, minutes: 8 })
+  await wrapper.get('#duration-filter-enabled').setValue(false)
+  await flushPromises()
+  expect(youtubeApi.videos).toHaveBeenLastCalledWith(
+    '',
+    null,
+    expect.any(AbortSignal),
+    null,
+  )
+  expect(
+    wrapper.get('#max-duration-minutes').attributes('disabled'),
+  ).toBeDefined()
+  wrapper.unmount()
+})
+it('validates the duration limit and explains empty filtered pages without losing the next page', async () => {
+  const wrapper = mountPage()
+  await flushPromises()
+  await wrapper.get('#duration-filter-enabled').setValue(true)
+  await flushPromises()
+  const before = vi.mocked(youtubeApi.videos).mock.calls.length
+  await wrapper.get('#max-duration-minutes').setValue('0')
+  await flushPromises()
+  expect(wrapper.text()).toContain('from 1 to 1440 minutes')
+  expect(youtubeApi.videos).toHaveBeenCalledTimes(before)
+  vi.mocked(youtubeApi.videos).mockResolvedValueOnce({
+    items: [],
+    next_cursor: 'filtered-next',
+  })
+  await wrapper.get('#max-duration-minutes').setValue('5')
+  await flushPromises()
+  expect(wrapper.text()).toContain('No videos within your duration limit')
+  const next = wrapper.findAll('button').find((b) => b.text() === 'Next →')!
+  expect(next.attributes('disabled')).toBeUndefined()
+  await next.trigger('click')
+  await flushPromises()
+  expect(youtubeApi.videos).toHaveBeenLastCalledWith(
+    '',
+    'filtered-next',
+    expect.any(AbortSignal),
+    300,
+  )
   wrapper.unmount()
 })

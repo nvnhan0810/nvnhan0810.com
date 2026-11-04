@@ -20,6 +20,61 @@ const loading = ref(true)
 const changingChannels = ref(false)
 const error = ref('')
 const notice = ref('')
+const durationSettingsKey = 'foreign.youtube.duration-filter'
+function readDurationSettings(): { enabled: boolean; minutes: number } {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(durationSettingsKey) ?? 'null',
+    )
+    if (
+      saved &&
+      typeof saved.enabled === 'boolean' &&
+      Number.isInteger(saved.minutes) &&
+      saved.minutes >= 1 &&
+      saved.minutes <= 1440
+    )
+      return saved
+  } catch {
+    /* Storage may be unavailable; use the default settings. */
+  }
+  return { enabled: false, minutes: 15 }
+}
+const savedDurationSettings = readDurationSettings()
+const durationFilterEnabled = ref(savedDurationSettings.enabled)
+const maxDurationMinutes = ref<number | string>(savedDurationSettings.minutes)
+const activeDurationLimit = ref<number | null>(
+  savedDurationSettings.enabled ? savedDurationSettings.minutes * 60 : null,
+)
+const durationSettingsError = ref('')
+async function applyDurationSettings() {
+  const minutes = Number(maxDurationMinutes.value)
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+    if (durationFilterEnabled.value) {
+      durationSettingsError.value =
+        'Enter a maximum duration from 1 to 1440 minutes.'
+      return
+    }
+  }
+  durationSettingsError.value = ''
+  const validMinutes =
+    Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : 15
+  maxDurationMinutes.value = validMinutes
+  activeDurationLimit.value = durationFilterEnabled.value
+    ? validMinutes * 60
+    : null
+  try {
+    localStorage.setItem(
+      durationSettingsKey,
+      JSON.stringify({
+        enabled: durationFilterEnabled.value,
+        minutes: validMinutes,
+      }),
+    )
+  } catch {
+    /* Filtering still works if browser storage is blocked. */
+  }
+  await loadVideos(0, true)
+}
 const difficulty = ref('intermediate')
 const addDialog = ref<HTMLDialogElement | null>(null)
 const pendingVideo = ref<YoutubeVideo | null>(null)
@@ -91,6 +146,7 @@ async function loadVideos(index = 0, reset = false) {
       selected.value,
       cursors.value[index] ?? null,
       request.signal,
+      activeDurationLimit.value,
     )
     if (version !== generation) return
     page.value = result
@@ -318,6 +374,48 @@ onBeforeUnmount(() => {
           </select>
         </div>
       </div>
+      <form
+        v-if="channels.length"
+        class="duration-filter-settings"
+        aria-label="Video duration settings"
+        @submit.prevent="applyDurationSettings"
+      >
+        <div class="duration-filter-toggle">
+          <label for="duration-filter-enabled">Filter by duration</label>
+          <input
+            id="duration-filter-enabled"
+            v-model="durationFilterEnabled"
+            type="checkbox"
+            role="switch"
+            :disabled="changingChannels"
+            @change="applyDurationSettings"
+          />
+        </div>
+        <div class="duration-limit-field">
+          <label for="max-duration-minutes">Maximum duration (minutes)</label>
+          <input
+            id="max-duration-minutes"
+            v-model.number="maxDurationMinutes"
+            type="number"
+            min="1"
+            max="1440"
+            step="1"
+            class="form-control"
+            :disabled="!durationFilterEnabled || changingChannels"
+            @change="applyDurationSettings"
+          />
+        </div>
+        <p v-if="durationSettingsError" class="alert alert-error" role="alert">
+          {{ durationSettingsError }}
+        </p>
+        <p v-else class="muted duration-filter-hint">
+          {{
+            activeDurationLimit !== null
+              ? `Only videos up to ${activeDurationLimit / 60} minutes. Videos without a known duration are skipped.`
+              : 'Duration filter is off. All video lengths are shown.'
+          }}
+        </p>
+      </form>
       <section :aria-busy="loading" aria-label="Channel videos">
         <p v-if="loading" class="empty-state" role="status">Loading videos…</p>
         <div v-else-if="!channels.length && !error" class="empty-state">
@@ -325,8 +423,11 @@ onBeforeUnmount(() => {
           videos.
         </div>
         <div v-else-if="!page.items.length && !error" class="empty-state">
-          No public videos on this page. Try another channel or continue to the
-          next page.
+          {{
+            activeDurationLimit !== null
+              ? 'No videos within your duration limit on this page. Increase the limit, turn off the filter, or continue to the next page.'
+              : 'No public videos on this page. Try another channel or continue to the next page.'
+          }}
         </div>
         <template v-if="!loading && channels.length">
           <div class="channel-results-heading">
@@ -461,6 +562,41 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.duration-filter-settings {
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+.duration-filter-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+.duration-filter-toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.duration-limit-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.duration-limit-field input {
+  width: 110px;
+}
+.duration-filter-hint {
+  font-size: 0.8rem;
+  margin: 12px 0 0;
+}
+
 .add-listening-dialog {
   width: min(420px, calc(100% - 32px));
   max-height: calc(100dvh - 48px);

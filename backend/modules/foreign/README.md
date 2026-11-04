@@ -96,6 +96,16 @@ Adding a video uses the existing transcript queue. Duplicate imports, including
 simultaneous imports through the manual YouTube form, reuse the user's existing
 media record. Historical duplicates remain intact.
 
+The Channels page also offers an optional maximum-duration filter. It defaults to
+Off with a 15-minute limit, editable from 1 to 1440 minutes. Settings are remembered
+in browser local storage. The enabled limit is sent as `max_duration_seconds` on
+every video request; the backend excludes longer videos and videos with unknown
+or invalid durations. Videos exactly at the limit remain visible. Switching the
+filter or changing its limit restarts pagination from page one. Cursors are bound
+to the active duration limit. Skipped entries still advance the upstream cursor;
+a filtered page can contain fewer than 24 videos or be empty while Next remains
+available. No extra pages are scanned automatically, keeping upstream calls bounded.
+
 Setup:
 
 1. Enable **YouTube Data API v3** in a Google Cloud project and create an API key.
@@ -118,7 +128,8 @@ Authenticated endpoints:
 
 - `GET/POST /foreign/youtube/channels` (`POST`: `{ "url": "@handle" }`).
 - `DELETE /foreign/youtube/channels/{channel_id}`.
-- `GET /foreign/youtube/videos?channel_id=...&cursor=...` (both optional).
+- `GET /foreign/youtube/videos?channel_id=...&cursor=...&max_duration_seconds=...`
+  (all optional; omit `max_duration_seconds` to disable duration filtering).
 - `POST /foreign/youtube/videos/{video_id}/listening` with
   `{ "difficulty": "beginner|intermediate|advanced" }`.
 

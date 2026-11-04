@@ -81,6 +81,7 @@ const searchInputRef = ref<HTMLInputElement | null>(null)
 
 const meaningsViewMode = ref<MeaningsViewModeValue>(MeaningsViewMode.Ui)
 const jsonText = ref<string>('[]')
+const savedEntryJson = ref<string | null>(null)
 const localMeanings = ref<Meaning[]>([])
 const localSynonyms = ref<string[]>([])
 const localAntonyms = ref<string[]>([])
@@ -258,6 +259,7 @@ function syncFromResult(
     localAntonyms.value = []
     jsonText.value = '[]'
     meaningsViewMode.value = MeaningsViewMode.Ui
+    savedEntryJson.value = null
     return
   }
 
@@ -265,6 +267,9 @@ function syncFromResult(
   localSynonyms.value = cleanWords(result.synonyms)
   localAntonyms.value = cleanWords(result.antonyms)
   jsonText.value = currentEntryJson()
+  savedEntryJson.value = isSaved.value
+    ? canonicalEntryJson(jsonText.value)
+    : null
   meaningsViewMode.value =
     draftFlag || localMeanings.value.length === 0
       ? MeaningsViewMode.Json
@@ -287,6 +292,9 @@ function restoreFromSession(): void {
   localSynonyms.value = session.synonyms
   localAntonyms.value = session.antonyms
   jsonText.value = session.jsonText || currentEntryJson()
+  savedEntryJson.value =
+    session.savedEntryJson ??
+    (session.saved ? canonicalEntryJson(currentEntryJson()) : null)
   meaningsViewMode.value =
     session.meaningsViewMode === MeaningsViewMode.Json
       ? MeaningsViewMode.Json
@@ -337,6 +345,7 @@ function persistSession(): void {
     savedVocabularyId: savedVocabularyId.value,
     meaningsViewMode: meaningsViewMode.value,
     jsonText: jsonText.value,
+    savedEntryJson: savedEntryJson.value,
     meanings,
     synonyms: localSynonyms.value,
     antonyms: localAntonyms.value,
@@ -361,6 +370,7 @@ function clearWord(): void {
   isDraft.value = false
   isSaved.value = false
   savedVocabularyId.value = null
+  savedEntryJson.value = null
   localMeanings.value = []
   localSynonyms.value = []
   localAntonyms.value = []
@@ -415,6 +425,26 @@ function currentEntryJson(): string {
     },
     localMeanings.value,
   )
+}
+
+/** Normalize field order and formatting while preserving entry fields in legacy arrays. */
+function canonicalEntryJson(raw: string): string {
+  try {
+    const update = parseEntryJson(raw)
+    return entryToPrettyJson(
+      {
+        ...activeResult.value,
+        word: activeResult.value?.word ?? '',
+        synonyms: localSynonyms.value,
+        antonyms: localAntonyms.value,
+        ...update,
+      },
+      update.meanings,
+    )
+  } catch {
+    // Invalid drafts still count as edits; submission displays validation errors.
+    return raw.trim()
+  }
 }
 
 function applyJsonToLocal(requireNonEmpty: boolean): void {
@@ -489,7 +519,7 @@ async function copyMeaningsPrompt(): Promise<void> {
 }
 
 function submitSave(): void {
-  if (!activeResult.value) {
+  if (!activeResult.value || saveForm.processing || !canSave.value) {
     return
   }
   jsonError.value = ''
@@ -523,16 +553,38 @@ function submitSave(): void {
     antonyms: meaning.antonyms,
   }))
   saveForm.embed = isEmbed.value
-  saveForm.post(saveAction.value)
+  const submittedWord = saveForm.word
+  const submittedJson = canonicalEntryJson(currentEntryJson())
+  saveForm.post(saveAction.value, {
+    onSuccess: () => {
+      if (activeResult.value?.word !== submittedWord) return
+      isSaved.value = true
+      savedEntryJson.value = submittedJson
+      schedulePersist()
+    },
+  })
 }
 
 const isJsonMode = computed(
   (): boolean => meaningsViewMode.value === MeaningsViewMode.Json,
 )
-const canSave = computed((): boolean => activeResult.value !== null)
-const saveButtonLabel = computed((): string =>
-  isSaved.value ? 'Update JSON' : 'Save word',
+const hasChanges = computed((): boolean => {
+  if (!activeResult.value || !isSaved.value) return false
+  const current =
+    meaningsViewMode.value === MeaningsViewMode.Json
+      ? jsonText.value
+      : currentEntryJson()
+  return canonicalEntryJson(current) !== savedEntryJson.value
+})
+const canSave = computed(
+  (): boolean =>
+    activeResult.value !== null &&
+    (!isSaved.value || hasChanges.value || saveForm.processing),
 )
+const saveButtonLabel = computed((): string => {
+  if (saveForm.processing) return isSaved.value ? 'Updating…' : 'Saving…'
+  return isSaved.value ? 'Update' : 'Save'
+})
 </script>
 
 <template>
@@ -674,7 +726,7 @@ const saveButtonLabel = computed((): string =>
             />
             <p class="muted lookup-json-hint">
               Edit phonetic, audio_url, examples, synonyms, antonyms and
-              meanings, then Update JSON / Save word.
+              meanings, then Save or Update.
             </p>
           </div>
         </div>
@@ -722,6 +774,8 @@ const saveButtonLabel = computed((): string =>
   padding-bottom: 88px;
 }
 .lookup-save-form {
+  display: flex;
+  justify-content: center;
   position: fixed;
   bottom: var(--user-nav-height);
   left: 0;
