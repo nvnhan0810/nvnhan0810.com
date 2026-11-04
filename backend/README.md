@@ -614,6 +614,8 @@ API gateway publishes alerts; `console queue:work` consumes them from PostgreSQL
 
 ## Backend queue: PostgreSQL + Supervisor
 
+Flow, cách chạy và lifecycle theo từng file: [Queue lifecycle](docs/queue-lifecycle.md).
+
 Run one command for all backend queue consumers:
 
 ```sh
@@ -639,12 +641,30 @@ be allowed to create the schema and the `hstore` extension used by Apalis. Norma
 application `migrate down` only rolls back application migrations; it does not
 remove the queue schema or queued jobs.
 
+When upgrading from the old transcript priority lanes / Telegram channel, stop and
+drain the old queue worker first, then run `migrate up` with the new binary before
+starting the new worker. The queue migration wraps persisted payloads with their
+job kind and moves them into `backend:queue:default`, preserving job IDs, retry
+counts, scheduling and idempotency keys. This upgrade is idempotent; it refuses to
+move jobs still marked Running so active work cannot be delivered twice.
+Deploy the updated API publishers as well: older API binaries must not keep
+dispatching to the retired queue names. Do not run old queue binaries after this
+migration.
+
 A reviewed Supervisor template is provided in
 [`deploy/supervisor/backend-queue.conf`](deploy/supervisor/backend-queue.conf).
 Build with `make build`, run migrations once, install/adapt that template, and
 then use `supervisorctl reread` and `supervisorctl update`. Use
 `supervisorctl restart nvnhan0810-queue` when deploying a new worker binary.
-The template runs one process; Foreign reserves its lane concurrency internally.
+The template runs one process with two shared consumers per declared channel.
+There is one channel by default: `default` (`backend:queue:default`).
+Transcript and Telegram jobs share this queue and carry a job kind so the registry
+selects the correct handler. Priorities are job attributes, not separate queues.
+Additional channels are created only when explicitly declared by a module;
+Foreign uses `QueueConfig.channels` for extras and `dispatch.channel` must be
+`default` or one of those declarations. Register new handlers in the shared registry
+in `apps/console/src/commands/queue.rs`, and combine module channel declarations
+when adding a module that needs a dedicated channel.
 Unexpected consumer exit fails the whole process so Supervisor can restart it.
 SIGINT/SIGTERM stop consumers before the publisher and shared pool are closed.
 Allow 120 seconds for process shutdown.
@@ -661,7 +681,8 @@ TELEGRAM_LOG_LEVEL=warning
 Disabled by default. Enable identically in API and queue processes to publish and
 deliver alerts. Use `error` to capture only errors. Logs enter a bounded local
 1024-event buffer through `try_send`; a background publisher persists them to
-`backend:queue:telegram-logs`. The request path performs no queue or Telegram I/O.
+`backend:queue:default` with kind `telemetry.telegram-log`. The request path
+performs no queue or Telegram I/O.
 Duplicate event texts are suppressed for 60 seconds per publisher, sensitive fields
 and configured credentials are redacted, and messages are truncated to 3800
 characters. Telegram and Apalis internal events stay on stderr to avoid loops.

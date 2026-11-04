@@ -14,29 +14,25 @@ pub struct DispatchConfig {
 impl Default for DispatchConfig {
     fn default() -> Self {
         Self {
-            channel: "youtube-transcript".into(),
+            channel: app_resources::queue::DEFAULT_CHANNEL.into(),
             automatic: Priority::Normal,
             manual: Priority::High,
         }
     }
 }
-/// Shared by the API and the dedicated transcript worker.
+/// Shared by API producers and the backend queue command.
 #[derive(Clone)]
 pub struct QueueConfig {
-    pub prefix: String,
+    /// Extra channels; the shared default channel is always present.
     pub channels: Vec<String>,
     pub dispatch: DispatchConfig,
-    /// Reserved worker counts in high, normal, low order.
-    pub workers: [usize; 3],
 }
 impl Default for QueueConfig {
     fn default() -> Self {
         let dispatch = DispatchConfig::default();
         Self {
-            prefix: "foreign:queue".into(),
-            channels: vec![dispatch.channel.clone()],
+            channels: vec![],
             dispatch,
-            workers: [2, 1, 1],
         }
     }
 }

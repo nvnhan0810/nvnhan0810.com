@@ -1,13 +1,12 @@
 //! Durable Apalis PostgreSQL dispatch and transcript handling.
 use super::postgres_queue::{Config, Priority};
-use apalis::layers::retry::{
-    HasherRng, RetryPolicy,
-    backoff::{ExponentialBackoffMaker, MakeBackoff},
-};
+#[cfg(test)]
+use apalis::layers::retry::RetryPolicy;
 use apalis::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::PgPool;
+#[cfg(test)]
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -51,11 +50,18 @@ pub async fn enqueue(
     payload["transcript_status"] = json!("queued");
     payload["transcript_error"] = Value::Null;
     // The job and its media token commit together, using Apalis' transaction-aware sink.
-    let encoded = serde_json::to_vec(&task).map_err(|e| sqlx::Error::Encode(Box::new(e)))?;
+    let job = app_resources::queue::Job::new("foreign.transcript", &task)
+        .map_err(|e| sqlx::Error::Encode(Box::new(e)))?;
+    let encoded = serde_json::to_vec(&job).map_err(|e| sqlx::Error::Encode(Box::new(e)))?;
     apalis_postgres::queries::push_tasks(
         &mut *tx,
-        &config.key(&config.dispatch.channel, priority as i16),
-        vec![TaskBuilder::new(encoded).max_attempts(3).build()],
+        &config.key(&config.dispatch.channel),
+        vec![
+            TaskBuilder::new(encoded)
+                .priority(priority.queue_priority())
+                .max_attempts(3)
+                .build(),
+        ],
     )
     .await
     .map_err(|e| sqlx::Error::Protocol(format!("Could not queue captions: {e}")))?;
@@ -160,71 +166,21 @@ where
         }
     }
 }
-async fn handle(
-    task: TranscriptTask,
-    pool: Data<PgPool>,
-    attempt: Attempt,
-) -> Result<(), BoxDynError> {
-    run_once_with(&pool, &task, attempt.current(), |video| async move {
-        super::captions::captions(&video).await
-    })
-    .await?;
-    Ok(())
-}
-async fn stop(mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), std::io::Error> {
-    while !*shutdown.borrow() {
-        if shutdown.changed().await.is_err() {
-            break;
+pub fn register_jobs(
+    registry: &mut app_resources::queue::Registry,
+    pool: PgPool,
+) -> Result<(), String> {
+    registry.register("foreign.transcript", move |payload, attempt| {
+        let pool = pool.clone();
+        async move {
+            let task: TranscriptTask = serde_json::from_value(payload)?;
+            run_once_with(&pool, &task, attempt, |video| async move {
+                super::captions::captions(&video).await
+            })
+            .await?;
+            Ok(())
         }
-    }
-    Ok(())
-}
-pub async fn run(pool: PgPool, config: Config, shutdown: tokio::sync::watch::Receiver<bool>) {
-    let mut workers = tokio::task::JoinSet::new();
-    let (worker_stop, worker_signal) = tokio::sync::watch::channel(false);
-    let instance = Uuid::new_v4();
-    for channel in &config.channels {
-        for (lane, priority) in [Priority::High, Priority::Normal, Priority::Low]
-            .iter()
-            .enumerate()
-        {
-            for index in 0..config.workers[lane] {
-                let storage = config.storage::<TranscriptTask>(&pool, channel, *priority as i16);
-                let backoff = ExponentialBackoffMaker::new(
-                    Duration::from_secs(30),
-                    Duration::from_secs(60),
-                    0.0,
-                    HasherRng::default(),
-                )
-                .expect("static valid backoff")
-                .make_backoff();
-                let worker = WorkerBuilder::new(format!(
-                    "{}:{instance}:{index}",
-                    config.key(channel, *priority as i16)
-                ))
-                .backend(storage)
-                .data(pool.clone())
-                .retry(RetryPolicy::retries(2).with_backoff(backoff))
-                .build(handle);
-                let signal = worker_signal.clone();
-                workers.spawn(async move { worker.run_until(stop(signal)).await });
-            }
-        }
-    }
-    tokio::select! {
-        _ = stop(shutdown.clone()) => {},
-        _ = workers.join_next() => tracing::error!("Apalis worker exited unexpectedly"),
-    }
-    // Signal remaining workers when shutdown is requested or a worker exits.
-    let _ = worker_stop.send(true);
-    if tokio::time::timeout(Duration::from_secs(60), async {
-        while workers.join_next().await.is_some() {}
     })
-    .await
-    .is_err()
-    {
-        workers.shutdown().await;
-    }
 }
 
 #[cfg(test)]

@@ -1,11 +1,5 @@
 //! Nonblocking warning/error capture -> Apalis PostgreSQL -> Telegram.
-use apalis::{
-    layers::retry::{
-        HasherRng, RetryPolicy,
-        backoff::{ExponentialBackoffMaker, MakeBackoff},
-    },
-    prelude::*,
-};
+use apalis::prelude::*;
 use app_config::ConfigSource;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -201,12 +195,9 @@ impl Telemetry {
         }
     }
 }
-fn storage(pool: &PgPool) -> apalis_postgres::PostgresStorage<TelegramLog> {
-    apalis_postgres::PostgresStorage::new(pool).with_config(
-        apalis_postgres::Config::default()
-            .queue("backend:queue:telegram-logs")
-            .batch_size(1),
-    )
+pub const CHANNEL: &str = app_resources::queue::DEFAULT_CHANNEL;
+fn storage(pool: &PgPool) -> apalis_postgres::PostgresStorage<app_resources::queue::Job> {
+    app_resources::queue::storage(pool, CHANNEL)
 }
 async fn publish(
     pool: PgPool,
@@ -238,10 +229,14 @@ async fn publish(
             let result = async {
                 storage(&pool)
                     .push_task(
-                        TaskBuilder::new(log.clone())
-                            .idempotency_key(dispatch_id.clone())
-                            .max_attempts(3)
-                            .build(),
+                        TaskBuilder::new(app_resources::queue::Job::new(
+                            "telemetry.telegram-log",
+                            &log,
+                        )?)
+                        .priority(5)
+                        .idempotency_key(dispatch_id.clone())
+                        .max_attempts(3)
+                        .build(),
                     )
                     .await?;
                 Ok::<_, BoxDynError>(())
@@ -289,52 +284,31 @@ impl Sender {
         Err(std::io::Error::other("Telegram delivery failed").into())
     }
 }
-async fn handle(log: TelegramLog, sender: Data<Sender>) -> Result<(), BoxDynError> {
-    sender.send(&log).await
-}
-async fn stopping(mut signal: watch::Receiver<bool>) -> Result<(), std::io::Error> {
-    while !*signal.borrow() {
-        if signal.changed().await.is_err() {
-            break;
-        }
-    }
-    Ok(())
-}
-/// Consume Telegram alerts only from the shared backend queue process.
-pub async fn run_worker(
+/// Register delivery with the shared consumer; never start a competing typed worker.
+pub fn register_jobs(
     source: &ConfigSource,
-    pool: PgPool,
-    signal: watch::Receiver<bool>,
-) -> Result<(), BoxDynError> {
-    let Some(settings) = Settings::load(source).map_err(std::io::Error::other)? else {
-        stopping(signal).await?;
-        return Ok(());
-    };
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .expect("static HTTP client config");
-    let sender = Sender {
-        client,
+    registry: &mut app_resources::queue::Registry,
+) -> Result<(), String> {
+    let settings = Settings::load(source)?;
+    let sender = settings.map(|settings| Sender {
+        client: reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("static HTTP client config"),
         endpoint: format!("https://api.telegram.org/bot{}/sendMessage", settings.token),
-        chat_id: settings.chat_id.clone(),
-    };
-    let backoff = ExponentialBackoffMaker::new(
-        Duration::from_secs(5),
-        Duration::from_secs(30),
-        0.0,
-        HasherRng::default(),
-    )
-    .unwrap()
-    .make_backoff();
-    let worker = WorkerBuilder::new(format!("telegram-{}", uuid::Uuid::new_v4()))
-        .backend(storage(&pool))
-        .data(sender)
-        .retry(RetryPolicy::retries(2).with_backoff(backoff))
-        .build(handle);
-    worker.run_until(stopping(signal)).await?;
-    Ok(())
+        chat_id: settings.chat_id,
+    });
+    registry.register("telemetry.telegram-log", move |payload, _attempt| {
+        let sender = sender.clone();
+        async move {
+            let log: TelegramLog = serde_json::from_value(payload)?;
+            // Keep persisted alerts retryable when delivery is temporarily disabled.
+            let sender =
+                sender.ok_or_else(|| std::io::Error::other("Telegram delivery is disabled"))?;
+            sender.send(&log).await
+        }
+    })
 }
 
 #[cfg(test)]

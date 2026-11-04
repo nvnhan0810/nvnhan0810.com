@@ -17,23 +17,22 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let telemetry = app_telemetry::Telemetry::init(&source, resources.database.clone())?;
     let (shutdown, signal) = watch::channel(false);
     let mut workers = JoinSet::new();
+    let mut registry = app_resources::queue::Registry::default();
+    foreign::infrastructure::transcript_queue::register_jobs(
+        &mut registry,
+        resources.database.clone(),
+    )?;
+    app_telemetry::register_jobs(&source, &mut registry)?;
     let pool = resources.database.clone();
-    let transcript_signal = signal.clone();
+    let queue_signal = signal.clone();
     workers.spawn(async move {
-        foreign::infrastructure::transcript_queue::run(pool, queue, transcript_signal).await;
-        Ok::<_, String>(())
+        app_resources::queue::run(pool, queue.channels, registry, queue_signal).await
     });
     let pool = resources.database.clone();
     let todo_config = todos::infrastructure::worker::PushConfig::from_source(&source);
     let todo_signal = signal.clone();
     workers.spawn(async move {
         todos::infrastructure::worker::run(pool, todo_config, todo_signal).await
-    });
-    let pool = resources.database.clone();
-    workers.spawn(async move {
-        app_telemetry::run_worker(&source, pool, signal)
-            .await
-            .map_err(|e| e.to_string())
     });
     tracing::info!("Backend queue worker started");
     let result: Result<(), Box<dyn std::error::Error>> = tokio::select! {

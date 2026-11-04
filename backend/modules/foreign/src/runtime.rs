@@ -1,9 +1,6 @@
 //! Module startup and shutdown. Hosts supply connections and process signals;
-//! Foreign owns queue settings and workers; the host owns shared connections.
-use crate::{
-    config::QueueConfig,
-    infrastructure::{postgres_queue, transcript_queue},
-};
+//! Foreign owns dispatch settings and handlers; the backend owns consumers.
+use crate::{config::QueueConfig, infrastructure::postgres_queue};
 use axum::Router;
 use sqlx::PgPool;
 use tokio::{sync::watch, task::JoinHandle};
@@ -51,7 +48,7 @@ pub async fn start(
     let queue = postgres_queue::Config::from_config(settings)?;
     let router =
         crate::presentation::http::routes::build_routes(identity, pool.clone(), queue.clone());
-    let runtime = ForeignWorker::spawn(pool, queue, false);
+    let runtime = ForeignWorker::idle();
     Ok(Foreign { router, runtime })
 }
 
@@ -62,11 +59,12 @@ pub struct ForeignWorker {
 }
 
 impl ForeignWorker {
-    fn spawn(pool: PgPool, queue: postgres_queue::Config, enabled: bool) -> Self {
-        let (shutdown, signal) = watch::channel(false);
-        let worker =
-            enabled.then(|| tokio::spawn(transcript_queue::run(pool.clone(), queue, signal)));
-        Self { shutdown, worker }
+    fn idle() -> Self {
+        let (shutdown, _) = watch::channel(false);
+        Self {
+            shutdown,
+            worker: None,
+        }
     }
 
     pub fn request_shutdown(&self) {
@@ -81,12 +79,6 @@ impl ForeignWorker {
             None => Ok(()),
         }
     }
-}
-
-/// Dedicated worker startup uses the same Foreign configuration as the API.
-pub async fn start_worker(pool: PgPool) -> Result<ForeignWorker, StartupError> {
-    let queue = postgres_queue::Config::new()?;
-    Ok(ForeignWorker::spawn(pool, queue, true))
 }
 
 #[cfg(test)]

@@ -68,28 +68,41 @@ async fn shared_command_consumes_persisted_jobs_registers_all_handlers_and_stops
     console::migrations::apply(&pool, identity::MigrationAction::Up)
         .await
         .unwrap();
+    verify_legacy_migration(&pool).await;
     verify_atomic_dispatch(&pool).await;
     let config = Config::new().unwrap();
-    let mut storage = config.storage::<TranscriptTask>(&pool, &config.dispatch.channel, 5);
+    let mut storage = app_resources::queue::storage(&pool, &config.dispatch.channel);
     // A deleted media ID is intentionally safe to acknowledge without external fetching.
     let task = || TranscriptTask {
         id: uuid::Uuid::new_v4(),
         media_id: -1,
         video_id: "stale".into(),
     };
-    storage.push(task()).await.unwrap();
+    storage
+        .push(app_resources::queue::Job::new("foreign.transcript", task()).unwrap())
+        .await
+        .unwrap();
     let mut child = worker(&options);
     wait_until(
         &pool,
         "SELECT count(*) = 1 FROM apalis.jobs WHERE status='Done'",
     )
     .await;
-    wait_until(&pool, "SELECT count(*) >= 5 FROM apalis.workers").await;
-    let telegram: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM apalis.workers WHERE worker_type='backend:queue:telegram-logs')")
-        .fetch_one(&pool).await.unwrap();
-    assert!(telegram, "the same process registers the Telegram consumer");
+    wait_until(&pool, "SELECT count(*) >= 2 FROM apalis.workers").await;
+    let queues: Vec<String> = sqlx::query_scalar("SELECT DISTINCT worker_type FROM apalis.workers")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        queues,
+        ["backend:queue:default"],
+        "all handlers share one default channel"
+    );
     stop(&mut child).await;
-    storage.push(task()).await.unwrap();
+    storage
+        .push(app_resources::queue::Job::new("foreign.transcript", task()).unwrap())
+        .await
+        .unwrap();
     assert_eq!(
         sqlx::query_scalar::<_, i64>("SELECT count(*) FROM apalis.jobs WHERE status='Pending'")
             .fetch_one(&pool)
@@ -150,7 +163,9 @@ async fn verify_atomic_dispatch(pool: &PgPool) {
         .await
         .unwrap();
     assert_eq!(jobs.len(), 1, "repeated dispatch must not duplicate work");
-    let task: TranscriptTask = serde_json::from_slice(&jobs[0].0).unwrap();
+    let job: app_resources::queue::Job = serde_json::from_slice(&jobs[0].0).unwrap();
+    assert_eq!(job.kind, "foreign.transcript");
+    let task: TranscriptTask = serde_json::from_value(job.payload).unwrap();
     assert_eq!(task.media_id, media_id);
     assert_eq!(jobs[0].1, 3);
     sqlx::query("DELETE FROM apalis.jobs")
@@ -164,6 +179,44 @@ async fn verify_atomic_dispatch(pool: &PgPool) {
         .unwrap();
     sqlx::query("DELETE FROM identity_users WHERE id=$1")
         .bind(owner)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
+async fn verify_legacy_migration(pool: &PgPool) {
+    let mut old = apalis_postgres::PostgresStorage::<serde_json::Value>::new(pool)
+        .with_config(apalis_postgres::Config::default().queue("backend:queue:telegram-logs"));
+    old.push(serde_json::json!({"text":"legacy alert"}))
+        .await
+        .unwrap();
+    let mut old = apalis_postgres::PostgresStorage::<TranscriptTask>::new(pool).with_config(
+        apalis_postgres::Config::default().queue("foreign:queue:youtube-transcript:high"),
+    );
+    old.push(TranscriptTask {
+        id: uuid::Uuid::new_v4(),
+        media_id: -1,
+        video_id: "stale".into(),
+    })
+    .await
+    .unwrap();
+    app_resources::queue::migrate_legacy(pool).await.unwrap();
+    app_resources::queue::migrate_legacy(pool).await.unwrap();
+    let rows: Vec<(String, Vec<u8>, i32)> =
+        sqlx::query_as("SELECT job_type,job,priority FROM apalis.jobs ORDER BY priority DESC")
+            .fetch_all(pool)
+            .await
+            .unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.0 == "backend:queue:default"));
+    let transcript: app_resources::queue::Job = serde_json::from_slice(&rows[0].1).unwrap();
+    assert_eq!(transcript.kind, "foreign.transcript");
+    assert_eq!(rows[0].2, 9);
+    assert_eq!(transcript.payload["media_id"], -1);
+    let alert: app_resources::queue::Job = serde_json::from_slice(&rows[1].1).unwrap();
+    assert_eq!(alert.kind, "telemetry.telegram-log");
+    assert_eq!(alert.payload["text"], "legacy alert");
+    sqlx::query("DELETE FROM apalis.jobs")
         .execute(pool)
         .await
         .unwrap();

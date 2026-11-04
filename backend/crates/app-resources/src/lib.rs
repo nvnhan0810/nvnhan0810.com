@@ -1,4 +1,5 @@
-//! Process-owned PostgreSQL connections shared by application modules.
+//! Process-owned PostgreSQL connections and shared job transport.
+pub mod queue;
 use std::time::Duration;
 
 pub struct AppResources {
@@ -19,6 +20,8 @@ impl AppResources {
 }
 
 /// Applied by the workspace migration command before API/queue startup.
-pub async fn migrate_queue(pool: &sqlx::PgPool) -> Result<(), apalis_postgres::Error> {
-    apalis_postgres::PostgresStorage::setup(pool).await
+pub async fn migrate_queue(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    apalis_postgres::PostgresStorage::setup(pool).await?;
+    queue::migrate_legacy(pool).await?;
+    Ok(())
 }

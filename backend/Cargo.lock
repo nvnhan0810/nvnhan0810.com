@@ -205,9 +205,13 @@ dependencies = [
 name = "app-resources"
 version = "0.1.0"
 dependencies = [
+ "apalis",
  "apalis-postgres",
+ "serde",
+ "serde_json",
  "sqlx",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -217,6 +221,7 @@ dependencies = [
  "apalis",
  "apalis-postgres",
  "app-config",
+ "app-resources",
  "axum",
  "reqwest",
  "serde",
@@ -1053,6 +1058,7 @@ dependencies = [
  "apalis",
  "apalis-postgres",
  "app-config",
+ "app-resources",
  "axum",
  "identity",
  "reqwest",

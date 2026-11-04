@@ -18,5 +18,7 @@ uuid.workspace = true
 
 sqlx.workspace = true
 
+app-resources = { path = "../app-resources" }
+
 [dev-dependencies]
 axum.workspace = true

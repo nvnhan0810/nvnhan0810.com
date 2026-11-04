@@ -63,11 +63,15 @@ schema, task acknowledgements, heartbeats and orphan recovery. Both processes us
 identical DB_* configuration; Redis is no longer required. Separate databases
 isolate deployment environments.
 
-Foreign job configuration remains in `src/config.rs`: automatic work uses normal
-priority, manual Fetch captions uses high priority, and the high/normal/low lanes
-reserve 2/1/1 workers per channel. These are internal queues, with one shared
-backend process. Batch size is 1. Handler failures retry twice with 30/60-second
-backoff (three total attempts).
+Foreign dispatch configuration remains in `src/config.rs`: all transcript jobs use
+`default` (`backend:queue:default`), shared with other backend jobs. The transport
+carries kind `foreign.transcript`; the shared registry selects the handler.
+Automatic work uses normal priority and manual Fetch captions uses high priority,
+as job attributes in the same queue. Two consumers serve each channel, batch size
+is 1, and failures retry twice with 30/60-second backoff (three total attempts).
+`QueueConfig.channels` defaults to empty: list only additional module channels;
+`default` always exists. A custom dispatch channel must be explicitly declared.
+The API does not start consumers; use the shared `console queue:work` command.
 
 Media JSON records the task token and visible status/error. Manual edits and newer
 requests fence stale results. The job and media task token are committed in one PostgreSQL transaction.
