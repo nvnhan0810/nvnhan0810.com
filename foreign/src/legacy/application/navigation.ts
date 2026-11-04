@@ -40,6 +40,7 @@ export const Link = defineComponent({
   },
 })
 interface Options {
+  stayOnPage?: boolean
   background?: boolean
   onSuccess?: () => void
   onError?: () => void
@@ -90,6 +91,10 @@ async function submit(
       }),
     })
     if (origin !== vueRouter.currentRoute.value.fullPath) return
+    if (options.stayOnPage) {
+      options.onSuccess?.()
+      return
+    }
     if (
       result.redirect &&
       result.redirect !== vueRouter.currentRoute.value.fullPath

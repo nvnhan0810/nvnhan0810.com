@@ -61,6 +61,16 @@ const rows = ref<EditRow[]>(
     : [toEditRow(createEmptySegment(0))],
 )
 
+const toast = ref<{ message: string; error: boolean } | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+function showToast(message: string, error = false): void {
+  clearTimeout(toastTimer)
+  toast.value = { message, error }
+  toastTimer = setTimeout(() => {
+    toast.value = null
+  }, 4000)
+}
+
 const saving = ref(false)
 const formError = ref<string | null>(null)
 const currentTime = ref(0)
@@ -297,9 +307,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
+  clearTimeout(toastTimer)
 })
 
 function save(): void {
+  if (saving.value) return
   const segments = validateRows()
   if (segments === null) {
     return
@@ -310,11 +322,15 @@ function save(): void {
     appPath(`/home/media/${props.item.id}/transcript`),
     { segments },
     {
+      stayOnPage: true,
+      onSuccess: () => {
+        showToast('Transcript saved.')
+      },
       onFinish: () => {
         saving.value = false
       },
       onError: () => {
-        formError.value = 'Could not save transcript.'
+        showToast('Could not save transcript. Please try again.', true)
       },
     },
   )
@@ -347,6 +363,14 @@ function save(): void {
       </header>
     </template>
 
+    <div
+      v-if="toast"
+      class="transcript-save-toast"
+      :class="{ 'is-error': toast.error }"
+      :role="toast.error ? 'alert' : 'status'"
+    >
+      {{ toast.message }}
+    </div>
     <div class="media-transcript-edit-page">
       <div class="media-transcript-edit-main">
         <aside class="media-transcript-edit-player">
@@ -521,3 +545,23 @@ function save(): void {
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+.transcript-save-toast {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  max-width: calc(100vw - 32px);
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 4px 20px #0003;
+}
+.transcript-save-toast.is-error {
+  color: var(--danger, #dc2626);
+}
+</style>

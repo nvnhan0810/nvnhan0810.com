@@ -82,3 +82,32 @@ it('sets start to the previous end', async () => {
     wrapper.unmount()
   }
 })
+
+it('shows save success and failure toasts while preserving the edited rows', async () => {
+  const wrapper = editor()
+  try {
+    await wrapper.get('textarea').setValue('Updated text')
+    await wrapper
+      .get('.media-transcript-edit-footer .btn:last-child')
+      .trigger('click')
+    const options = put.mock.calls[0]![2]
+    expect(options.stayOnPage).toBe(true)
+    options.onSuccess()
+    options.onFinish()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[role="status"]').text()).toBe('Transcript saved.')
+    expect(wrapper.get('textarea').element.value).toBe('Updated text')
+    await wrapper
+      .get('.media-transcript-edit-footer .btn:last-child')
+      .trigger('click')
+    put.mock.calls[1]![2].onError()
+    put.mock.calls[1]![2].onFinish()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Could not save transcript',
+    )
+    expect(wrapper.get('textarea').element.value).toBe('Updated text')
+  } finally {
+    wrapper.unmount()
+  }
+})
