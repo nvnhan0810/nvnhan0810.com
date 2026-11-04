@@ -1,5 +1,6 @@
 import { RoutePath } from './paths'
 import { createRouter, createWebHistory } from 'vue-router'
+import YoutubeChannelsPage from '../../modules/foreign/presentation/pages/YoutubeChannelsPage.vue'
 import PageView from '../../legacy/application/PageView.vue'
 import { sessionDestination } from '../../modules/foreign/application/use-cases/initialize-session'
 import LoginPage from '../../modules/foreign/presentation/pages/LoginPage.vue'
@@ -37,6 +38,11 @@ export const router = createRouter({
       name,
       component: PageView,
     })),
+    {
+      path: RoutePath.channels,
+      name: 'youtube-channels',
+      component: YoutubeChannelsPage,
+    },
     { path: RoutePath.media, name: 'media', component: PageView },
     { path: RoutePath.mediaDetail, name: 'media-detail', component: PageView },
     {

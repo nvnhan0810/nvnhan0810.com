@@ -78,3 +78,55 @@ historical backfill is run automatically.
 The shared command handles SIGINT/SIGTERM and drains transcript workers for up to
 60 seconds before closing the shared PostgreSQL pool. There is no public queue
 dashboard.
+
+## Saved YouTube channels
+
+Open Listen → YouTube channels (`/youtube/channels` in the Foreign app).
+Save a channel URL, `@handle`, channel ID, or legacy `/user/name` URL.
+Each user owns their channel list (up to 20 channels); removing a channel keeps
+videos already saved in listening. Browse all saved channels or filter one channel,
+with Previous/Next pagination (24 entries per page). Shorts and live streams are excluded using the channel Videos-tab playlist
+(`UULF`); private/deleted entries are omitted. Existing channels use this playlist
+automatically without re-saving. Listening videos show Saved and link to their media detail page.
+Adding a video uses the existing transcript queue. Duplicate imports, including
+simultaneous imports through the manual YouTube form, reuse the user's existing
+media record. Historical duplicates remain intact.
+
+Setup:
+
+1. Enable **YouTube Data API v3** in a Google Cloud project and create an API key.
+2. Set `GOOGLE_API_KEY` in `backend/.env` or the API process environment. Restrict
+   the key to YouTube Data API v3 (and server IPs when available). Never put it in
+   frontend/Vite variables. Restart the API after changing the key.
+3. Apply backend migrations using `cargo run --locked -p console --bin migrate -- up` before
+   serving these endpoints. Start the shared queue worker for captions as usual.
+
+The catalog uses `channels.list`, `playlistItems.list` on the Videos-tab playlist,
+and `videos.list` to validate selected videos: 1 quota unit per request, with a
+default shared allowance of 10,000 units/project/day for these endpoints. An
+all-channel page makes one request per active channel; a single-channel page
+makes one. Adding a video makes one validation request. No `search.list` calls or
+paid third-party services are used. Quota is shared by all users; exhaustion shows
+a retry-later message. See [Google's quota table](https://developers.google.com/youtube/data/determine_quota_cost).
+
+Authenticated endpoints:
+
+- `GET/POST /foreign/youtube/channels` (`POST`: `{ "url": "@handle" }`).
+- `DELETE /foreign/youtube/channels/{channel_id}`.
+- `GET /foreign/youtube/videos?channel_id=...&cursor=...` (both optional).
+- `POST /foreign/youtube/videos/{video_id}/listening` with
+  `{ "difficulty": "beginner|intermediate|advanced" }`.
+
+Cursors retain each channel's upstream page token and consumed offset. Changing
+the channel filter resets pagination. Refresh starts at the newest uploads;
+upstream playlist changes can shift an in-progress browse session. If channels
+change in another tab, refresh to reset an expired cursor. The key is only sent
+to fixed Google HTTPS endpoints with timeouts and bounded responses.
+Live Google API and PostgreSQL migration checks require a configured deployment;
+unit/component tests use fixtures and do not call YouTube.
+
+The Videos-tab playlist ID is derived as `UULF` + the channel ID without `UC`.
+This is a YouTube convention rather than a documented Data API guarantee.
+Missing Videos-tab playlists return an empty list; the API never falls back to
+mixed uploads containing Shorts. Pagination from the previous mixed-upload
+catalog expires; refresh once after upgrading to start video-only pagination.

@@ -177,6 +177,74 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
     assert!(removed);
     let (app, user, token, other, other_token) = setup(&pool).await;
     assert_eq!(
+        request(&app, None, "GET", "/youtube/channels", Value::Null)
+            .await
+            .0,
+        401
+    );
+    let channel_id = "UC1234567890123456789012";
+    sqlx::query("INSERT INTO foreign_youtube_channels(user_id,channel_id,title,thumbnail_url,uploads_playlist_id) VALUES($1,$2,'English lessons','','UU1234567890123456789012')")
+        .bind(user).bind(channel_id).execute(&pool).await.unwrap();
+    let owned = request(&app, Some(&token), "GET", "/youtube/channels", Value::Null).await;
+    assert_eq!(owned.0, 200);
+    assert_eq!(owned.1["items"][0]["channel_id"], channel_id);
+    assert_eq!(
+        request(
+            &app,
+            Some(&other_token),
+            "GET",
+            "/youtube/channels",
+            Value::Null
+        )
+        .await
+        .1["items"],
+        json!([])
+    );
+    assert_eq!(
+        request(
+            &app,
+            Some(&other_token),
+            "GET",
+            &format!("/youtube/videos?channel_id={channel_id}"),
+            Value::Null
+        )
+        .await
+        .0,
+        404
+    );
+    request(
+        &app,
+        Some(&other_token),
+        "DELETE",
+        &format!("/youtube/channels/{channel_id}"),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        request(&app, Some(&token), "GET", "/youtube/channels", Value::Null)
+            .await
+            .1["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    request(
+        &app,
+        Some(&token),
+        "DELETE",
+        &format!("/youtube/channels/{channel_id}"),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        request(&app, Some(&token), "GET", "/youtube/channels", Value::Null)
+            .await
+            .1["items"],
+        json!([])
+    );
+
+    assert_eq!(
         request(&app, None, "GET", "/pages?path=/home/vocab", Value::Null)
             .await
             .0,

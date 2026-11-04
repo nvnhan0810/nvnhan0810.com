@@ -18,3 +18,5 @@ tracing.workspace = true
 
 apalis = { version = "1", features = ["retry"] }
 apalis-postgres = { version = "1" }
+
+app-config = { path = "../../crates/app-config" }

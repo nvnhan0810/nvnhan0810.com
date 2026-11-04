@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RoutePath } from '../../../app/router/paths'
 
+import { useRoute } from 'vue-router'
 import type { PropType } from 'vue'
 import { appPath } from '@/path'
 import { computed, onMounted, onUnmounted, useSlots, watch } from 'vue'
@@ -21,10 +22,11 @@ const props = defineProps({
 
 const slots = useSlots()
 const page = usePage()
+const route = useRoute()
 const flash = computed(() => page.props.flash || {})
 const errors = computed(() => Object.values(page.props.errors || {}))
 const isFlcApp = computed(() => !!page.props.isFlcApp)
-const url = computed(() => page.url.split('?')[0] ?? '/')
+const url = computed(() => route?.path ?? page.url.split('?')[0] ?? '/')
 const hasCustomHeader = computed(() => !!slots.header)
 
 const nav = [
@@ -44,7 +46,8 @@ const nav = [
     href: appPath(RoutePath.media),
     label: 'Listen',
     icon: '🎧',
-    match: (u: string) => u.startsWith(appPath(RoutePath.media)),
+    match: (u: string) =>
+      u.startsWith(appPath(RoutePath.media)) || u === RoutePath.channels,
   },
   {
     href: appPath(RoutePath.games),

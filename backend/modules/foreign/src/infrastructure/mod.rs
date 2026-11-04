@@ -8,3 +8,5 @@ pub mod captions;
 pub mod transcript_queue;
 
 pub mod postgres_queue;
+
+pub mod youtube;

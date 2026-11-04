@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RoutePath } from '../../../../app/router/paths'
+import { Youtube } from 'lucide-vue-next'
 
 import { apiFetch } from '@/application/navigation'
 import type { PropType } from 'vue'
@@ -141,17 +142,27 @@ onUnmounted(() => {
   <Head title="Listen" />
   <AppLayout title="Listen" heading="Listen">
     <template #header>
-      <header class="user-header">
+      <header class="user-header media-header">
         <span class="user-header-spacer" aria-hidden="true" />
         <h1>Listen</h1>
-        <button
-          type="button"
-          class="user-header-action"
-          aria-label="Add from YouTube"
-          @click="openAddModal"
-        >
-          +
-        </button>
+        <div class="media-header-actions">
+          <Link
+            :href="RoutePath.channels"
+            class="user-header-action"
+            aria-label="YouTube channels"
+            title="YouTube channels"
+          >
+            <Youtube :size="22" aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            class="user-header-action"
+            aria-label="Add from YouTube"
+            @click="openAddModal"
+          >
+            +
+          </button>
+        </div>
       </header>
     </template>
 
@@ -347,3 +358,14 @@ onUnmounted(() => {
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+.media-header {
+  grid-template-columns: 92px 1fr 92px;
+}
+
+.media-header-actions {
+  display: flex;
+  gap: 4px;
+}
+</style>

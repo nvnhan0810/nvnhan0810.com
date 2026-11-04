@@ -13,6 +13,7 @@ export enum RoutePath {
   wordle = '/puzzle/wordle',
   hangman = '/puzzle/hangman',
   wordSearch = '/puzzle/word-search',
+  channels = '/youtube/channels',
   media = '/media',
   mediaDetail = '/media/:id',
   transcriptEdit = '/media/:id/transcript/edit',

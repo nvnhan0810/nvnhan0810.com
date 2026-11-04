@@ -5,3 +5,5 @@ mod vocabulary;
 
 mod media;
 mod pages;
+
+mod youtube;

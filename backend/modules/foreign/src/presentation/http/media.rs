@@ -97,6 +97,17 @@ pub async fn action(
         }
         let payload = json!({"title":title,"type":"youtube","url":format!("https://www.youtube.com/watch?v={id}"),"source_id":id,"difficulty":difficulty,"transcript":"","transcript_segments":[],"thumbnail_url":format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg")});
         let mut tx = state.pool.begin().await.map_err(internal)?;
+        sqlx::query("SELECT id FROM identity_users WHERE id=$1 FOR UPDATE")
+            .bind(user)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(internal)?;
+        let existing: Option<i64> = sqlx::query_scalar("SELECT min(id) FROM foreign_media WHERE user_id=$1 AND payload->>'type'='youtube' AND payload->>'source_id'=$2")
+            .bind(user).bind(&id).fetch_one(&mut *tx).await.map_err(internal)?;
+        if let Some(id) = existing {
+            tx.commit().await.map_err(internal)?;
+            return Ok(format!("/home/media/{id}"));
+        }
         let id: i64 = sqlx::query_scalar(
             "INSERT INTO foreign_media(user_id,payload) VALUES($1,$2) RETURNING id",
         )
