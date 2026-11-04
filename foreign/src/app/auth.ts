@@ -1,3 +1,4 @@
+import { RoutePath } from './router/paths'
 import { ref } from 'vue'
 import { session } from './services'
 import { initializeSession } from '../modules/foreign/application/use-cases/initialize-session'
@@ -12,7 +13,7 @@ export function ensureSession() {
   )
     .catch((error) => {
       authError.value = errorMessage(error)
-      return '/login'
+      return RoutePath.login
     })
     .finally(() => {
       authReady.value = true

@@ -1,3 +1,4 @@
+import { RoutePath } from '../../../../app/router/paths'
 import { onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { SavedWord } from '../../domain/vocabulary'
@@ -40,7 +41,8 @@ export function useMyWords() {
   async function search() {
     const q = query.value.trim()
     if (route.query.q === q) await load()
-    else await router.push({ path: '/vocabulary', query: q ? { q } : {} })
+    else
+      await router.push({ path: RoutePath.vocabulary, query: q ? { q } : {} })
   }
   watch(
     () => route.query.q,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../app/router/paths'
+
 import type { PropType } from 'vue'
 import { appPath } from '@/path'
 import { computed, onMounted, onUnmounted, useSlots, watch } from 'vue'
@@ -27,36 +29,36 @@ const hasCustomHeader = computed(() => !!slots.header)
 
 const nav = [
   {
-    href: appPath('/home/lookup'),
+    href: appPath(RoutePath.lookup),
     label: 'Lookup',
     icon: '📖',
-    match: (u: string) => u.startsWith(appPath('/home/lookup')),
+    match: (u: string) => u.startsWith(appPath(RoutePath.lookup)),
   },
   {
-    href: appPath('/home/vocab'),
+    href: appPath(RoutePath.vocabulary),
     label: 'Vocabulary',
     icon: '🔖',
-    match: (u: string) => u.startsWith(appPath('/home/vocab')),
+    match: (u: string) => u.startsWith(appPath(RoutePath.vocabulary)),
   },
   {
-    href: appPath('/home/media'),
+    href: appPath(RoutePath.media),
     label: 'Listen',
     icon: '🎧',
-    match: (u: string) => u.startsWith(appPath('/home/media')),
+    match: (u: string) => u.startsWith(appPath(RoutePath.media)),
   },
   {
-    href: appPath('/home/quiz'),
+    href: appPath(RoutePath.games),
     label: 'Games',
     icon: '🎮',
     match: (u: string) =>
-      u.startsWith(appPath('/home/quiz')) ||
-      u.startsWith(appPath('/home/puzzle')),
+      u.startsWith(appPath(RoutePath.games)) ||
+      u.startsWith(appPath(RoutePath.puzzle)),
   },
   {
-    href: appPath('/home/profile'),
+    href: appPath(RoutePath.profile),
     label: 'Profile',
     icon: '👤',
-    match: (u: string) => u.startsWith(appPath('/home/profile')),
+    match: (u: string) => u.startsWith(appPath(RoutePath.profile)),
   },
 ]
 

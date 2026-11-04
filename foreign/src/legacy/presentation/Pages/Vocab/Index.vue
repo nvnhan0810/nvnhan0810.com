@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import type { PropType } from 'vue'
 import type { Vocabulary } from '@/domain/models'
 import { Head, Link, useForm } from '@/application/navigation'
@@ -101,7 +103,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       <div data-vocab-list>
         <div v-for="item in filtered" :key="item.id" class="card vocab-card">
           <div class="vocab-card-row">
-            <Link :href="`/home/vocab/${item.id}`" class="vocab-card-link">
+            <Link
+              :href="RoutePath.vocabularyDetail.replace(':id', String(item.id))"
+              class="vocab-card-link"
+            >
               <p class="card-title">{{ item.word }}</p>
               <p v-if="item.phonetic" class="card-subtitle vocab-card-phonetic">
                 {{ item.phonetic }}

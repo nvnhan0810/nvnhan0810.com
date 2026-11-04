@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { LogOut } from 'lucide-vue-next'
@@ -12,7 +14,7 @@ async function signOut() {
   signingOut.value = true
   try {
     await logout()
-    await router.replace('/login')
+    await router.replace(RoutePath.login)
   } finally {
     signingOut.value = false
   }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import { apiFetch } from '@/application/navigation'
 import type { PropType } from 'vue'
 import type { MediaSummary } from '@/domain/models'
@@ -181,7 +183,9 @@ onUnmounted(() => {
           class="list-item media-list-item"
         >
           <Link
-            :href="appPath(`/home/media/${item.id}`)"
+            :href="
+              appPath(RoutePath.mediaDetail.replace(':id', String(item.id)))
+            "
             class="media-list-item-link"
           >
             <div class="list-item-icon">

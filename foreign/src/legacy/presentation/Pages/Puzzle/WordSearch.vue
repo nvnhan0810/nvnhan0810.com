@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import type { PuzzleWord, Meaning } from '@/domain/models'
 import type { PropType } from 'vue'
 import type { Cell, Puzzle, Reveal } from '@/domain/models'
@@ -179,7 +181,7 @@ watch(
 
 function confirmExit() {
   exitOpen.value = false
-  router.visit(appPath('/home/puzzle'))
+  router.visit(appPath(RoutePath.puzzle))
 }
 
 function measureGrid() {

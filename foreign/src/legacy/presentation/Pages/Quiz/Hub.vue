@@ -1,7 +1,16 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import { appPath } from '@/path'
 import { Head, Link } from '@/application/navigation'
 import AppLayout from '@/Layouts/AppLayout.vue'
+
+const gamePaths: Record<string, RoutePath> = {
+  scramble: RoutePath.scramble,
+  wordle: RoutePath.wordle,
+  hangman: RoutePath.hangman,
+  'word-search': RoutePath.wordSearch,
+}
 </script>
 
 <template>
@@ -12,7 +21,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 
       <div class="puzzle-mode-grid">
         <Link
-          :href="appPath('/home/quiz/play?autostart=1')"
+          :href="appPath(`${RoutePath.quiz}?autostart=1`)"
           class="puzzle-mode-card puzzle-mode-live"
         >
           <span class="puzzle-mode-thumb">
@@ -34,7 +43,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
         <Link
           v-for="mode in ['scramble', 'wordle', 'hangman', 'word-search']"
           :key="mode"
-          :href="appPath(`/home/puzzle/${mode}`)"
+          :href="appPath(gamePaths[mode]!)"
           class="puzzle-mode-card puzzle-mode-live"
         >
           <span class="puzzle-mode-thumb"

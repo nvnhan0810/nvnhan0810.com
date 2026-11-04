@@ -1,3 +1,4 @@
+import { RoutePath } from '../../../../app/router/paths'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { DictionaryEntry } from '../../domain/dictionary'
@@ -61,14 +62,14 @@ export function useLookup() {
     try {
       const q = normalizeLookupWord(word)
       if (route.query.q === q) await load(q)
-      else await router.push({ path: '/lookup', query: { q } })
+      else await router.push({ path: RoutePath.lookup, query: { q } })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Invalid word.'
     }
   }
   async function clear() {
     query.value = ''
-    await router.replace('/lookup')
+    await router.replace(RoutePath.lookup)
   }
   watch(
     () => route.query.q,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import type { PropType } from 'vue'
 import type { QuizQuestion, Reveal } from '@/domain/models'
 import { appPath } from '@/path'
@@ -66,7 +68,7 @@ function isCorrectOption(option: string) {
 
 function confirmExit() {
   exitOpen.value = false
-  router.visit(appPath('/home/quiz'))
+  router.visit(appPath(RoutePath.games))
 }
 
 onMounted(() => {

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import type { PropType } from 'vue'
-import type { Meaning } from '@/domain/models'
-import { computed } from 'vue'
+import { RoutePath } from '../../../app/router/paths'
+
 import { Link } from '@/application/navigation'
+import type { Meaning } from '@/domain/models'
+import type { PropType } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps({
   meanings: { type: Array as PropType<Meaning[]>, default: () => [] },
@@ -29,7 +31,7 @@ function cleanWords(list: string[]) {
 
 function relatedHref(word: string) {
   const detail = props.preferDetail ? '1' : '0'
-  return `/home/word/${encodeURIComponent(word)}?detail=${detail}`
+  return `${RoutePath.related.replace(':word', encodeURIComponent(word))}?detail=${detail}`
 }
 
 function exampleText(example: string | { example: string }) {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import { ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { DictionaryEntry } from '../../domain/dictionary'
@@ -59,7 +61,9 @@ async function copy() {
     >
       {{ saved ? 'Saved' : saving ? 'Saving…' : 'Save word' }}
     </button>
-    <RouterLink v-if="saved" to="/vocabulary">Từ của tôi →</RouterLink>
+    <RouterLink v-if="saved" :to="RoutePath.vocabulary"
+      >Từ của tôi →</RouterLink
+    >
     <p v-if="error" class="alert" role="alert">{{ error }}</p>
     <span class="sr-only" role="status"
       >{{ saved ? 'Word saved.' : '' }}

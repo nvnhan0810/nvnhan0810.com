@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import type { PropType } from 'vue'
 import type { Guess, Hint, Puzzle, Reveal } from '@/domain/models'
 import { appPath } from '@/path'
@@ -142,7 +144,7 @@ const exitOpen = ref(false)
 
 function confirmExit() {
   exitOpen.value = false
-  router.visit(appPath('/home/puzzle'))
+  router.visit(appPath(RoutePath.puzzle))
 }
 
 function onKeydown(event: KeyboardEvent) {

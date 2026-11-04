@@ -1,19 +1,8 @@
 <script setup lang="ts">
-import { appPath } from '@/path'
-import { computed, onMounted, ref, watch } from 'vue'
+import { RoutePath } from '../../../../app/router/paths'
+
 import { Head, Link, useForm } from '@/application/navigation'
-import AppLayout from '@/Layouts/AppLayout.vue'
 import DictionaryEntry from '@/Components/DictionaryEntry.vue'
-import {
-  fetchDictionaryPronounceUrl,
-  playPronunciation,
-} from '@/infrastructure/pronunciation'
-import {
-  clearLookupSession,
-  loadLookupSession,
-  saveLookupSession,
-  type WebLookupSession,
-} from '@/infrastructure/lookup-session'
 import {
   buildMeaningsAiPrompt,
   copyTextToClipboard,
@@ -23,6 +12,19 @@ import {
   type DictionaryLookupResult,
   type Meaning,
 } from '@/domain/meanings-json'
+import {
+  clearLookupSession,
+  loadLookupSession,
+  saveLookupSession,
+  type WebLookupSession,
+} from '@/infrastructure/lookup-session'
+import {
+  fetchDictionaryPronounceUrl,
+  playPronunciation,
+} from '@/infrastructure/pronunciation'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { appPath } from '@/path'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const MeaningsViewMode = {
   Ui: 'ui',
@@ -111,9 +113,6 @@ const saveForm = useForm<{
 })
 
 const isEmbed = computed((): boolean => props.embed === true)
-const lookupAction = computed((): string =>
-  isEmbed.value ? appPath('/lookup') : appPath('/home/lookup'),
-)
 const saveAction = computed((): string =>
   isEmbed.value ? appPath('/lookup/save') : appPath('/home/lookup/save'),
 )
@@ -352,7 +351,7 @@ function submitSearch(): void {
       ...data,
       embed: isEmbed.value,
     }))
-    .post(lookupAction.value)
+    .post(RoutePath.lookup)
 }
 
 function clearWord(): void {
@@ -702,7 +701,15 @@ const saveButtonLabel = computed((): string =>
           Saved
           <template v-if="!isEmbed && savedVocabularyId">
             ·
-            <Link :href="`/home/vocab/${savedVocabularyId}`">View detail</Link>
+            <Link
+              :href="
+                RoutePath.vocabularyDetail.replace(
+                  ':id',
+                  String(savedVocabularyId),
+                )
+              "
+              >View detail</Link
+            >
           </template>
         </p>
       </div>

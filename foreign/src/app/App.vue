@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from './router/paths'
+
 import { watch } from 'vue'
 import PageLoading from '../shared/PageLoading.vue'
 import { pendingRequests } from '../shared/loading'
@@ -9,7 +11,7 @@ const router = useRouter()
 watch(
   () => session.state.user,
   (user) => {
-    if (authReady.value && !user) void router.replace('/login')
+    if (authReady.value && !user) void router.replace(RoutePath.login)
   },
 )
 </script>

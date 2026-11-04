@@ -1,3 +1,4 @@
+import { RoutePath, toPagePath, fromPagePath } from '../../app/router/paths'
 // Vue Router and JSON transport for the preserved source pages.
 import { defineComponent, h, reactive, watchEffect } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -18,7 +19,7 @@ export const page = reactive<{
   url: string
   props: PageProps
   revision: number
-}>({ url: '/', props: {}, revision: 0 })
+}>({ url: RoutePath.index, props: {}, revision: 0 })
 export function usePage() {
   return page
 }
@@ -50,13 +51,13 @@ interface Options {
 }
 export async function loadPage(path: string, background = false) {
   const result = await foreignRequest<PageProps>(
-    `/pages?path=${encodeURIComponent(path)}`,
+    `/pages?path=${encodeURIComponent(toPagePath(path))}`,
     {},
     { background },
   )
   if (vueRouter.currentRoute.value.fullPath !== path) return
   if (typeof result.redirect === 'string') {
-    await vueRouter.replace(result.redirect)
+    await vueRouter.replace(fromPagePath(result.redirect))
     return
   }
   page.url = path
@@ -72,7 +73,7 @@ async function submit(
   try {
     if (path === '/logout') {
       await logout()
-      await vueRouter.replace('/login')
+      await vueRouter.replace(RoutePath.login)
       return
     }
     const result = await foreignRequest<{
@@ -93,7 +94,7 @@ async function submit(
       result.redirect &&
       result.redirect !== vueRouter.currentRoute.value.fullPath
     )
-      await vueRouter.push(result.redirect)
+      await vueRouter.push(fromPagePath(result.redirect))
     else if (result.props) {
       page.props = {
         ...result.props,

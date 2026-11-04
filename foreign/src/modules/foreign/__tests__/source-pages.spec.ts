@@ -32,9 +32,7 @@ const vocab = {
 beforeEach(() => vi.clearAllMocks())
 it('preserves a vocabulary link to a separate detail page, without collapse controls', () => {
   const wrapper = mount(Vocab, { props: { items: [vocab] }, global })
-  expect(wrapper.get('.vocab-card-link').attributes('href')).toBe(
-    '/home/vocab/12',
-  )
+  expect(wrapper.get('.vocab-card-link').attributes('href')).toBe('/vocab/12')
   expect(wrapper.find('[aria-expanded]').exists()).toBe(false)
   expect(wrapper.text()).toContain('View details')
   wrapper.unmount()

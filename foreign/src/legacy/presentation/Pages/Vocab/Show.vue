@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import type { PropType } from 'vue'
 import type { Vocabulary } from '@/domain/models'
 import { appPath } from '@/path'
@@ -49,7 +51,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   <AppLayout
     :title="vocab.word"
     :heading="vocab.word"
-    :back-href="appPath('/home/vocab')"
+    :back-href="appPath(RoutePath.vocabulary)"
   >
     <div class="card">
       <div class="vocab-detail-header">

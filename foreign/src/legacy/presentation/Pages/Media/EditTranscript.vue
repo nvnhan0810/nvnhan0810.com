@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import { appPath } from '@/path'
 import { Head, Link, router, usePage } from '@/application/navigation'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
@@ -334,7 +336,7 @@ function save(): void {
     <template #header>
       <header class="user-header media-transcript-edit-header">
         <Link
-          :href="appPath(`/home/media/${item.id}`)"
+          :href="appPath(RoutePath.mediaDetail.replace(':id', String(item.id)))"
           class="user-header-back user-header-back--round"
           aria-label="Back"
           >←</Link

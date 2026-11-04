@@ -1,3 +1,4 @@
+import { RoutePath } from '../../../app/router/paths'
 import { shallowReactive } from 'vue'
 import type { Tokens, UserProfile } from '../domain/models'
 import { ApiError, fetchJson } from '../infrastructure/transport'
@@ -128,7 +129,7 @@ export class ForeignSession {
         window.location.origin,
       )
       // Remove authorization credentials from the visible URL before HTTP calls.
-      window.history.replaceState({}, '', '/auth/callback')
+      window.history.replaceState({}, '', RoutePath.authCallback)
       if (url.searchParams.has('error'))
         throw new Error('Đăng nhập chưa hoàn tất. Vui lòng thử lại.')
       const code = url.searchParams.get('code')

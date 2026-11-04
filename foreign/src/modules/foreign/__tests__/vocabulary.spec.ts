@@ -37,9 +37,9 @@ async function setup(
 ) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/vocabulary', component: { render: () => null } }],
+    routes: [{ path: '/vocab', component: { render: () => null } }],
   })
-  await router.push('/vocabulary')
+  await router.push('/vocab')
   await router.isReady()
   const wrapper = mount(component, { props, global: { plugins: [router] } })
   await flushPromises()
@@ -54,7 +54,7 @@ describe('Saved vocabulary and AI prompt', () => {
     await flushPromises()
     expect(saveWord.execute).toHaveBeenCalledWith(entry)
     expect(wrapper.text()).toContain('Saved')
-    expect(wrapper.get('a').attributes('href')).toBe('/vocabulary')
+    expect(wrapper.get('a').attributes('href')).toBe('/vocab')
     await wrapper.findAll('button')[0]!.trigger('click')
     await flushPromises()
     expect(copyPrompt.execute).toHaveBeenCalledWith(entry)

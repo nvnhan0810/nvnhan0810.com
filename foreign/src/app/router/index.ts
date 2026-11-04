@@ -1,49 +1,54 @@
+import { RoutePath } from './paths'
 import { createRouter, createWebHistory } from 'vue-router'
-import { session } from '../services'
-import { ensureSession } from '../auth'
+import PageView from '../../legacy/application/PageView.vue'
 import { sessionDestination } from '../../modules/foreign/application/use-cases/initialize-session'
 import LoginPage from '../../modules/foreign/presentation/pages/LoginPage.vue'
-import PageView from '../../legacy/application/PageView.vue'
+import { ensureSession } from '../auth'
+import { session } from '../services'
+
 const NavigationOnly = { render: () => null }
+
+export { RoutePath } from './paths'
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', component: NavigationOnly },
-    { path: '/login', name: 'login', component: LoginPage },
-    { path: '/auth/callback', component: NavigationOnly },
+    { path: RoutePath.index, redirect: RoutePath.lookup },
+    { path: RoutePath.login, name: 'login', component: LoginPage },
+    { path: RoutePath.authCallback, component: NavigationOnly },
+    { path: RoutePath.lookup, name: 'lookup', component: PageView },
+    { path: RoutePath.related, name: 'related', component: PageView },
+    { path: RoutePath.vocabulary, name: 'vocabulary', component: PageView },
     {
-      path: '/lookup',
-      redirect: (to) => ({ path: '/home/lookup', query: to.query }),
+      path: RoutePath.vocabularyDetail,
+      name: 'vocabulary-detail',
+      component: PageView,
     },
-    { path: '/vocabulary', redirect: '/home/vocab' },
-    {
-      path: '/vocabulary/:id',
-      redirect: (to) => `/home/vocab/${to.params.id}`,
-    },
-    { path: '/profile', redirect: '/home/profile' },
-    { path: '/home/lookup', name: 'lookup', component: PageView },
-    { path: '/home/word/:word', name: 'related', component: PageView },
-    { path: '/home/vocab', name: 'vocabulary', component: PageView },
-    { path: '/home/vocab/:id', name: 'vocabulary-detail', component: PageView },
-    { path: '/home/quiz', name: 'games', component: PageView },
-    { path: '/home/puzzle', redirect: '/home/quiz' },
-    { path: '/home/quiz/play', name: 'quiz', component: PageView },
-    ...['scramble', 'wordle', 'hangman', 'word-search'].map((mode) => ({
-      path: `/home/puzzle/${mode}`,
-      name: mode,
+    { path: RoutePath.games, name: 'games', component: PageView },
+    { path: RoutePath.puzzle, redirect: RoutePath.games },
+    { path: RoutePath.quiz, name: 'quiz', component: PageView },
+    ...Object.entries({
+      scramble: RoutePath.scramble,
+      wordle: RoutePath.wordle,
+      hangman: RoutePath.hangman,
+      'word-search': RoutePath.wordSearch,
+    }).map(([name, path]) => ({
+      path,
+      name,
       component: PageView,
     })),
-    { path: '/home/media', name: 'media', component: PageView },
-    { path: '/home/media/:id', name: 'media-detail', component: PageView },
+    { path: RoutePath.media, name: 'media', component: PageView },
+    { path: RoutePath.mediaDetail, name: 'media-detail', component: PageView },
     {
-      path: '/home/media/:id/transcript/edit',
+      path: RoutePath.transcriptEdit,
       name: 'transcript',
       component: PageView,
     },
-    { path: '/home/profile', name: 'profile', component: PageView },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    { path: RoutePath.profile, name: 'profile', component: PageView },
+    { path: RoutePath.notFound, redirect: RoutePath.index },
   ],
 })
+
 let first = true
 router.beforeEach(async (to) => {
   const landing = await ensureSession()

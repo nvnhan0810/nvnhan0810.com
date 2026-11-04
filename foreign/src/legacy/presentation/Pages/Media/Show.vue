@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RoutePath } from '../../../../app/router/paths'
+
 import { appPath } from '@/path'
 import { Head, Link, usePage, useForm, router } from '@/application/navigation'
 import { computed, ref, watch, onUnmounted } from 'vue'
@@ -135,7 +137,7 @@ function onTranscriptSeek(seconds: number): void {
     <template #header>
       <header class="user-header media-show-header">
         <Link
-          :href="appPath('/home/media')"
+          :href="appPath(RoutePath.media)"
           class="user-header-back user-header-back--round"
           aria-label="Back"
           >←</Link
@@ -201,7 +203,11 @@ function onTranscriptSeek(seconds: number): void {
                 Fetch captions
               </button>
               <Link
-                :href="appPath(`/home/media/${item.id}/transcript/edit`)"
+                :href="
+                  appPath(
+                    RoutePath.transcriptEdit.replace(':id', String(item.id)),
+                  )
+                "
                 class="btn btn-sm btn-secondary"
               >
                 {{ item.transcript || hasTimedTranscript ? 'Edit' : 'Add' }}
