@@ -12,7 +12,8 @@ Fetch/pull the current branch's upstream, then build only changed applications.
   --sudo     Run supervisorctl through sudo; builds still run as your user.
 
 Backend: cargo build --release --locked --workspace
-         restart nvnhan0810-backend and nvnhan0810-backend-queue
+         stop services, migrate up, master-data, then start
+         nvnhan0810-backend and nvnhan0810-backend-queue
 Frontend: npm i --include=dev --no-save, then npm run build
 Portfolio SSR: restart nvnhan0810-com after a successful build
 HELP
@@ -144,13 +145,45 @@ main() {
       (cd "$app" && npm i --include=dev --no-save && npm run build)
     fi
   done
-  if ((${#services[@]})); then
+  if [[ "$backend_changed" == true ]]; then
+    log 'Drain backend queue and stop API before database updates'
+    local service service_status service_state reported_service service_details
+    for service in nvnhan0810-backend-queue nvnhan0810-backend; do
+      if [[ "$dry_run" == true ]]; then
+        print_command "${supervisor[@]}" stop "$service"
+      else
+        # supervisorctl status returns nonzero for stopped services; retries must
+        # still work after a previous migration/master-data failure.
+        service_status="$("${supervisor[@]}" status "$service")" || true
+        read -r reported_service service_state service_details <<< "$service_status"
+        case "$service_state" in
+          RUNNING|STARTING|BACKOFF) "${supervisor[@]}" stop "$service" ;;
+          STOPPED|EXITED|FATAL) log "$service is already stopped" ;;
+          STOPPING) die "$service is still stopping. Wait for it to drain, then rerun." ;;
+          *) die "Cannot determine Supervisor state for $service: $service_status" ;;
+        esac
+      fi
+    done
+    log 'Run backend migrations and master data'
     if [[ "$dry_run" == true ]]; then
-      print_command "${supervisor[@]}" restart "${services[@]}"
+      log 'Working directory: backend'
+      print_command cargo run --release --locked -p console --bin migrate -- up
+      print_command cargo run --release --locked -p console --bin console -- master-data
+      print_command "${supervisor[@]}" start nvnhan0810-backend nvnhan0810-backend-queue
     else
-      "${supervisor[@]}" restart "${services[@]}"
+      (cd backend && cargo run --release --locked -p console --bin migrate -- up)
+      (cd backend && cargo run --release --locked -p console --bin console -- master-data)
+      "${supervisor[@]}" start nvnhan0810-backend nvnhan0810-backend-queue
     fi
-  else
+  fi
+  if [[ -n "${changed_frontends[portfolio]:-}" ]]; then
+    if [[ "$dry_run" == true ]]; then
+      print_command "${supervisor[@]}" restart nvnhan0810-com
+    else
+      "${supervisor[@]}" restart nvnhan0810-com
+    fi
+  fi
+  if ((${#services[@]} == 0)); then
     log 'No Supervisor services need a restart.'
   fi
   if [[ "$dry_run" == true ]]; then
