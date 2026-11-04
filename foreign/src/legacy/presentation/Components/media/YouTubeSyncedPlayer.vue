@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Play, Pause, RotateCcw, RotateCw, ExternalLink } from 'lucide-vue-next'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   createYoutubePlayer,
@@ -22,6 +23,9 @@ const emit = defineEmits<{
 const hostRef = ref<HTMLElement | null>(null)
 const playerRef = ref<YoutubePlayer | null>(null)
 const pollTimer = ref<number | null>(null)
+const currentTime = ref(0)
+const duration = ref(0)
+const ready = ref(false)
 const isPlaying = ref(false)
 const playerError = ref(false)
 let generation = 0
@@ -38,7 +42,10 @@ function emitCurrentTime(player: YoutubePlayer): void {
     return
   }
 
-  emit('timeupdate', player.getCurrentTime())
+  currentTime.value = player.getCurrentTime()
+  const length = player.getDuration?.() ?? 0
+  duration.value = Number.isFinite(length) ? length : 0
+  emit('timeupdate', currentTime.value)
 }
 
 function setPlaying(next: boolean): void {
@@ -86,6 +93,8 @@ async function mountPlayer(): Promise<void> {
       element: mount,
       videoId: props.videoId,
       onReady: (readyPlayer): void => {
+        if (request !== generation) return
+        ready.value = true
         playerRef.value = readyPlayer
         emit('ready')
         emitCurrentTime(readyPlayer)
@@ -105,6 +114,9 @@ async function mountPlayer(): Promise<void> {
 
 function destroyPlayer(): void {
   generation += 1
+  ready.value = false
+  currentTime.value = 0
+  duration.value = 0
   clearPoll()
   setPlaying(false)
   const player = playerRef.value
@@ -123,6 +135,8 @@ function seekTo(seconds: number, andPlay = true): void {
     return
   }
 
+  seconds = Math.max(0, Math.min(seconds, duration.value || Infinity))
+  currentTime.value = seconds
   player.seekTo(seconds, true)
   emit('timeupdate', seconds)
 
@@ -158,6 +172,17 @@ function togglePlayback(): boolean {
   return true
 }
 
+function formatTime(seconds: number): string {
+  const value = Math.max(0, Math.floor(seconds))
+  const hours = Math.floor(value / 3600)
+  const minutes = Math.floor((value % 3600) / 60)
+  return `${hours ? `${hours}:` : ''}${String(minutes).padStart(hours ? 2 : 1, '0')}:${String(value % 60).padStart(2, '0')}`
+}
+
+function scrub(event: Event): void {
+  seekTo(Number((event.target as HTMLInputElement).value), false)
+}
+
 watch(
   () => props.videoId,
   async () => {
@@ -184,16 +209,142 @@ defineExpose({
 </script>
 
 <template>
-  <div class="video-embed video-embed--youtube-api" :aria-label="title">
-    <div ref="hostRef" class="youtube-player-host" />
+  <div
+    class="video-embed video-embed--youtube-api simple-youtube-player"
+    :aria-label="title"
+  >
+    <div class="simple-youtube-video">
+      <div ref="hostRef" class="youtube-player-host" />
+      <div
+        class="simple-youtube-interaction-shield"
+        aria-hidden="true"
+      />
+    </div>
+    <div class="simple-player-controls">
+      <input
+        type="range"
+        min="0"
+        :max="duration || 0"
+        step="0.1"
+        :value="currentTime"
+        :disabled="!ready || !duration"
+        aria-label="Seek video"
+        :aria-valuetext="formatTime(currentTime)"
+        @input="scrub"
+      />
+      <div class="simple-player-toolbar">
+        <button
+          type="button"
+          :disabled="!ready"
+          :aria-label="isPlaying ? 'Pause' : 'Play'"
+          @click="togglePlayback"
+        >
+          <Pause v-if="isPlaying" :size="20" /><Play v-else :size="20" />
+        </button>
+        <button
+          type="button"
+          :disabled="!ready"
+          aria-label="Rewind 10 seconds"
+          @click="seekTo(currentTime - 10, false)"
+        >
+          <RotateCcw :size="20" /><span>10</span>
+        </button>
+        <button
+          type="button"
+          :disabled="!ready"
+          aria-label="Forward 10 seconds"
+          @click="seekTo(currentTime + 10, false)"
+        >
+          <RotateCw :size="20" /><span>10</span>
+        </button>
+        <span class="simple-player-time"
+          >{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span
+        >
+        <a
+          :href="`https://www.youtube.com/watch?v=${videoId}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open in YouTube"
+          title="Open in YouTube"
+          ><ExternalLink :size="20"
+        /></a>
+      </div>
+    </div>
     <p v-if="playerError" role="alert">
-      Player unavailable.
-      <a
-        :href="`https://www.youtube.com/watch?v=${videoId}`"
-        target="_blank"
-        rel="noopener"
-        >Open in YouTube</a
-      >
+      Player unavailable. Open in YouTube to watch.
     </p>
   </div>
 </template>
+
+<style scoped>
+.simple-youtube-player {
+  height: auto;
+  padding-bottom: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.simple-youtube-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+.simple-youtube-interaction-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+  pointer-events: auto;
+}
+.simple-player-controls {
+  padding: 8px 10px;
+}
+.simple-player-controls input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.simple-player-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.simple-player-toolbar button,
+.simple-player-toolbar a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+}
+.simple-player-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.simple-player-toolbar button span {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 700;
+}
+.simple-player-toolbar a {
+  margin-left: auto;
+}
+.simple-player-time {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.simple-youtube-player p {
+  padding: 0 12px 12px;
+}
+</style>

@@ -12,6 +12,8 @@ export type YoutubePlayerStateValue =
 
 export type YoutubePlayer = {
   destroy: () => void
+  getDuration?: () => number
+  unloadModule?: (module: string) => void
   getCurrentTime: () => number
   getPlayerState: () => number
   seekTo: (seconds: number, allowSeekAhead: boolean) => void
@@ -25,6 +27,7 @@ type YoutubePlayerOptions = {
   height?: string | number
   playerVars?: Record<string, string | number>
   events?: {
+    onApiChange?: (event: { target: YoutubePlayer }) => void
     onReady?: (event: { target: YoutubePlayer }) => void
     onStateChange?: (event: { data: number; target: YoutubePlayer }) => void
   }
@@ -123,12 +126,19 @@ export async function createYoutubePlayer(
     height: '100%',
     playerVars: {
       playsinline: 1,
+      controls: 0,
+      fs: 0,
+      cc_load_policy: 0,
       rel: 0,
       enablejsapi: 1,
       origin,
     },
     events: {
+      onApiChange: (event): void => {
+        event.target.unloadModule?.('captions')
+      },
       onReady: (event): void => {
+        event.target.unloadModule?.('captions')
         params.onReady?.(event.target)
       },
       onStateChange: (event): void => {
