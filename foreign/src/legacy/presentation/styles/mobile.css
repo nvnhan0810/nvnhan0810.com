@@ -765,6 +765,8 @@ a {
 }
 
 .transcript-timed {
+  overflow-anchor: none;
+  scroll-behavior: auto;
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -778,6 +780,10 @@ a {
 }
 
 .transcript-timed-line {
+  flex-shrink: 0;
+  transition:
+    background-color 300ms ease,
+    color 300ms ease;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 10px;
@@ -801,10 +807,10 @@ a {
 
 .transcript-timed-line.is-active {
   background: color-mix(in srgb, var(--primary, #4361ee) 16%, transparent);
-  font-weight: 600;
 }
 
 .transcript-timed-time {
+  transition: color 300ms ease;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
@@ -812,7 +818,15 @@ a {
 }
 
 .transcript-timed-line.is-active .transcript-timed-time {
+  transition: color 300ms ease;
   color: var(--primary, #4361ee);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transcript-timed-line,
+  .transcript-timed-time {
+    transition: none;
+  }
 }
 
 .transcript-timed-text {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { TranscriptSegment } from '@/domain/transcript-sync'
 
 const props = defineProps<{
@@ -12,15 +12,55 @@ const emit = defineEmits<{
 }>()
 
 const listRef = ref<HTMLElement | null>(null)
+let scrollFrame: number | undefined
+
+function stopScroll(): void {
+  if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame)
+  scrollFrame = undefined
+}
+
+function scrollToParagraph(list: HTMLElement, target: number): void {
+  const start = list.scrollTop
+  const distance = target - start
+  if (
+    Math.abs(distance) < 1 ||
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ) {
+    list.scrollTop = target
+    return
+  }
+
+  // Keep a consistent pace across browsers and continue from the current
+  // position if playback moves to another paragraph during the animation.
+  const duration = 600
+  let startedAt: number | undefined
+  const animate = (time: number): void => {
+    startedAt ??= time
+    const progress = Math.min((time - startedAt) / duration, 1)
+    const eased = progress * progress * (3 - 2 * progress)
+    list.scrollTop = start + distance * eased
+    scrollFrame = progress < 1 ? requestAnimationFrame(animate) : undefined
+  }
+  scrollFrame = requestAnimationFrame(animate)
+}
+
+onBeforeUnmount(stopScroll)
 
 watch(
   () => props.activeIndex,
-  async (index) => {
+  async (index, _previous, onCleanup) => {
+    stopScroll()
+    let cancelled = false
+    onCleanup(() => {
+      cancelled = true
+      stopScroll()
+    })
     if (index < 0) {
       return
     }
 
     await nextTick()
+    if (cancelled) return
     const list = listRef.value
     const active = list?.querySelector<HTMLElement>(
       `[data-segment-index="${index}"]`,
@@ -35,15 +75,10 @@ watch(
       list.clientTop +
       activeBounds.height / 2 -
       list.clientHeight / 2
-    list.scrollTo({
-      top: Math.max(
-        0,
-        Math.min(centeredTop, list.scrollHeight - list.clientHeight),
-      ),
-      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-        ? 'auto'
-        : 'smooth',
-    })
+    scrollToParagraph(
+      list,
+      Math.max(0, Math.min(centeredTop, list.scrollHeight - list.clientHeight)),
+    )
   },
   { immediate: true },
 )
@@ -61,7 +96,15 @@ function formatTime(seconds: number): string {
 </script>
 
 <template>
-  <div ref="listRef" class="transcript-timed" role="list">
+  <div
+    ref="listRef"
+    class="transcript-timed"
+    role="list"
+    @wheel.passive="stopScroll"
+    @touchstart.passive="stopScroll"
+    @pointerdown="stopScroll"
+    @keydown="stopScroll"
+  >
     <button
       v-for="(segment, index) in segments"
       :key="`${segment.start}-${index}`"
