@@ -32,7 +32,7 @@ it('shows the used meaning and its examples, and asks for a fresh memory choice'
   expect(wrapper.text()).toContain('Land beside a river')
   expect(wrapper.text()).not.toContain('A financial institution')
   expect(wrapper.text()).not.toContain('She visited the bank.')
-  expect(wrapper.findAll('blockquote')).toHaveLength(2)
+  expect(wrapper.findAll('blockquote')).toHaveLength(1)
   expect(wrapper.find('[aria-pressed="true"]').exists()).toBe(false)
   expect(
     wrapper.findAll('button').map((button) => button.get('strong').text()),
@@ -76,7 +76,7 @@ it('shows an explicit empty example state and disables cards while advancing', a
       locked: true,
     },
   })
-  expect(wrapper.text()).toContain('No example is saved for this meaning yet.')
+  expect(wrapper.text()).toContain('No example available.')
   await wrapper.findAll('button')[0]!.trigger('click')
   expect(post).not.toHaveBeenCalled()
   wrapper.unmount()

@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import {
-  BookOpen,
-  Check,
-  Flame,
-  Leaf,
-  RotateCcw,
-  Sparkles,
-} from 'lucide-vue-next'
+import { Check, Flame, Leaf, RotateCcw, Sparkles } from 'lucide-vue-next'
 import type { Reveal } from '@/domain/models'
 import { useForm } from '@/application/navigation'
 import { appPath } from '@/path'
@@ -62,7 +55,7 @@ const examples = computed(() =>
         )
         .map((value) => value.trim()),
     ),
-  ].slice(0, 2),
+  ].slice(0, 1),
 )
 
 function rate(level: number): void {
@@ -88,39 +81,32 @@ function rate(level: number): void {
 
 <template>
   <div class="game-word-review">
-    <div class="review-word-heading">
-      <div>
-        <p class="review-eyebrow">THE WORD TO KEEP</p>
+    <div class="review-content">
+      <div class="review-word-heading">
         <h2 class="review-word">{{ reveal.word }}</h2>
-        <p v-if="reveal.phonetic" class="review-phonetic">
-          {{ reveal.phonetic }}
-        </p>
+        <span v-if="reveal.phonetic" class="review-phonetic">{{
+          reveal.phonetic
+        }}</span>
       </div>
-      <span class="review-book" aria-hidden="true"
-        ><BookOpen :size="26"
-      /></span>
-    </div>
-    <div class="review-definition">
-      <span
-        v-if="meaning?.part_of_speech || reveal.part_of_speech"
-        class="review-pos"
-      >
-        {{ meaning?.part_of_speech || reveal.part_of_speech }}
-      </span>
-      <p>{{ meaning?.definition || reveal.definition }}</p>
-    </div>
-    <section class="review-examples" aria-label="Examples for this meaning">
-      <p class="review-eyebrow"><span aria-hidden="true">“</span> IN CONTEXT</p>
-      <blockquote v-for="example in examples" :key="example">
-        {{ example }}
-      </blockquote>
-      <p v-if="!examples.length" class="review-no-example">
-        No example is saved for this meaning yet.
+      <p class="review-definition">
+        <span
+          v-if="meaning?.part_of_speech || reveal.part_of_speech"
+          class="review-pos"
+          >{{ meaning?.part_of_speech || reveal.part_of_speech }}</span
+        >
+        {{ meaning?.definition || reveal.definition }}
       </p>
-    </section>
+      <section class="review-examples" aria-label="Example for this meaning">
+        <blockquote v-for="example in examples" :key="example">
+          “{{ example }}”
+        </blockquote>
+        <p v-if="!examples.length" class="review-no-example">
+          No example available.
+        </p>
+      </section>
+    </div>
     <fieldset :disabled="form.processing || locked">
-      <legend>How well did you know it?</legend>
-      <p class="review-instruction">Pick a memory card to continue.</p>
+      <legend>Remember it?</legend>
       <div class="game-memory-levels">
         <button
           v-for="(level, index) in levels"
@@ -133,126 +119,97 @@ function rate(level: number): void {
           ]"
           :style="{ '--card-index': index }"
           :aria-pressed="selected === level.value"
+          :title="level.hint"
           @click="rate(level.value)"
         >
-          <span class="memory-card-top">
-            <component :is="level.icon" :size="21" :stroke-width="2.2" />
-            <Check v-if="selected === level.value" :size="18" />
-            <span v-else class="memory-card-level">{{ level.value }} / 4</span>
-          </span>
+          <component
+            :is="level.icon"
+            :size="17"
+            :stroke-width="2.2"
+            aria-hidden="true"
+          />
           <strong>{{ level.label }}</strong>
-          <span class="memory-card-hint">{{ level.hint }}</span>
-          <span class="memory-card-meter" aria-hidden="true">
-            <i
-              v-for="bar in 4"
-              :key="bar"
-              :class="{ 'is-filled': bar <= level.value }"
-            />
-          </span>
+          <Check
+            v-if="selected === level.value"
+            :size="15"
+            class="memory-check"
+            aria-hidden="true"
+          />
         </button>
       </div>
     </fieldset>
     <p v-if="error" class="review-error" role="alert">{{ error }}</p>
-    <p v-else class="review-save-note" role="status">
-      {{
-        form.processing
-          ? 'Saving your progress…'
-          : locked
-            ? 'Nice. Your next challenge is on its way…'
-            : 'Your choice shapes what you practice next.'
-      }}
+    <p
+      v-else-if="form.processing || locked"
+      class="review-save-note"
+      role="status"
+    >
+      {{ form.processing ? 'Saving…' : locked ? 'Loading…' : '' }}
     </p>
   </div>
 </template>
 
 <style scoped>
 .game-word-review {
-  padding: 26px 30px 22px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px;
   text-align: left;
+}
+.review-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
 }
 .review-word-heading {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-.review-eyebrow {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
 .review-word {
   margin: 0;
-  font-size: clamp(32px, 7vw, 46px);
-  line-height: 1.12;
-  letter-spacing: -0.045em;
-  overflow-wrap: anywhere;
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
 }
 .review-phonetic {
-  margin: 8px 0 0;
   color: var(--muted);
-  font-size: 15px;
-}
-.review-book {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
-  flex-shrink: 0;
-  color: #8b7cf8;
-  background: color-mix(in srgb, #8b7cf8 12%, transparent);
-  transform: rotate(8deg);
+  font-size: 13px;
 }
 .review-definition {
-  margin-top: 20px;
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.5;
 }
 .review-pos {
-  display: inline-block;
-  border-radius: 6px;
-  padding: 3px 8px;
+  display: inline;
+  margin-right: 5px;
   font-size: 11px;
   font-weight: 700;
   color: #8b7cf8;
-  background: color-mix(in srgb, #8b7cf8 10%, transparent);
-}
-.review-definition p {
-  margin: 8px 0 0;
-  font-size: 16px;
-  line-height: 1.6;
 }
 .review-examples {
-  margin: 18px 0 24px;
-  border: 1px solid color-mix(in srgb, #8b7cf8 18%, var(--border));
-  border-radius: 14px;
-  padding: 14px 16px;
-  background: color-mix(in srgb, #8b7cf8 5%, transparent);
-}
-.review-examples .review-eyebrow {
-  color: #8b7cf8;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.review-examples .review-eyebrow span {
-  font-size: 24px;
-  line-height: 10px;
+  margin: 0 0 14px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #8b7cf8 7%, transparent);
 }
 blockquote {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.65;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
   font-style: italic;
 }
 .review-no-example {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
 }
 fieldset {
+  flex-shrink: 0;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -260,39 +217,37 @@ fieldset {
 }
 legend {
   padding: 0;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-}
-.review-instruction {
-  margin: 5px 0 14px;
+  margin-bottom: 8px;
   font-size: 12px;
   color: var(--muted);
+  font-weight: 600;
 }
 .game-memory-levels {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 .memory-card {
   --accent: #fb7185;
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 7px;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 11px;
+  padding: 10px;
   background: color-mix(in srgb, var(--accent) 9%, var(--card));
   color: var(--text);
   text-align: left;
   font: inherit;
   cursor: pointer;
   transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    background-color 180ms ease;
-  animation: memory-card-in 400ms both;
-  animation-delay: calc(100ms + var(--card-index) * 55ms);
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+  animation: memory-card-in 220ms both;
+  animation-delay: calc(var(--card-index) * 30ms);
 }
 .memory-card--amber {
   --accent: #f5b942;
@@ -303,101 +258,101 @@ legend {
 .memory-card--mint {
   --accent: #34d399;
 }
-.memory-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.memory-card > svg {
+  flex-shrink: 0;
   color: var(--accent);
 }
-.memory-card-level {
-  font-size: 10px;
-  font-weight: 800;
-  opacity: 0.8;
-}
 .memory-card strong {
-  font-size: 14px;
+  font-size: 12px;
+  line-height: 1.25;
   letter-spacing: -0.02em;
 }
-.memory-card-hint {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.4;
-}
-.memory-card-meter {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-}
-.memory-card-meter i {
-  height: 4px;
-  flex: 1;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--accent) 17%, transparent);
-}
-.memory-card-meter .is-filled {
-  background: var(--accent);
+.memory-check {
+  position: absolute;
+  right: 6px;
+  top: 4px;
 }
 @media (hover: hover) {
   .memory-card:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 18%, transparent);
+    transform: translateY(-1px);
     background: color-mix(in srgb, var(--accent) 16%, var(--card));
   }
 }
 .memory-card:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .memory-card:active:not(:disabled) {
   transform: scale(0.97);
 }
 .memory-card.is-selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
   background: color-mix(in srgb, var(--accent) 18%, var(--card));
 }
 fieldset:disabled .memory-card.is-selected {
-  animation: memory-saved 420ms ease-out both;
-}
-@keyframes memory-saved {
-  50% {
-    transform: scale(1.035);
-  }
-  to {
-    transform: scale(1);
-  }
+  animation: memory-saved 300ms ease-out both;
 }
 fieldset:disabled .memory-card:not(.is-selected) {
   opacity: 0.45;
 }
 .review-save-note {
-  min-height: 16px;
-  margin: 16px 0 0;
-  text-align: center;
-  color: var(--muted);
-  font-size: 11px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .review-error {
-  margin: 14px 0 0;
+  flex-shrink: 0;
+  margin: 8px 0 0;
   color: var(--danger, #e45367);
-  font-size: 13px;
+  font-size: 12px;
 }
 @keyframes memory-card-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-@media (max-width: 480px) {
+@keyframes memory-saved {
+  50% {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@media (max-height: 500px) {
   .game-word-review {
-    padding: 22px 20px 18px;
+    padding: 12px;
+  }
+  .review-word {
+    font-size: 24px;
+  }
+  .review-definition {
+    margin: 6px 0;
+  }
+  .review-examples {
+    margin-bottom: 10px;
+  }
+  .game-memory-levels {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
   }
   .memory-card {
-    padding: 12px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 7px 4px;
+    text-align: center;
+  }
+  .memory-card strong {
+    font-size: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

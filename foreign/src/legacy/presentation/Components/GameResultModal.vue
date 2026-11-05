@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowUpRight, Check, Sparkles, Trophy, X } from 'lucide-vue-next'
+import { ArrowUpRight, Sparkles, Trophy, X } from 'lucide-vue-next'
 import type { Reveal } from '@/domain/models'
 import { Link, useForm } from '@/application/navigation'
 import { RoutePath } from '../../../app/router/paths'
@@ -50,7 +50,7 @@ const title = computed(() =>
       ? 'New personal best!'
       : isWin.value
         ? 'Nicely done!'
-        : 'A word worth learning',
+        : 'Keep going!',
 )
 
 function restorePage(): void {
@@ -146,7 +146,6 @@ onBeforeUnmount(() => {
       :class="{ 'is-win': isWin, 'is-advancing': advancing && !nextError }"
       aria-modal="true"
       aria-labelledby="game-result-title"
-      aria-describedby="game-result-description"
       tabindex="-1"
       @cancel.prevent
     >
@@ -154,37 +153,19 @@ onBeforeUnmount(() => {
         <div v-if="isWin" class="result-sparks" aria-hidden="true">
           <i v-for="spark in 10" :key="spark" :style="{ '--spark': spark }" />
         </div>
-        <div class="result-topline">
-          <span class="result-mode"
-            ><span class="result-live-dot" />
-            {{
-              mode === 'quiz'
-                ? 'VOCAB QUIZ'
-                : mode.replace('-', ' ').toUpperCase()
-            }}</span
-          >
-          <Link
-            :href="appPath(RoutePath.games)"
-            class="result-exit"
-            aria-label="Leave game"
-            ><X :size="18"
-          /></Link>
-        </div>
-        <div class="result-outcome-icon" aria-hidden="true">
-          <Trophy v-if="isWin" :size="28" /><Sparkles v-else :size="28" />
-        </div>
+        <span class="result-outcome-icon" aria-hidden="true">
+          <Trophy v-if="isWin" :size="18" /><Sparkles v-else :size="18" />
+        </span>
         <h1 id="game-result-title">{{ title }}</h1>
-        <p id="game-result-description">
-          {{
-            isWin
-              ? 'One more word in your world.'
-              : 'Take a moment. Make this one stick.'
-          }}
-        </p>
-        <div class="result-chips">
-          <span><Check :size="13" /> {{ score }} correct this run</span
-          ><span><Sparkles :size="13" /> Keep growing</span>
-        </div>
+        <span class="result-score" :aria-label="`${score} correct this run`"
+          >✓ {{ score }}</span
+        >
+        <Link
+          :href="appPath(RoutePath.games)"
+          class="result-exit"
+          aria-label="Leave game"
+          ><X :size="18"
+        /></Link>
       </header>
       <GameWordReview
         v-if="displayedReview"
@@ -214,24 +195,26 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .game-result-dialog {
-  width: min(560px, calc(100vw - 28px));
-  max-height: min(92dvh, 960px);
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
   margin: auto;
   padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, #a99bff 24%, var(--border));
-  border-radius: 26px;
+  border-radius: 20px;
   color: var(--text);
   background: var(--card);
-  box-shadow: 0 32px 100px #080b2d66;
-  animation: result-pop 430ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: 0 20px 70px #080b2d55;
+  animation: result-pop 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.game-result-dialog[open] {
+  display: flex;
+  flex-direction: column;
 }
 .game-result-dialog::backdrop {
-  background: #080b25b8;
-  backdrop-filter: blur(8px);
-  animation: result-backdrop 250ms ease-out both;
+  background: #080b2599;
+  backdrop-filter: blur(5px);
 }
 .game-result-dialog:focus {
   outline: none;
@@ -240,106 +223,52 @@ onBeforeUnmount(() => {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: 18px 26px 22px;
-  text-align: center;
-  color: #fff;
-  background:
-    radial-gradient(ellipse at 15% 0%, #9572ff77, transparent 65%),
-    linear-gradient(125deg, #282354, #35306d 55%, #273961);
-}
-.is-win .result-hero {
-  background:
-    radial-gradient(ellipse at 80% 0%, #7467ff99, transparent 60%),
-    linear-gradient(125deg, #29234f, #40337f 60%, #244c69);
-}
-.result-topline {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  position: relative;
-  z-index: 1;
+  gap: 9px;
+  flex-shrink: 0;
+  padding: 8px 10px 8px 16px;
+  color: #fff;
+  background: linear-gradient(115deg, #373066, #51418a);
 }
-.result-mode {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  font-weight: 800;
-  color: #ddd8ff;
+.result-outcome-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #d1c6ff;
 }
-.result-live-dot {
-  width: 5px;
-  height: 5px;
-  background: #b9a5ff;
-  border-radius: 50%;
-  box-shadow: 0 0 10px #b9a5ff;
+.is-win .result-outcome-icon {
+  color: #ffe298;
+}
+.result-hero h1 {
+  margin: 0;
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+  font-weight: 750;
+}
+.result-score {
+  font-size: 11px;
+  color: #e3dff8;
+  white-space: nowrap;
 }
 .result-exit {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   color: #e4deff;
   background: #ffffff12;
-  transition: background 150ms;
+  flex-shrink: 0;
 }
 .result-exit:hover {
   background: #ffffff2b;
 }
 .result-exit:focus-visible {
   outline: 2px solid white;
-  outline-offset: 3px;
-}
-.result-outcome-icon {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 20px;
-  margin: 4px auto 12px;
-  background: #ffffff12;
-  color: #c7bbff;
-  box-shadow: inset 0 0 0 1px #ffffff18;
-  transform: rotate(-8deg);
-}
-.is-win .result-outcome-icon {
-  color: #ffe298;
-  background: #ffd36916;
-  box-shadow:
-    inset 0 0 0 1px #ffe29840,
-    0 0 35px #ffc85912;
-  animation: trophy-arrive 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.result-hero h1 {
-  position: relative;
-  margin: 0;
-  font-size: clamp(24px, 5vw, 30px);
-  letter-spacing: -0.04em;
-  font-weight: 850;
-}
-.result-hero > p {
-  margin: 7px 0 15px;
-  font-size: 12px;
-  color: #d3cfee;
-}
-.result-chips {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.result-chips span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 9px;
-  border-radius: 20px;
-  font-size: 10px;
-  background: #ffffff0d;
-  color: #e3dff8;
-  border: 1px solid #ffffff14;
+  outline-offset: 2px;
 }
 .result-sparks {
   position: absolute;
@@ -351,99 +280,65 @@ onBeforeUnmount(() => {
   position: absolute;
   left: calc(var(--spark) * 9%);
   top: -8px;
-  width: 5px;
-  height: 8px;
+  width: 4px;
+  height: 6px;
   border-radius: 2px;
   background: #ffe298;
   opacity: 0;
-  animation: result-confetti 1.6s ease-out both;
-  animation-delay: calc(var(--spark) * 45ms);
+  animation: result-confetti 1s ease-out both;
+  animation-delay: calc(var(--spark) * 35ms);
 }
 .result-sparks i:nth-child(2n) {
   background: #a998ff;
-  width: 7px;
-  height: 7px;
 }
 .result-sparks i:nth-child(3n) {
   background: #76e0cf;
 }
 .result-loading {
-  padding: 36px 24px;
+  padding: 24px 18px;
   display: grid;
   justify-items: center;
   text-align: center;
-  gap: 12px;
+  gap: 10px;
+  overflow-y: auto;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 .result-retry {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 0;
-  padding: 12px 20px;
+  min-height: 44px;
+  padding: 10px 16px;
   background: #7965dd;
   color: white;
   font: inherit;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
 }
 @keyframes result-pop {
   from {
     opacity: 0;
-    transform: translateY(26px) scale(0.95);
+    transform: translateY(12px) scale(0.97);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
-@keyframes result-backdrop {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes trophy-arrive {
-  from {
-    transform: translateY(10px) rotate(-24deg) scale(0.6);
-  }
-  to {
-    transform: translateY(0) rotate(-8deg) scale(1);
-  }
-}
 @keyframes result-confetti {
   10% {
-    opacity: 0.8;
+    opacity: 0.7;
   }
   to {
     opacity: 0;
-    transform: translateY(230px) rotate(260deg);
-  }
-}
-@media (max-width: 480px) {
-  .game-result-dialog {
-    border-radius: 22px;
-    max-height: 94dvh;
-  }
-  .result-hero {
-    padding: 14px 20px 18px;
-  }
-  .result-outcome-icon {
-    width: 46px;
-    height: 46px;
-    margin-bottom: 10px;
-    border-radius: 16px;
+    transform: translateY(70px) rotate(160deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .game-result-dialog,
-  .game-result-dialog::backdrop,
-  .result-outcome-icon,
-  .is-win .result-outcome-icon,
   .result-sparks i {
     animation: none;
   }
