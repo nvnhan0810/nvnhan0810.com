@@ -326,7 +326,6 @@ defineExpose({
         /></a>
       </div>
     </div>
-    <p class="simple-player-shortcuts">Space = play/pause · ← / → = 10s</p>
     <p v-if="playerError" role="alert">
       Player unavailable. Open in YouTube to watch.
     </p>

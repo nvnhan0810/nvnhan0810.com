@@ -25,8 +25,27 @@ watch(
     const active = list?.querySelector<HTMLElement>(
       `[data-segment-index="${index}"]`,
     )
-    active?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (!list || !active) return
+    const listBounds = list.getBoundingClientRect()
+    const activeBounds = active.getBoundingClientRect()
+    const centeredTop =
+      list.scrollTop +
+      activeBounds.top -
+      listBounds.top -
+      list.clientTop +
+      activeBounds.height / 2 -
+      list.clientHeight / 2
+    list.scrollTo({
+      top: Math.max(
+        0,
+        Math.min(centeredTop, list.scrollHeight - list.clientHeight),
+      ),
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+    })
   },
+  { immediate: true },
 )
 
 function onSegmentClick(segment: TranscriptSegment): void {

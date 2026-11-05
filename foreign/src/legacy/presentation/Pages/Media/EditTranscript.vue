@@ -116,6 +116,36 @@ const targetRowIndex = computed((): number => {
 })
 
 const fieldErrors = reactive<Record<string, string>>({})
+const timeFlashes = reactive<Record<string, number>>({})
+
+function flashTime(rowId: string, field: 'start' | 'end'): void {
+  const key = `${rowId}-${field}`
+  timeFlashes[key] = (timeFlashes[key] ?? 0) + 1
+}
+
+function timeFlashClass(rowId: string, field: 'start' | 'end'): string {
+  const count = timeFlashes[`${rowId}-${field}`]
+  return count ? (count % 2 ? 'time-flash-a' : 'time-flash-b') : ''
+}
+
+function showButtonFeedback(event: MouseEvent): void {
+  const button = (event.target as Element).closest('button')
+  if (!button || button.disabled) return
+  button.getAnimations?.().forEach((animation) => animation.cancel())
+  const reducedMotion = window.matchMedia?.(
+    '(prefers-reduced-motion: reduce)',
+  ).matches
+  button.animate?.(
+    [
+      {
+        filter: 'brightness(0.8)',
+        transform: reducedMotion ? 'none' : 'scale(0.96)',
+      },
+      { filter: 'brightness(1)', transform: 'scale(1)' },
+    ],
+    { duration: 350, easing: 'ease-out' },
+  )
+}
 
 function clearRowError(rowId: string): void {
   delete fieldErrors[rowId]
@@ -219,6 +249,7 @@ function usePreviousEnd(index: number): void {
   const end = parseClock(previous.endInput)
   if (end === null) return
   row.startInput = formatClockPrecise(end)
+  flashTime(row.id, 'start')
   clearRowError(row.id)
 }
 
@@ -234,6 +265,7 @@ function useCurrentTime(index: number, field: 'start' | 'end'): void {
   } else {
     row.endInput = stamp
   }
+  flashTime(row.id, field)
   clearRowError(row.id)
 }
 
@@ -292,7 +324,11 @@ function save(): void {
 
 <template>
   <Head :title="`Edit transcript — ${item.title}`" />
-  <AppLayout :title="item.title" :hide-nav="true">
+  <AppLayout
+    :title="item.title"
+    :hide-nav="true"
+    @click.capture="showButtonFeedback"
+  >
     <template #header>
       <header class="user-header media-transcript-edit-header">
         <Link
@@ -373,6 +409,7 @@ function save(): void {
                   <span>Start</span>
                   <input
                     v-model="row.startInput"
+                    :class="timeFlashClass(row.id, 'start')"
                     type="text"
                     inputmode="decimal"
                     autocomplete="off"
@@ -385,6 +422,7 @@ function save(): void {
                   <span>End</span>
                   <input
                     v-model="row.endInput"
+                    :class="timeFlashClass(row.id, 'end')"
                     type="text"
                     inputmode="decimal"
                     autocomplete="off"
@@ -498,6 +536,30 @@ function save(): void {
 </template>
 
 <style scoped>
+.time-flash-a {
+  animation: time-updated-a 800ms ease-out;
+}
+.time-flash-b {
+  animation: time-updated-b 800ms ease-out;
+}
+@keyframes time-updated-a {
+  from {
+    background: color-mix(in srgb, var(--primary, #4361ee) 28%, var(--card));
+    box-shadow: 0 0 0 2px var(--primary, #4361ee);
+  }
+}
+@keyframes time-updated-b {
+  from {
+    background: color-mix(in srgb, var(--primary, #4361ee) 28%, var(--card));
+    box-shadow: 0 0 0 2px var(--primary, #4361ee);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .time-flash-a,
+  .time-flash-b {
+    animation-duration: 150ms;
+  }
+}
 .transcript-save-toast {
   position: fixed;
   bottom: calc(24px + env(safe-area-inset-bottom));
