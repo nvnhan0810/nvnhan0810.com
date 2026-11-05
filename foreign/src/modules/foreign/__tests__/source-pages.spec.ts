@@ -22,7 +22,9 @@ vi.mock('@/application/navigation', async () => {
     router: { visit: vi.fn(), reload: vi.fn() },
   }
 })
-const global = { stubs: { AppLayout: { template: '<div><slot /></div>' } } }
+const global = {
+  stubs: { AppLayout: { template: '<div><slot /></div>' }, Teleport: true },
+}
 const vocab = {
   id: 12,
   word: 'apple',
@@ -65,15 +67,17 @@ it('shows vocabulary review after quiz resolution and sends the chosen answer', 
       },
     },
   })
-  expect(wrapper.find('.puzzle-reveal-card').exists()).toBe(false)
+  expect(wrapper.find('.game-result-dialog').exists()).toBe(false)
   await wrapper.get('.qz-option').trigger('click')
   expect(mocks.post).toHaveBeenCalledWith('/home/quiz/answer')
   await wrapper.setProps({
     feedback: 'Correct!',
     wasCorrect: true,
-    reveal: vocab,
+    reveal: { ...vocab, vocabulary_id: vocab.id },
   })
-  expect(wrapper.get('.puzzle-reveal-card').text()).toContain('Eat an apple.')
+  expect(wrapper.get('.game-result-dialog').text()).toContain('Eat an apple.')
+  expect(wrapper.findAll('.memory-card')).toHaveLength(4)
+  expect(wrapper.text()).not.toContain('Next question')
   wrapper.unmount()
 })
 

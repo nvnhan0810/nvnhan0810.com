@@ -78,6 +78,7 @@ export interface Hint {
   part_of_speech?: string | null
 }
 export interface Reveal {
+  reviewed?: boolean
   vocabulary_id?: number
   memory_level?: number | null
   word: string

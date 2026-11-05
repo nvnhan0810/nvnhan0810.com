@@ -8,8 +8,7 @@ import { appPath } from '@/path'
 import { Head, router, useForm } from '@/application/navigation'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import GameWordReview from '@/Components/GameWordReview.vue'
-import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue'
+import GameResultModal from '@/Components/GameResultModal.vue'
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue'
 
 const HINT_VISIBLE_MS = 10_000
@@ -457,7 +456,6 @@ const screenClass = computed(() => ({
     </div>
 
     <template v-else>
-      <GameRecordCelebrate :celebrate-record="celebrateRecord" />
       <div :class="screenClass">
         <div class="puzzle-topbar puzzle-topbar-score word-search-topbar">
           <button
@@ -534,28 +532,8 @@ const screenClass = computed(() => ({
                 <span aria-hidden="true">?</span>
               </button>
             </div>
-
-            <div
-              v-if="answered"
-              class="puzzle-result is-win word-search-result"
-            >
-              <div class="puzzle-result-banner">
-                <span class="puzzle-result-title">Cleared!</span>
-                <span class="puzzle-result-time"
-                  >✓ {{ sessionCorrect }} ·
-                  {{ formatTime(elapsedSeconds) }}</span
-                >
-              </div>
-              <p class="puzzle-result-msg">{{ feedback }}</p>
-            </div>
           </div>
 
-          <GameWordReview
-            v-for="review in reviews"
-            :key="review.vocabulary_id ?? review.word"
-            :reveal="review"
-            mode="word-search"
-          />
           <div class="word-search-wordlist" aria-label="Clues to find">
             <p class="word-search-wordlist-label">
               Find {{ foundIds.length }}/{{ words.length }}
@@ -585,19 +563,19 @@ const screenClass = computed(() => ({
         </div>
 
         <div class="puzzle-screen-footer word-search-footer">
-          <button
-            v-if="answered"
-            type="button"
-            class="btn btn-block puzzle-btn-play"
-            @click="next"
-          >
-            Next round →
-          </button>
-          <p v-else class="word-search-hint">
+          <p v-if="!answered" class="word-search-hint">
             Use the meanings as clues — drag a straight line to select
           </p>
         </div>
       </div>
     </template>
+    <GameResultModal
+      :reviews="reviews"
+      mode="word-search"
+      :resolved="answered"
+      :was-correct="wasCorrect"
+      :score="sessionCorrect"
+      :record="celebrateRecord"
+    />
   </AppLayout>
 </template>

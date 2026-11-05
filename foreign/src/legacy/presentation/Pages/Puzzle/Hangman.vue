@@ -7,8 +7,7 @@ import { appPath } from '@/path'
 import { Head, router, useForm } from '@/application/navigation'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import GameWordReview from '@/Components/GameWordReview.vue'
-import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue'
+import GameResultModal from '@/Components/GameResultModal.vue'
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue'
 
 const props = defineProps({
@@ -147,7 +146,6 @@ const screenClass = computed(() => ({
     </div>
 
     <template v-else>
-      <GameRecordCelebrate :celebrate-record="celebrateRecord" />
       <div :class="screenClass">
         <div class="puzzle-topbar puzzle-topbar-score hangman-topbar">
           <button
@@ -283,25 +281,6 @@ const screenClass = computed(() => ({
               {{ slot ? String(slot).toUpperCase() : '' }}
             </span>
           </div>
-
-          <template v-if="answered">
-            <div
-              class="puzzle-result"
-              :class="wasCorrect ? 'is-win' : 'is-lose'"
-            >
-              <div class="puzzle-result-banner">
-                <span class="puzzle-result-title">{{
-                  wasCorrect ? 'Nice!' : 'Not quite'
-                }}</span>
-                <span class="puzzle-result-time"
-                  >✓ {{ sessionCorrect }} ·
-                  {{ formatTime(elapsedSeconds) }}</span
-                >
-              </div>
-              <p class="puzzle-result-msg">{{ feedback }}</p>
-            </div>
-            <GameWordReview v-if="reveal" :reveal="reveal" mode="hangman" />
-          </template>
         </div>
 
         <div class="puzzle-screen-footer hangman-footer">
@@ -328,16 +307,16 @@ const screenClass = computed(() => ({
               </button>
             </div>
           </div>
-          <button
-            v-else
-            type="button"
-            class="btn btn-block puzzle-btn-play"
-            @click="next"
-          >
-            Next round →
-          </button>
         </div>
       </div>
     </template>
+    <GameResultModal
+      :reviews="reveal ? [reveal] : []"
+      mode="hangman"
+      :resolved="answered"
+      :was-correct="wasCorrect"
+      :score="sessionCorrect"
+      :record="celebrateRecord"
+    />
   </AppLayout>
 </template>

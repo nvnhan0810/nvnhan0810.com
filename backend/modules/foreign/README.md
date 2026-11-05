@@ -168,22 +168,31 @@ reload the Channels page once after upgrading to restart pagination.
 ## Quiz/game word reviews and memory
 
 Quiz, Scramble, Wordle, Hangman and Word Search use one selected dictionary sense
-per word. The result shows the word, phonetic, selected definition and up to two
+per word. An animated result dialog shows the word, phonetic, selected definition and up to two
 examples attached to that definition. Word Search reveals/reviews each found word.
-Missing examples are not replaced with examples from another meaning.
+Examples returned as strings or text/example objects are preserved. Word-level
+examples are used only for a single-sense entry or an explicit matching
+`definition_ref`. Missing examples show an empty state instead of using a sentence
+from another meaning. All result dialog copy is English; it supports keyboard
+focus, mobile scrolling and reduced motion.
 
 `POST /foreign/actions` accepts the usual round ID with path `/home/quiz/rate`
 or `/home/puzzle/{mode}/rate`, method `POST`, and data
 `{"vocabulary_id":123,"level":1}`. Only words already revealed in that user's
-current round may be rated. Ratings do not score another attempt. The result card
-saves without remounting the current game. Ratings persist across activities.
+current round may be rated. Ratings do not score another attempt. The result dialog
+saves without remounting the current game, then automatically advances after the
+memory choice succeeds. Each new round requires a fresh choice; an old memory
+level does not count as reviewing this round. Word Search returns to the same grid
+after each rating and advances only after its final found word is rated. Ratings
+persist across activities. The server rejects `next` (and the next Word Search
+`find`) while any revealed word is awaiting a memory choice.
 
 | Level | Label | Initial sampling weight |
 | --- | --- | --- |
-| 1 | Chưa nhớ | 6 |
-| 2 | Nhớ mang máng | 3 |
-| 3 | Khá nhớ | 0.4, increasing to 1 over 7 days |
-| 4 | Nhớ rõ | 0.08, increasing to 1 over 30 days |
+| 1 | Forgot it | 6 |
+| 2 | Still learning | 3 |
+| 3 | Almost there | 0.4, increasing to 1 over 7 days |
+| 4 | Know it | 0.08, increasing to 1 over 30 days |
 | Unrated | — | 4 |
 
 Weights are relative, not guaranteed appearance percentages or fixed review dates.

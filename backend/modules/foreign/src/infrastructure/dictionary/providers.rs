@@ -11,6 +11,21 @@ fn strings(value: &Value) -> Vec<String> {
         .filter_map(|v| v.as_str().map(str::to_owned))
         .collect()
 }
+fn examples(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|v| {
+            v.as_str()
+                .or_else(|| v["text"].as_str())
+                .or_else(|| v["example"].as_str())
+        })
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
 pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec<Entry>> {
     if source == 0 {
         let mut entries: Vec<Entry> = serde_json::from_value(payload).ok()?;
@@ -59,8 +74,8 @@ pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec
             }
             definitions.push(Definition {
                 definition,
-                examples: strings(&sense["examples"]),
-                example: strings(&sense["examples"])
+                examples: examples(&sense["examples"]),
+                example: examples(&sense["examples"])
                     .into_iter()
                     .next()
                     .unwrap_or_default(),
@@ -97,6 +112,15 @@ pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn preserves_examples_returned_as_objects() {
+        let entries = normalize(1, "bank", json!({"entries":[{"partOfSpeech":"noun","senses":[
+            {"definition":"River edge","examples":[{"text":"We sat on the bank."},{"example":"The bank was steep."}]}]}]})).unwrap();
+        assert_eq!(
+            entries[0].meanings[0].definitions[0].examples,
+            ["We sat on the bank.", "The bank was steep."]
+        );
+    }
     #[test]
     fn maps_secondary_and_tertiary_contracts() {
         let entry = normalize(1, "hello", json!({"entries":[{"language":{"code":"en"},"partOfSpeech":"noun","pronunciations":[{"text":"ipa"}],"synonyms":["greeting"],"senses":[{"definition":"A greeting.","examples":["Hello there."]}]}]})).unwrap();

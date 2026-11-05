@@ -475,6 +475,23 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
             )
             .await;
             assert_eq!(response.0, 200, "{mode}: {response:?}");
+            if mode == "word-search" {
+                for review in response.1["props"]["reviews"].as_array().unwrap() {
+                    if review["reviewed"] == true {
+                        continue;
+                    }
+                    let rated = action(
+                        &app,
+                        &token,
+                        "/home/puzzle/word-search/rate",
+                        "POST",
+                        json!({"vocabulary_id":review["vocabulary_id"],"level":2}),
+                        round.clone(),
+                    )
+                    .await;
+                    assert_eq!(rated.0, 200, "{rated:?}");
+                }
+            }
         }
         let result = page(&app, &token, &format!("/home/puzzle/{mode}")).await;
         assert_eq!(result.1["wasCorrect"], true);

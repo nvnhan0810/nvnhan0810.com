@@ -359,6 +359,9 @@ pub async fn action(
             Json(json!({"error":"This round changed. Reload before continuing."})),
         ));
     }
+    if action == "next" && previous.as_ref().is_some_and(games::needs_review) {
+        return Err(bad("Choose a memory card before continuing."));
+    }
     let mut stored = if action == "next" {
         let rows = practice::candidates(&mut tx, owner, mode)
             .await

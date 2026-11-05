@@ -80,16 +80,20 @@ async function submit(
     const result = await foreignRequest<{
       redirect?: string
       props?: PageProps
-    }>('/actions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path,
-        data,
-        method,
-        round_id: page.props.roundId ?? null,
-      }),
-    })
+    }>(
+      '/actions',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path,
+          data,
+          method,
+          round_id: page.props.roundId ?? null,
+        }),
+      },
+      { background: options.background ?? false },
+    )
     if (origin !== vueRouter.currentRoute.value.fullPath) return
     if (options.stayOnPage) {
       options.onSuccess?.()

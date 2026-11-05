@@ -7,8 +7,7 @@ import { appPath } from '@/path'
 import { Head, router, useForm } from '@/application/navigation'
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import GameWordReview from '@/Components/GameWordReview.vue'
-import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue'
+import GameResultModal from '@/Components/GameResultModal.vue'
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue'
 
 const exitOpen = ref(false)
@@ -109,7 +108,6 @@ onMounted(() => {
     </div>
 
     <template v-else>
-      <GameRecordCelebrate :celebrate-record="celebrateRecord" />
       <div :class="screenClass">
         <div class="puzzle-topbar puzzle-topbar-score">
           <button
@@ -157,36 +155,16 @@ onMounted(() => {
               </div>
             </template>
           </div>
-
-          <div
-            v-if="answered"
-            class="puzzle-result"
-            :class="wasCorrect ? 'is-win' : 'is-lose'"
-          >
-            <div class="puzzle-result-banner">
-              <span class="puzzle-result-title">{{
-                wasCorrect ? 'Correct!' : 'Wrong'
-              }}</span>
-              <span class="puzzle-result-time">✓ {{ sessionCorrect }}</span>
-            </div>
-            <p class="puzzle-result-msg">{{ feedback }}</p>
-          </div>
-
-          <GameWordReview
-            v-if="answered && reveal"
-            :reveal="reveal"
-            mode="quiz"
-          />
-          <button
-            v-if="answered"
-            type="button"
-            class="btn btn-block puzzle-btn-play"
-            @click="start"
-          >
-            Next question →
-          </button>
         </div>
       </div>
     </template>
+    <GameResultModal
+      :reviews="reveal ? [reveal] : []"
+      mode="quiz"
+      :resolved="answered"
+      :was-correct="wasCorrect"
+      :score="sessionCorrect"
+      :record="celebrateRecord"
+    />
   </AppLayout>
 </template>

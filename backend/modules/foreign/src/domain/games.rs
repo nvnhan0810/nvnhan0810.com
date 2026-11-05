@@ -62,18 +62,62 @@ pub fn select_meaning(entry: &Value, counts: &Value) -> Option<Value> {
             senses.push((count, key, meaning.clone(), definition.clone()));
         }
     }
+    let sense_count = senses.len();
     shuffle(&mut senses);
     let (_, key, mut meaning, definition) = senses.into_iter().min_by_key(|sense| sense.0)?;
     meaning["definitions"] = json!([definition]);
     let mut selected = entry.clone();
     selected["meanings"] = json!([meaning]);
     selected["_meaning_key"] = json!(key);
+    selected["_sense_count"] = json!(sense_count);
     Some(selected)
 }
 
 fn round_reveal(state: &Value, id: &Value, entry: &Value) -> Value {
     let details = reveal(entry);
-    let meaning = &details["meanings"][0];
+    let mut meaning = details["meanings"][0].clone();
+    let mut examples = Vec::new();
+    let example_text = |value: &Value| -> Option<String> {
+        value
+            .as_str()
+            .or_else(|| value["example"].as_str())
+            .or_else(|| value["text"].as_str())
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(str::to_owned)
+    };
+    for value in std::iter::once(&meaning["example"])
+        .chain(meaning["examples"].as_array().into_iter().flatten())
+    {
+        if let Some(text) = example_text(value)
+            && !examples.contains(&text)
+        {
+            examples.push(text);
+        }
+    }
+    // Word-level examples are safe only for a single sense, or when explicitly
+    // linked to the definition being reviewed. Never borrow another sense's example.
+    let sense_count = entry["_sense_count"].as_u64().unwrap_or_else(|| {
+        entry["meanings"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|m| m["definitions"].as_array().map_or(0, Vec::len) as u64)
+            .sum()
+    });
+    for value in entry["examples"].as_array().into_iter().flatten() {
+        let matches = value["definition_ref"]
+            .as_str()
+            .is_some_and(|reference| meaning["definition"].as_str() == Some(reference));
+        if (matches || (sense_count == 1 && value.get("definition_ref").is_none_or(Value::is_null)))
+            && let Some(text) = example_text(value)
+            && !examples.contains(&text)
+        {
+            examples.push(text);
+        }
+    }
+    meaning["examples"] = json!(examples);
+    meaning["example"] = json!(examples.first());
     let phonetic = entry["phonetic"]
         .as_str()
         .filter(|s| !s.is_empty())
@@ -90,7 +134,25 @@ fn round_reveal(state: &Value, id: &Value, entry: &Value) -> Value {
         .unwrap_or(&entry["_memory_level"]);
     json!({"vocabulary_id":id,"word":entry["word"],"phonetic":phonetic,
         "definition":meaning["definition"],"part_of_speech":meaning["part_of_speech"],
-        "meanings":[meaning],"memory_level":rating})
+        "meanings":[meaning],"memory_level":rating,
+        "reviewed":id.as_i64().is_some_and(|id| state["memoryRatings"].get(id.to_string()).is_some())})
+}
+
+/// A saved rating from an earlier round is not a review of this round.
+pub fn needs_review(state: &Value) -> bool {
+    let rated = |id: &Value| {
+        id.as_i64()
+            .is_some_and(|id| state["memoryRatings"].get(id.to_string()).is_some())
+    };
+    if state["mode"] == "word-search" {
+        state["foundIds"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|id| !rated(id))
+    } else {
+        !state["feedback"].is_null() && !rated(&state["id"])
+    }
 }
 
 /// Only revealed words may be rated, including individual Word Search finds.
@@ -292,6 +354,9 @@ pub fn act(state: &mut Value, action: &str, data: &Value) -> Result<bool, &'stat
     }
     let mode = text(state, "mode").to_owned();
     let answer = text(state, "answer").to_owned();
+    if mode == "word-search" && action == "find" && needs_review(state) {
+        return Err("Choose a memory card before finding the next word.");
+    }
     if action == "hint" {
         let cooldown = if mode == "word-search" { 10 } else { 20 };
         if state["hintAt"]
@@ -534,27 +599,54 @@ mod tests {
             assert_eq!(revealed["phonetic"], "/bæŋk/");
             assert_eq!(revealed["meanings"].as_array().unwrap().len(), 1);
             assert_eq!(revealed["definition"], definition(&selected));
-            assert_eq!(
-                revealed["meanings"][0]["example"],
-                selected["meanings"][0]["definitions"][0]["example"]
-            );
-            assert_eq!(
-                revealed["meanings"][0]["examples"],
-                selected["meanings"][0]["definitions"][0]["examples"]
-            );
+            let expected = match definition(&selected) {
+                "A financial institution" => json!(["She visited the bank."]),
+                "Land beside a river" => json!(["We sat on the river bank."]),
+                _ => json!([]),
+            };
+            assert_eq!(revealed["meanings"][0]["examples"], expected);
         }
         assert!(select_meaning(&json!({"meanings":[]}), &counts).is_none());
+    }
+    #[test]
+    fn examples_support_objects_and_only_use_word_examples_for_the_correct_sense() {
+        let entry = json!({"word":"bank","examples":["An ambiguous example.",
+            {"example":"We sat on the river bank.","definition_ref":"River edge"},
+            {"text":"She visited the bank.","definition_ref":"Financial institution"}],
+            "meanings":[{"partOfSpeech":"noun","definitions":[
+                {"definition":"River edge","examples":[{"text":"The river bank was steep."}]},
+                {"definition":"Financial institution"}]}]});
+        let selected = select_meaning(&entry, &json!({"noun\nFinancial institution":1})).unwrap();
+        let mut state = start("scramble", &[(1, selected)], 0).unwrap();
+        act(&mut state, "answer", &json!({"answer":"bank"})).unwrap();
+        assert_eq!(
+            public(&state, 0)["reveal"]["meanings"][0]["examples"],
+            json!(["The river bank was steep.", "We sat on the river bank."])
+        );
+        let single = json!({"word":"hello","examples":["Hello there!"],"meanings":[
+            {"partOfSpeech":"interjection","definitions":[{"definition":"A greeting"}]}]});
+        let selected = select_meaning(&single, &json!({})).unwrap();
+        let mut state = start("scramble", &[(1, selected)], 0).unwrap();
+        act(&mut state, "answer", &json!({"answer":"hello"})).unwrap();
+        assert_eq!(
+            public(&state, 0)["reveal"]["meanings"][0]["example"],
+            "Hello there!"
+        );
     }
     #[test]
     fn ratings_require_a_revealed_word_and_do_not_change_scores() {
         let mut state = start("scramble", &entries(), 0).unwrap();
         assert!(rate(&mut state, 1, 4).is_err());
+        assert!(!needs_review(&state));
         act(&mut state, "answer", &json!({"answer":"apple"})).unwrap();
+        assert!(needs_review(&state));
         for level in [0, 5, i64::MAX] {
             assert!(rate(&mut state, 1, level).is_err());
         }
         assert!(rate(&mut state, 2, 4).is_err());
         rate(&mut state, 1, 4).unwrap();
+        assert!(!needs_review(&state));
+        assert_eq!(public(&state, 1)["reveal"]["reviewed"], true);
         assert_eq!(public(&state, 1)["reveal"]["memory_level"], 4);
         rate(&mut state, 1, 1).unwrap();
         assert_eq!(public(&state, 1)["reveal"]["memory_level"], 1);
@@ -568,7 +660,10 @@ mod tests {
         let cells = path["cells"].clone();
         assert!(rate(&mut state, id, 2).is_err());
         act(&mut state, "find", &json!({"cells":cells})).unwrap();
+        assert!(needs_review(&state));
+        assert!(act(&mut state, "find", &json!({"cells":cells})).is_err());
         rate(&mut state, id, 2).unwrap();
+        assert!(!needs_review(&state));
         let result = public(&state, 0);
         assert_eq!(result["reviews"].as_array().unwrap().len(), 1);
         assert_eq!(result["reviews"][0]["vocabulary_id"], id);
