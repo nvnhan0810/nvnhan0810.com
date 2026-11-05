@@ -9,7 +9,7 @@ use crate::{
         dictionary::{Entry, normalize_word},
         games,
     },
-    infrastructure::vocabulary,
+    infrastructure::{practice, vocabulary},
 };
 use axum::{
     Json,
@@ -360,12 +360,19 @@ pub async fn action(
         ));
     }
     let mut stored = if action == "next" {
-        let rows:Vec<(i64,Value)>=sqlx::query_as("SELECT v.id,COALESCE(v.entry_override,e.payload) FROM foreign_vocabularies v JOIN foreign_dictionary_entries e ON e.id=v.dictionary_entry_id WHERE v.user_id=$1 AND jsonb_array_length(COALESCE(v.entry_override,e.payload)->'meanings')>0 AND ($2='quiz' OR (e.word ~ '^[a-z]+$' AND length(e.word) BETWEEN (CASE WHEN $2='wordle' THEN 5 ELSE 3 END) AND (CASE WHEN $2='wordle' THEN 5 WHEN $2='word-search' THEN 8 ELSE 12 END))) ORDER BY CASE WHEN $2='quiz' THEN -ln(GREATEST(random(),0.000001)) / GREATEST(0.01, LEAST(1.0,GREATEST(0.15,COALESCE(extract(epoch FROM (now()-v.last_quizzed_at))/86400,1.0)))/(v.times_quizzed+1)) ELSE random() END LIMIT 32").bind(owner).bind(mode).fetch_all(&mut *tx).await.map_err(internal)?;
+        let rows = practice::candidates(&mut tx, owner, mode)
+            .await
+            .map_err(internal)?;
         let score = previous
             .as_ref()
             .and_then(|s| s["score"].as_i64())
             .unwrap_or(0);
         let mut next = games::start(mode, &rows, score).map_err(bad)?;
+        for (id, entry) in rows.iter().take(if mode == "word-search" { 5 } else { 1 }) {
+            practice::record_meaning(&mut tx, *id, entry)
+                .await
+                .map_err(internal)?;
+        }
         if let Some(started) = previous
             .as_ref()
             .and_then(|round| round["startedAt"].as_u64())
@@ -376,7 +383,22 @@ pub async fn action(
     } else {
         previous.ok_or_else(|| bad("Start a round first."))?
     };
-    let finished = if action == "next" {
+    let finished = if action == "rate" {
+        let id = data["vocabulary_id"]
+            .as_i64()
+            .ok_or_else(|| bad("Choose a word to rate."))?;
+        let level = data["level"]
+            .as_i64()
+            .ok_or_else(|| bad("Choose a memory level."))?;
+        games::rate(&mut stored, id, level).map_err(bad)?;
+        if !practice::rate(&mut tx, owner, id, level as i16)
+            .await
+            .map_err(internal)?
+        {
+            return Err(missing());
+        }
+        false
+    } else if action == "next" {
         false
     } else {
         games::act(&mut stored, action, data).map_err(bad)?

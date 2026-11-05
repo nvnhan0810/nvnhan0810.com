@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { RoutePath } from '../../../../app/router/paths'
 
-import type { PuzzleWord, Meaning } from '@/domain/models'
+import type { PuzzleWord } from '@/domain/models'
 import type { PropType } from 'vue'
 import type { Cell, Puzzle, Reveal } from '@/domain/models'
 import { appPath } from '@/path'
 import { Head, router, useForm } from '@/application/navigation'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import DictionaryEntry from '@/Components/DictionaryEntry.vue'
+import GameWordReview from '@/Components/GameWordReview.vue'
 import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue'
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue'
 
@@ -18,7 +18,7 @@ const HINT_COOLDOWN_MS = 10_000
 const props = defineProps({
   puzzle: { type: Object as PropType<Puzzle | null>, default: null },
   reviews: {
-    type: Array as PropType<{ word: string; meanings: Meaning[] }[]>,
+    type: Array as PropType<Reveal[]>,
     default: () => [],
   },
   foundIds: { type: Array as PropType<number[]>, default: () => [] },
@@ -550,14 +550,12 @@ const screenClass = computed(() => ({
             </div>
           </div>
 
-          <div
+          <GameWordReview
             v-for="review in reviews"
-            :key="review.word"
-            class="card puzzle-reveal-card"
-          >
-            <p class="card-title">{{ review.word }}</p>
-            <DictionaryEntry :meanings="review.meanings" prefer-detail />
-          </div>
+            :key="review.vocabulary_id ?? review.word"
+            :reveal="review"
+            mode="word-search"
+          />
           <div class="word-search-wordlist" aria-label="Clues to find">
             <p class="word-search-wordlist-label">
               Find {{ foundIds.length }}/{{ words.length }}

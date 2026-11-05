@@ -7,7 +7,7 @@ import { appPath } from '@/path'
 import { Head, router, useForm } from '@/application/navigation'
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import DictionaryEntry from '@/Components/DictionaryEntry.vue'
+import GameWordReview from '@/Components/GameWordReview.vue'
 import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue'
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue'
 
@@ -172,13 +172,11 @@ onMounted(() => {
             <p class="puzzle-result-msg">{{ feedback }}</p>
           </div>
 
-          <div v-if="answered && reveal" class="card puzzle-reveal-card">
-            <p class="card-title">{{ reveal.word }}</p>
-            <p v-if="reveal.phonetic" class="card-subtitle">
-              {{ reveal.phonetic }}
-            </p>
-            <DictionaryEntry :meanings="reveal.meanings || []" prefer-detail />
-          </div>
+          <GameWordReview
+            v-if="answered && reveal"
+            :reveal="reveal"
+            mode="quiz"
+          />
           <button
             v-if="answered"
             type="button"

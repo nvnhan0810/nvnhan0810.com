@@ -322,6 +322,19 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
         .find(|choice| **choice != private["answer"])
         .unwrap()
         .clone();
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            "/home/quiz/rate",
+            "POST",
+            json!({"vocabulary_id":private["id"],"level":4}),
+            round.clone()
+        )
+        .await
+        .0,
+        400
+    );
     let answer = action(
         &app,
         &token,
@@ -346,6 +359,43 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
         .0,
         200
     );
+    let rated = action(
+        &app,
+        &token,
+        "/home/quiz/rate",
+        "POST",
+        json!({"vocabulary_id":private["id"],"level":4}),
+        round.clone(),
+    )
+    .await;
+    assert_eq!(rated.0, 200, "{rated:?}");
+    assert_eq!(rated.1["props"]["reveal"]["memory_level"], 4);
+    assert_eq!(
+        page(&app, &token, "/home/quiz/play").await.1["reveal"]["memory_level"],
+        4
+    );
+    let memory: (i16, Value) = sqlx::query_as(
+        "SELECT level,meaning_counts FROM foreign_vocabulary_memory WHERE vocabulary_id=$1",
+    )
+    .bind(private["id"].as_i64().unwrap())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(memory.0, 4);
+    assert_eq!(
+        memory.1[private["entry"]["_meaning_key"].as_str().unwrap()],
+        1
+    );
+    let forbidden = action(
+        &app,
+        &other_token,
+        "/home/quiz/rate",
+        "POST",
+        json!({"vocabulary_id":private["id"],"level":1}),
+        Value::Null,
+    )
+    .await;
+    assert_ne!(forbidden.0, 200);
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM foreign_attempts WHERE user_id=$1")
         .bind(user)
         .fetch_one(&pool)
@@ -429,7 +479,24 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
         let result = page(&app, &token, &format!("/home/puzzle/{mode}")).await;
         assert_eq!(result.1["wasCorrect"], true);
         assert_eq!(result.1["sessionCorrect"], 1);
-        assert!(!result.1["reveal"].is_null());
+        let reviews = if mode == "word-search" {
+            assert!(result.1["reveal"].is_null());
+            result.1["reviews"].as_array().unwrap().clone()
+        } else {
+            vec![result.1["reveal"].clone()]
+        };
+        for review in reviews {
+            let rated = action(
+                &app,
+                &token,
+                &format!("/home/puzzle/{mode}/rate"),
+                "POST",
+                json!({"vocabulary_id":review["vocabulary_id"],"level":2}),
+                round.clone(),
+            )
+            .await;
+            assert_eq!(rated.0, 200, "{mode}: {rated:?}");
+        }
     }
     let result = page(&app, &token, "/home/profile").await;
     assert_eq!(result.0, 200);

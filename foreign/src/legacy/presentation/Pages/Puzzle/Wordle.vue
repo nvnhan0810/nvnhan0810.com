@@ -7,7 +7,7 @@ import { appPath } from '@/path'
 import { Head, router, useForm } from '@/application/navigation'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import DictionaryEntry from '@/Components/DictionaryEntry.vue'
+import GameWordReview from '@/Components/GameWordReview.vue'
 import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue'
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue'
 
@@ -350,20 +350,7 @@ const screenClass = computed(() => ({
               </div>
               <p class="puzzle-result-msg">{{ feedback }}</p>
             </div>
-            <div v-if="reveal" class="card puzzle-reveal-card">
-              <p class="card-title" style="margin: 0">{{ reveal.word }}</p>
-              <p
-                v-if="reveal.phonetic"
-                class="card-subtitle"
-                style="font-style: italic; margin-top: 6px"
-              >
-                {{ reveal.phonetic }}
-              </p>
-              <DictionaryEntry
-                :meanings="reveal.meanings || []"
-                prefer-detail
-              />
-            </div>
+            <GameWordReview v-if="reveal" :reveal="reveal" mode="wordle" />
           </template>
         </div>
 

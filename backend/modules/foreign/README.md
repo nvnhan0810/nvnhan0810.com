@@ -164,3 +164,34 @@ catalog expires; refresh once after upgrading to start video-only pagination.
 Video pages request YouTube's maximum `maxResults=50`; duration details are fetched
 in one batch for those up to 50 videos. Changing page size invalidates old cursors;
 reload the Channels page once after upgrading to restart pagination.
+
+## Quiz/game word reviews and memory
+
+Quiz, Scramble, Wordle, Hangman and Word Search use one selected dictionary sense
+per word. The result shows the word, phonetic, selected definition and up to two
+examples attached to that definition. Word Search reveals/reviews each found word.
+Missing examples are not replaced with examples from another meaning.
+
+`POST /foreign/actions` accepts the usual round ID with path `/home/quiz/rate`
+or `/home/puzzle/{mode}/rate`, method `POST`, and data
+`{"vocabulary_id":123,"level":1}`. Only words already revealed in that user's
+current round may be rated. Ratings do not score another attempt. The result card
+saves without remounting the current game. Ratings persist across activities.
+
+| Level | Label | Initial sampling weight |
+| --- | --- | --- |
+| 1 | Chưa nhớ | 6 |
+| 2 | Nhớ mang máng | 3 |
+| 3 | Khá nhớ | 0.4, increasing to 1 over 7 days |
+| 4 | Nhớ rõ | 0.08, increasing to 1 over 30 days |
+| Unrated | — | 4 |
+
+Weights are relative, not guaranteed appearance percentages or fixed review dates.
+Selection samples without replacement within a round and keeps every level
+eligible. Across activities, each word rotates through its least-used meanings;
+ties are random. Meaning counts increase when a new round presents that word,
+not for distractor options, repeated answers or rating changes.
+
+Run migration `20261105000001_vocabulary_memory` before starting the updated API.
+It adds `foreign_vocabulary_memory`, tied to the owner's saved vocabulary with
+cascade deletion; existing words start unrated. No existing migration is changed.
