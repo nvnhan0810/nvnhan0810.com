@@ -38,6 +38,7 @@ pub fn identity_admin_input(portal_url: &str, redirect_uri: &str) -> Result<Clie
         redirect_uris: vec![redirect_uri.into()],
         scopes: vec!["profile".into(), "identity.clients.manage".into()],
         enabled: true,
+        is_public: true,
     };
     Ok(input)
 }

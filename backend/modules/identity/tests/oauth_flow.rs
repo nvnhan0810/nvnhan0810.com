@@ -110,6 +110,7 @@ fn input(id: &str) -> ClientInput {
             "identity.clients.manage".into(),
         ],
         enabled: true,
+        is_public: true,
     }
 }
 fn intent(id: &str) -> AuthorizeRequest {
@@ -540,6 +541,7 @@ async fn oauth_end_to_end_and_replay_protection() {
             redirect_uris: dynamic.redirect_uris.clone(),
             scopes: vec!["reports:write".into()],
             enabled: true,
+            is_public: true,
         },
     )
     .await
@@ -607,6 +609,7 @@ async fn oauth_end_to_end_and_replay_protection() {
         redirect_uris: client_a.redirect_uris.clone(),
         scopes: client_a.scopes.clone(),
         enabled: false,
+        is_public: true,
     };
     client_handler::update(&state, client_a.id, update)
         .await
@@ -758,4 +761,80 @@ async fn oauth_end_to_end_and_replay_protection() {
     );
 
     pool.close().await;
+}
+
+#[tokio::test]
+#[ignore = "requires IDENTITY_TEST_DATABASE_URL pointing to a disposable PostgreSQL database"]
+async fn private_apps_and_precreated_google_user() {
+    use identity::application::ports::{IdentityRepository, UserRepository};
+    let (state, _, pool) = setup().await;
+    let store = IdentityStore(pool);
+    let key = format!("private-{}", Uuid::new_v4());
+    let mut metadata = input(&key);
+    metadata.is_public = false;
+    let (client, _) = client_handler::register(&state, metadata).await.unwrap();
+    let email = format!("{}@example.com", Uuid::new_v4());
+    let user = store.create_user(&email, &[]).await.unwrap();
+    let login = Uuid::new_v4().to_string();
+    store
+        .save_browser_login(&state.crypto.hash(&login), user.id)
+        .await
+        .unwrap();
+    assert!(
+        sso_handler::authorize(&state, intent(&key), Some(&login))
+            .await
+            .is_err()
+    );
+    assert!(!store.can_access_app(user.id, client.id).await.unwrap());
+    assert!(store.create_user(&email, &[]).await.is_err());
+    store.set_user_apps(user.id, &[client.id]).await.unwrap();
+    assert!(store.can_access_app(user.id, client.id).await.unwrap());
+    let (redirect, _) = sso_handler::authorize(&state, intent(&key), Some(&login))
+        .await
+        .unwrap();
+    let tokens = token_handler::exchange(
+        &state,
+        &client,
+        exchange_request(code(&redirect), intent(&key).redirect_uri),
+    )
+    .await
+    .unwrap();
+    let subject = Uuid::new_v4().to_string();
+    for name in ["Google Name", "Updated Google Name"] {
+        let id = store
+            .upsert_google_user(GoogleIdentity {
+                subject: subject.clone(),
+                email: email.clone(),
+                name: name.into(),
+                avatar: None,
+            })
+            .await
+            .unwrap();
+        assert_eq!(id, user.id);
+        assert_eq!(store.user(id).await.unwrap().name, name);
+    }
+    store.set_user_apps(user.id, &[]).await.unwrap();
+    assert!(
+        token_handler::refresh(
+            &state,
+            &client,
+            TokenRequest {
+                grant_type: "refresh_token".into(),
+                client_id: Some(key.clone()),
+                client_secret: None,
+                code: None,
+                redirect_uri: None,
+                code_verifier: None,
+                refresh_token: Some(tokens.refresh_token),
+            }
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        sso_handler::authorize(&state, intent(&key), Some(&login))
+            .await
+            .is_err()
+    );
+    assert!(!store.can_access_app(user.id, client.id).await.unwrap());
 }

@@ -64,6 +64,12 @@ export class IdentityApi {
   setUserEnabled(id: string, enabled: boolean): Promise<IdentityUser> {
     return this.request(`/admin/users/${encodeURIComponent(id)}`, 'PATCH', { enabled })
   }
+  createUser(email: string, private_app_ids: string[]): Promise<IdentityUser> {
+    return this.request('/admin/users', 'POST', { email, private_app_ids })
+  }
+  setUserApps(id: string, private_app_ids: string[]): Promise<IdentityUser> {
+    return this.request(`/admin/users/${encodeURIComponent(id)}/apps`, 'PUT', { private_app_ids })
+  }
   revokeUser(id: string): Promise<{ success: boolean }> {
     return this.request(`/admin/users/${encodeURIComponent(id)}/revoke`, 'POST')
   }

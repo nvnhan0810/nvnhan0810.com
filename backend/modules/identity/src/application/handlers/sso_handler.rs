@@ -147,6 +147,9 @@ async fn issue_code(
     let client = state.store.client(&intent.client_id).await?;
     validate_intent(&client, intent)?;
     let user = state.store.profile(user_id).await?;
+    if !state.store.can_access_app(user_id, client.id).await? {
+        return Err(IdentityError::forbidden());
+    }
     if intent
         .scope
         .split_whitespace()

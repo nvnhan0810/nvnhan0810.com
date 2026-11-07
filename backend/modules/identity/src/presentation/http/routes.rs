@@ -31,8 +31,12 @@ pub fn identity_routes(state: IdentityState) -> Router {
             "/admin/sso-clients/{id}/rotate-id",
             post(clients::rotate_id),
         )
-        .route("/admin/users", get(users::list))
+        .route("/admin/users", get(users::list).post(users::create))
         .route("/admin/users/{id}", get(users::get).patch(users::update))
+        .route(
+            "/admin/users/{id}/apps",
+            axum::routing::put(users::set_apps),
+        )
         .route("/admin/users/{id}/revoke", post(users::revoke))
         .layer(DefaultBodyLimit::max(32 * 1024))
         .with_state(state)

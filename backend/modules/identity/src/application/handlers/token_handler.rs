@@ -121,6 +121,7 @@ pub async fn exchange(
         return Err(IdentityError::bad("invalid_grant"));
     }
     let is_system_root = validate_user_policy(tx.as_mut(), user_id, scopes).await?;
+    tx.ensure_app_access(user_id, client.id).await?;
     let grant_id = Uuid::new_v4();
     let refresh = state.crypto.random_token();
     let response = token_response(
@@ -180,6 +181,7 @@ pub async fn refresh(
         return Err(IdentityError::bad("invalid_grant"));
     }
     let is_system_root = validate_user_policy(tx.as_mut(), user_id, scopes).await?;
+    tx.ensure_app_access(user_id, client.id).await?;
     let successor = state.crypto.random_token();
     let response = token_response(
         state,

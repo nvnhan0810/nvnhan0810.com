@@ -20,7 +20,12 @@ describe('client editing contract', () => {
       redirect_uris: ['https://wallets.example/callback'],
       scopes: ['profile', 'wallets:read'],
       enabled: true,
+      is_public: true,
     })
+  })
+  it('keeps private access independent of OAuth client type', () => {
+    expect(clientInput({ ...draft(), is_public: false }).is_public).toBe(false)
+    expect(clientInput({ ...draft(), client_type: 'confidential', is_public: true }).is_public).toBe(true)
   })
   it('rejects duplicate scopes, wildcard and unsafe callbacks before submitting', () => {
     expect(() => clientInput({ ...draft(), scopes: 'profile profile' })).toThrow()

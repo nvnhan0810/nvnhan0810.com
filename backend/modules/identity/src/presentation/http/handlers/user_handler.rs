@@ -65,3 +65,47 @@ pub async fn revoke(
     users::revoke(&state, &access_token(&state, &headers, true).await?, id).await?;
     Ok(Json(serde_json::json!({"success":true})))
 }
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UserCreate {
+    pub email: String,
+    #[serde(default)]
+    pub private_app_ids: Vec<Uuid>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UserApps {
+    pub private_app_ids: Vec<Uuid>,
+}
+pub async fn create(
+    State(state): State<IdentityState>,
+    headers: HeaderMap,
+    Json(input): Json<UserCreate>,
+) -> Result<Json<UserAccount>> {
+    Ok(Json(
+        users::create(
+            &state,
+            &access_token(&state, &headers, true).await?,
+            &input.email,
+            &input.private_app_ids,
+        )
+        .await?,
+    ))
+}
+pub async fn set_apps(
+    State(state): State<IdentityState>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(input): Json<UserApps>,
+) -> Result<Json<UserAccount>> {
+    Ok(Json(
+        users::set_apps(
+            &state,
+            &access_token(&state, &headers, true).await?,
+            id,
+            &input.private_app_ids,
+        )
+        .await?,
+    ))
+}

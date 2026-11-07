@@ -68,6 +68,7 @@ pub async fn register_generated(
         redirect_uris: registration.redirect_uris,
         scopes: registration.scopes,
         enabled: registration.enabled,
+        is_public: registration.is_public,
     };
     register(state, input).await
 }
@@ -114,6 +115,7 @@ pub async fn update(state: &IdentityState, id: Uuid, update: ClientUpdate) -> Re
         redirect_uris: update.redirect_uris,
         scopes: update.scopes,
         enabled: update.enabled,
+        is_public: update.is_public,
     };
     let aggregate = validate(id, &input, existing.secret_hash.as_deref())?;
     let mut input = input;
@@ -150,6 +152,7 @@ mod tests {
             redirect_uris: vec!["https://new.example/callback".into()],
             scopes: vec!["reports:read".into()],
             enabled: true,
+            is_public: true,
         }
     }
     #[test]

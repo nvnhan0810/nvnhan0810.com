@@ -15,6 +15,7 @@ pub trait TokenTransaction: Send {
         redirect: &str,
         challenge: &str,
     ) -> Result<CodeRecord>;
+    async fn ensure_app_access(&mut self, user: Uuid, client: Uuid) -> Result<()>;
     async fn user_email(&mut self, id: Uuid) -> Result<String>;
     async fn create_grant(
         &mut self,

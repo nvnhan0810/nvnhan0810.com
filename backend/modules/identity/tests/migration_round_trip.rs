@@ -45,11 +45,11 @@ async fn initial_schema_supports_idempotent_up_and_complete_rollback() {
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(count, 1);
+    assert_eq!(count, 2);
     let removed: bool=sqlx::query_scalar("SELECT NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='sso_clients' AND column_name='audiences')").fetch_one(&pool).await.unwrap();
     assert!(removed);
 
-    apply(&pool, MigrationAction::Down { target: None })
+    apply(&pool, MigrationAction::Down { target: Some(0) })
         .await
         .unwrap();
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM _sqlx_migrations")

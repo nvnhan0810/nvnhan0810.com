@@ -18,9 +18,49 @@ import {
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../../../../app/services.ts'
 import { confirmAction, copyText, notify } from '../../../../shared/notifications.ts'
-import type { IdentityUser } from '../../domain/models.ts'
+import type { IdentityClient, IdentityUser } from '../../domain/models.ts'
 import { errorMessage } from '../../infrastructure/transport.ts'
 import Modal from '../components/Modal.vue'
+const editorOpen = ref(false)
+const editing = ref<IdentityUser | null>(null)
+const email = ref('')
+const appIds = ref<string[]>([])
+const privateApps = ref<IdentityClient[]>([])
+const saving = ref(false)
+const appsLoading = ref(false)
+const editorError = ref('')
+async function openEditor(user: IdentityUser | null = null) {
+  editing.value = user
+  email.value = user?.email || ''
+  appIds.value = [...(user?.private_app_ids || [])]
+  editorError.value = ''
+  editorOpen.value = true
+  privateApps.value = []
+  appsLoading.value = true
+  try {
+    let after: string | undefined
+    do {
+      const page = await api.clients(after)
+      privateApps.value.push(...page.clients.filter(client => !client.is_public))
+      after = page.clients.length === 25 ? page.next_cursor || undefined : undefined
+    } while (after)
+  } catch (cause) { editorError.value = errorMessage(cause) }
+  finally { appsLoading.value = false }
+}
+async function saveUser() {
+  saving.value = true
+  editorError.value = ''
+  try {
+    const ids = appIds.value.filter(id => privateApps.value.some(app => app.id === id))
+    const user = editing.value
+      ? await api.setUserApps(editing.value.id, ids)
+      : await api.createUser(email.value, ids)
+    users.value = [user, ...users.value.filter(item => item.id !== user.id)]
+    editorOpen.value = false
+    notify('Đã lưu người dùng và quyền ứng dụng.')
+  } catch (cause) { editorError.value = errorMessage(cause) }
+  finally { saving.value = false }
+}
 const users = ref<IdentityUser[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -111,12 +151,12 @@ onMounted(() => load())
       <h1>Người dùng<span class="heading-dot">.</span></h1>
       <p>Quản lý danh tính Google và trạng thái truy cập của người dùng.</p>
     </div>
-    <span class="page-tag"><Users :size="16" />Identity directory</span>
+    <button class="button primary" @click="openEditor()">Thêm người dùng</button>
   </div>
   <div class="info-strip">
     <ShieldCheck :size="18" />
     <p>
-      Danh tính được tạo khi đăng nhập Google lần đầu. <span>System root luôn được bảo vệ.</span>
+      Thêm người dùng bằng email; tên được đồng bộ khi đăng nhập Google. <span>System root luôn được bảo vệ.</span>
     </p>
     <span class="strip-label">GOOGLE SSO</span>
   </div>
@@ -210,7 +250,7 @@ onMounted(() => load())
               >
             </td>
             <td>
-              <div class="row-actions">
+              <div class="row-actions"><button class="text-button" @click="openEditor(user)">Quyền app</button>
                 <button
                   class="icon-button"
                   :aria-label="`Chi tiết ${user.name}`"
@@ -271,6 +311,18 @@ onMounted(() => load())
     <ShieldCheck :size="15" />Quyền quản trị hiện chỉ dành cho system root. Chưa hỗ trợ sửa email
     hoặc phân vai trò khác.
   </p>
+  <Modal :open="editorOpen" :title="editing ? 'Quyền ứng dụng' : 'Thêm người dùng'" @close="!saving && (editorOpen = false)">
+    <form @submit.prevent="saveUser">
+      <div class="form-body">
+        <div v-if="editorError" class="alert error" role="alert">{{ editorError }}</div>
+        <label class="field">Email<input v-model="email" type="email" required maxlength="254" :disabled="!!editing || saving" /></label>
+        <p>Ứng dụng private được phép truy cập:</p>
+        <label v-for="app in privateApps" :key="app.id" class="checkbox-field"><input v-model="appIds" type="checkbox" :value="app.id" :disabled="saving" /><span>{{ app.name }}</span></label>
+        <p v-if="!privateApps.length">Chưa có ứng dụng private.</p>
+      </div>
+      <div class="modal-actions"><button type="button" class="button secondary" :disabled="saving" @click="editorOpen = false">Hủy</button><button class="button primary" :disabled="saving || appsLoading">{{ saving ? 'Đang lưu…' : 'Lưu' }}</button></div>
+    </form>
+  </Modal>
   <Modal :open="!!selected" title="Thông tin người dùng" @close="selected = null"
     ><div v-if="selected" class="form-body">
       <div class="user-detail-heading">

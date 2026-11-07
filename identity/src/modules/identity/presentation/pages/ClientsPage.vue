@@ -89,6 +89,7 @@ async function save(input: ClientInput) {
           redirect_uris: input.redirect_uris,
           scopes: input.scopes,
           enabled: input.enabled,
+          is_public: input.is_public,
         })
       : await api.createClient(input)
     replace(result.client)
@@ -125,6 +126,7 @@ async function toggle(client: IdentityClient) {
       redirect_uris: client.redirect_uris,
       scopes: client.scopes,
       enabled: !client.enabled,
+      is_public: client.is_public,
     })
     replace(result.client)
     notify('Đã cập nhật trạng thái client.')
@@ -288,7 +290,7 @@ onMounted(() => load())
                 ><KeyRound v-if="client.client_type === 'confidential'" :size="13" /><Blocks
                   v-else
                   :size="13"
-                />{{ client.client_type === 'public' ? 'Public' : 'Confidential' }}</span
+                />{{ client.client_type === 'public' ? 'Public' : 'Confidential' }} · {{ client.is_public ? 'Công khai' : 'Riêng tư' }}</span
               >
             </td>
             <td>

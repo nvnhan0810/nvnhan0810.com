@@ -5,6 +5,7 @@ export interface ClientDraft {
   client_type: 'public' | 'confidential'
   redirects: string
   scopes: string
+  is_public?: boolean
   enabled: boolean
 }
 export function clientInput(draft: ClientDraft): ClientInput {
@@ -54,5 +55,6 @@ export function clientInput(draft: ClientDraft): ClientInput {
     redirect_uris: redirects,
     scopes,
     enabled: draft.enabled,
+    is_public: draft.is_public ?? true,
   }
 }

@@ -204,6 +204,7 @@ mod tests {
             redirect_uris: vec!["https://identity.example/auth/callback".into()],
             scopes: vec!["profile".into()],
             enabled: true,
+            is_public: true,
             version: 1,
         }
     }

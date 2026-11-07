@@ -18,6 +18,7 @@ const draft = reactive<ClientDraft>({
   client_type: props.client?.client_type || 'public',
   redirects: props.client?.redirect_uris.join('\n') || '',
   scopes: props.client?.scopes.join('\n') || 'profile',
+  is_public: props.client?.is_public ?? true,
   enabled: props.client?.enabled ?? true,
 })
 function submit() {
@@ -79,6 +80,7 @@ function submit() {
           :disabled="busy"
         /><small>Địa chỉ hiển thị của ứng dụng, không phải callback.</small></label
       >
+      <label class="checkbox-field"><input v-model="draft.is_public" type="checkbox" :disabled="busy" /><span><strong>Ứng dụng công khai</strong><small>Tắt để chỉ cho phép người dùng được cấp quyền truy cập ứng dụng này.</small></span></label>
       <fieldset class="type-picker">
         <legend>Loại client</legend>
         <label :class="{ selected: draft.client_type === 'public' }"

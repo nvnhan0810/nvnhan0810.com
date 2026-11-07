@@ -13,6 +13,8 @@ pub struct Client {
     pub redirect_uris: Vec<String>,
     pub scopes: Vec<String>,
     pub enabled: bool,
+    #[serde(default = "default_public")]
+    pub is_public: bool,
     pub version: i64,
 }
 
@@ -26,6 +28,8 @@ pub struct ClientInput {
     pub redirect_uris: Vec<String>,
     pub scopes: Vec<String>,
     pub enabled: bool,
+    #[serde(default = "default_public")]
+    pub is_public: bool,
 }
 
 #[derive(Deserialize)]
@@ -37,6 +41,8 @@ pub struct ClientRegistration {
     pub redirect_uris: Vec<String>,
     pub scopes: Vec<String>,
     pub enabled: bool,
+    #[serde(default = "default_public")]
+    pub is_public: bool,
 }
 
 #[derive(Deserialize)]
@@ -48,6 +54,7 @@ pub struct ClientUpdate {
     pub redirect_uris: Vec<String>,
     pub scopes: Vec<String>,
     pub enabled: bool,
+    pub is_public: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -133,10 +140,15 @@ pub struct GrantRecord {
 
 #[derive(Serialize)]
 pub struct UserAccount {
+    pub private_app_ids: Vec<Uuid>,
     pub id: Uuid,
     pub email: String,
     pub name: String,
     pub avatar: Option<String>,
     pub enabled: bool,
     pub is_system_root: bool,
+}
+
+fn default_public() -> bool {
+    true
 }

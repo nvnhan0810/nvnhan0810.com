@@ -6,6 +6,7 @@ export interface IdentityClient {
   client_type: 'public' | 'confidential'
   redirect_uris: string[]
   scopes: string[]
+  is_public: boolean
   enabled: boolean
   version: number
 }
@@ -15,6 +16,7 @@ export interface ClientInput {
   client_type: 'public' | 'confidential'
   redirect_uris: string[]
   scopes: string[]
+  is_public: boolean
   enabled: boolean
 }
 export interface ClientUpdate extends Omit<ClientInput, 'client_id' | 'client_type'> {
@@ -27,6 +29,7 @@ export interface UserProfile {
   avatar: string | null
 }
 export interface IdentityUser extends UserProfile {
+  private_app_ids: string[]
   enabled: boolean
   is_system_root: boolean
 }

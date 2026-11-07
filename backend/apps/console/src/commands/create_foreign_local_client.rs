@@ -12,6 +12,7 @@ pub async fn insert(pool: &sqlx::PgPool) -> Result<(), Box<dyn std::error::Error
         redirect_uris: vec!["http://localhost:5173/auth/callback".into()],
         scopes: vec!["profile".into()],
         enabled: true,
+        is_public: true,
     };
     create_client_if_missing(&IdentityStore(pool.clone()), &input).await?;
     Ok(())

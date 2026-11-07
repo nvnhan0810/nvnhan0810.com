@@ -46,15 +46,15 @@ impl IdentityRepository for IdentityStore {
         input: &ClientInput,
         secret_hash: Option<&str>,
     ) -> Result<Client> {
-        Ok(sqlx::query_as("INSERT INTO sso_clients (id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *")
+        Ok(sqlx::query_as("INSERT INTO sso_clients (id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled,is_public) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *")
             .bind(id).bind(&input.client_id).bind(&input.name).bind(&input.domain)
             .bind(&input.client_type).bind(secret_hash).bind(&input.redirect_uris).bind(&input.scopes)
-            .bind(input.enabled).fetch_one(&self.0).await?)
+            .bind(input.enabled).bind(input.is_public).fetch_one(&self.0).await?)
     }
     async fn update_client(&self, id: Uuid, version: i64, input: &ClientInput) -> Result<Client> {
-        sqlx::query_as("UPDATE sso_clients SET name=$1,domain=$2,redirect_uris=$3,scopes=$4,enabled=$5,version=version+1,updated_at=now() WHERE id=$6 AND version=$7 RETURNING *")
+        sqlx::query_as("UPDATE sso_clients SET name=$1,domain=$2,redirect_uris=$3,scopes=$4,enabled=$5,is_public=$8,version=version+1,updated_at=now() WHERE id=$6 AND version=$7 RETURNING *")
             .bind(&input.name).bind(&input.domain).bind(&input.redirect_uris).bind(&input.scopes)
-            .bind(input.enabled).bind(id).bind(version)
+            .bind(input.enabled).bind(id).bind(version).bind(input.is_public)
             .fetch_optional(&self.0).await?.ok_or(IdentityError {code:"version_conflict",status:409})
     }
     async fn rotate_secret(&self, id: Uuid, version: i64, hash: &str) -> Result<Client> {
@@ -98,7 +98,7 @@ impl IdentityRepository for IdentityStore {
         })
     }
     async fn upsert_google_user(&self, identity: GoogleIdentity) -> Result<Uuid> {
-        sqlx::query_scalar("INSERT INTO identity_users(id,google_subject,email,name,avatar) VALUES($1,$2,$3,$4,$5) ON CONFLICT(google_subject) DO UPDATE SET email=excluded.email,name=excluded.name,avatar=excluded.avatar,enabled=CASE WHEN $6 THEN TRUE ELSE identity_users.enabled END,updated_at=now() WHERE identity_users.enabled OR $6 RETURNING id")
+        sqlx::query_scalar("INSERT INTO identity_users(id,google_subject,email,name,avatar) VALUES($1,$2,$3,$4,$5) ON CONFLICT(lower(email)) DO UPDATE SET google_subject=excluded.google_subject,email=excluded.email,name=excluded.name,avatar=excluded.avatar,enabled=CASE WHEN $6 THEN TRUE ELSE identity_users.enabled END,updated_at=now() WHERE (identity_users.enabled OR $6) AND (identity_users.google_subject IS NULL OR identity_users.google_subject=excluded.google_subject) RETURNING id")
             .bind(Uuid::new_v4()).bind(identity.subject).bind(&identity.email).bind(identity.name).bind(identity.avatar).bind(crate::domain::policies::system_root::is_system_root(&identity.email))
             .fetch_optional(&self.0).await?.ok_or_else(IdentityError::forbidden)
     }
@@ -134,7 +134,7 @@ impl IdentityRepository for IdentityStore {
         Ok(())
     }
     async fn active_grant(&self, grant: Uuid, user: Uuid, client_id: &str) -> Result<bool> {
-        Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM identity_grants g JOIN sso_clients c ON c.id=g.sso_client_id WHERE g.id=$1 AND g.user_id=$2 AND g.revoked_at IS NULL AND g.expires_at>now() AND c.enabled AND c.client_id=$3)")
+        Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM identity_grants g JOIN sso_clients c ON c.id=g.sso_client_id WHERE g.id=$1 AND g.user_id=$2 AND g.revoked_at IS NULL AND g.expires_at>now() AND c.enabled AND c.client_id=$3 AND (c.is_public OR EXISTS(SELECT 1 FROM identity_user_apps a WHERE a.user_id=g.user_id AND a.sso_client_id=c.id)))")
             .bind(grant).bind(user).bind(client_id).fetch_one(&self.0).await?)
     }
     async fn revoke(&self, client: Uuid, hash: &str) -> Result<()> {
@@ -167,6 +167,13 @@ impl TokenTransaction for PostgresTokenTransaction {
     ) -> Result<CodeRecord> {
         sqlx::query_as("DELETE FROM identity_authorization_codes WHERE code_hash=$1 AND sso_client_id=$2 AND redirect_uri=$3 AND challenge=$4 AND expires_at>now() RETURNING user_id,scopes")
             .bind(hash).bind(client).bind(redirect).bind(challenge).fetch_optional(&mut *self.0).await?.ok_or_else(||IdentityError::bad("invalid_grant"))
+    }
+    async fn ensure_app_access(&mut self, user: Uuid, client: Uuid) -> Result<()> {
+        let allowed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sso_clients c WHERE c.id=$2 AND (c.is_public OR EXISTS(SELECT 1 FROM identity_user_apps a WHERE a.user_id=$1 AND a.sso_client_id=c.id)))").bind(user).bind(client).fetch_one(&mut *self.0).await?;
+        if !allowed {
+            return Err(IdentityError::bad("invalid_grant"));
+        }
+        Ok(())
     }
     async fn user_email(&mut self, id: Uuid) -> Result<String> {
         sqlx::query_scalar("SELECT email FROM identity_users WHERE id=$1 AND enabled FOR SHARE")
@@ -271,7 +278,8 @@ row_mapping!(
     redirect_uris,
     scopes,
     enabled,
-    version
+    version,
+    is_public
 );
 row_mapping!(UserProfile, id, email, name, avatar);
 row_mapping!(CodeRecord, user_id, scopes);
@@ -279,13 +287,70 @@ row_mapping!(GrantRecord, id, user_id, scopes, revoked_at, expires_at);
 
 #[async_trait]
 impl crate::application::ports::UserRepository for IdentityStore {
+    async fn can_access_app(&self, user: Uuid, client: Uuid) -> Result<bool> {
+        Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sso_clients c WHERE c.id=$2 AND c.enabled AND (c.is_public OR EXISTS(SELECT 1 FROM identity_user_apps a WHERE a.user_id=$1 AND a.sso_client_id=c.id)))").bind(user).bind(client).fetch_one(&self.0).await?)
+    }
+    async fn create_user(&self, email: &str, apps: &[Uuid]) -> Result<UserAccount> {
+        let id = Uuid::new_v4();
+        let mut tx = self.0.begin().await?;
+        sqlx::query("INSERT INTO identity_users(id,email,name) VALUES($1,$2,$2)")
+            .bind(id)
+            .bind(email)
+            .execute(&mut *tx)
+            .await?;
+        for app in apps {
+            let valid: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM sso_clients WHERE id=$1 AND NOT is_public)",
+            )
+            .bind(app)
+            .fetch_one(&mut *tx)
+            .await?;
+            if !valid {
+                return Err(IdentityError::bad("invalid_private_app"));
+            }
+            sqlx::query("INSERT INTO identity_user_apps(user_id,sso_client_id) VALUES($1,$2) ON CONFLICT DO NOTHING").bind(id).bind(app).execute(&mut *tx).await?;
+        }
+        tx.commit().await?;
+        self.user(id).await
+    }
+    async fn set_user_apps(&self, id: Uuid, apps: &[Uuid]) -> Result<UserAccount> {
+        let mut tx = self.0.begin().await?;
+        sqlx::query("SELECT id FROM identity_users WHERE id=$1 FOR UPDATE")
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(IdentityError {
+                code: "not_found",
+                status: 404,
+            })?;
+        sqlx::query("DELETE FROM identity_user_apps WHERE user_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+        for app in apps {
+            let valid: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM sso_clients WHERE id=$1 AND NOT is_public)",
+            )
+            .bind(app)
+            .fetch_one(&mut *tx)
+            .await?;
+            if !valid {
+                return Err(IdentityError::bad("invalid_private_app"));
+            }
+            sqlx::query("INSERT INTO identity_user_apps(user_id,sso_client_id) VALUES($1,$2) ON CONFLICT DO NOTHING").bind(id).bind(app).execute(&mut *tx).await?;
+        }
+        sqlx::query("UPDATE identity_grants g SET revoked_at=COALESCE(revoked_at,now()) FROM sso_clients c WHERE g.user_id=$1 AND c.id=g.sso_client_id AND NOT c.is_public AND NOT EXISTS(SELECT 1 FROM identity_user_apps a WHERE a.user_id=$1 AND a.sso_client_id=c.id)").bind(id).execute(&mut *tx).await?;
+        tx.commit().await?;
+        self.user(id).await
+    }
+
     async fn users(&self, after: Option<Uuid>, limit: i64) -> Result<Vec<UserAccount>> {
-        Ok(sqlx::query_as("SELECT id,email,name,avatar,enabled,(lower(email)=$1) AS is_system_root FROM identity_users WHERE ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT $3")
+        Ok(sqlx::query_as("SELECT id,email,name,avatar,enabled,ARRAY(SELECT sso_client_id FROM identity_user_apps WHERE user_id=identity_users.id ORDER BY sso_client_id) AS private_app_ids,(lower(email)=$1) AS is_system_root FROM identity_users WHERE ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT $3")
             .bind(crate::domain::policies::system_root::SYSTEM_ROOT_EMAIL)
             .bind(after).bind(limit).fetch_all(&self.0).await?)
     }
     async fn user(&self, id: Uuid) -> Result<UserAccount> {
-        sqlx::query_as("SELECT id,email,name,avatar,enabled,(lower(email)=$1) AS is_system_root FROM identity_users WHERE id=$2")
+        sqlx::query_as("SELECT id,email,name,avatar,enabled,ARRAY(SELECT sso_client_id FROM identity_user_apps WHERE user_id=identity_users.id ORDER BY sso_client_id) AS private_app_ids,(lower(email)=$1) AS is_system_root FROM identity_users WHERE id=$2")
             .bind(crate::domain::policies::system_root::SYSTEM_ROOT_EMAIL)
             .bind(id).fetch_optional(&self.0).await?.ok_or(IdentityError {code:"not_found",status:404})
     }
@@ -318,7 +383,8 @@ row_mapping!(
     name,
     avatar,
     enabled,
-    is_system_root
+    is_system_root,
+    private_app_ids
 );
 
 #[async_trait]
