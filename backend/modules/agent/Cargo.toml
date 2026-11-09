@@ -1,0 +1,15 @@
+[package]
+name = "agent-module"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Use the same versions as the existing backend workspace.
+axum = { workspace = true }
+tower-http = { workspace = true, features = ["fs"] }
+
+[dev-dependencies]
+app-config = { path = "../../crates/app-config" }
+tokio.workspace = true
+tower = { version = "0.5", features = ["util"] }
+tempfile = "3"

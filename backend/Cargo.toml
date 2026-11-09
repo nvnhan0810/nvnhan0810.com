@@ -6,6 +6,7 @@ members = [
     "modules/foreign",
     "modules/wallets",
     "modules/todos",
+    "modules/agent",
     "apps/api-gateway",
     "apps/console",
     "crates/app-config",
@@ -27,3 +28,4 @@ uuid = { version = "1.29.0", features = ["v4", "serde"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 thiserror = "2.0.21"
 tracing = "0.1"
+tower-http = { version = "0.7.1", features = ["trace", "cors", "compression-full"]}

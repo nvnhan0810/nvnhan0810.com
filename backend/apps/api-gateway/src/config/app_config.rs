@@ -1,10 +1,11 @@
-use super::{ConfigSource, DatabaseConfig};
+use super::{ConfigSource, DatabaseConfig, StorageConfig};
 use axum::http::HeaderValue;
 use identity::application::config::IdentityConfig;
 use std::path::PathBuf;
 
 pub struct AppConfig {
     pub database: DatabaseConfig,
+    pub storage: StorageConfig,
     pub identity: IdentityConfig,
     pub private_key_path: PathBuf,
     pub public_key_path: PathBuf,
@@ -55,6 +56,7 @@ impl AppConfig {
             .transpose()?;
         Ok(Self {
             database: DatabaseConfig::from_source(source)?,
+            storage: StorageConfig::from_source(source).map_err(|error| error.to_string())?,
             identity,
             admin_cors_origin,
             production,
@@ -77,6 +79,7 @@ mod tests {
     ) -> ConfigSource {
         let mut values: Vec<(String, String)> = [
             ("DB_HOST", "127.0.0.1"),
+            ("STORAGE_DIR", "/srv/test storage"),
             ("DB_PORT", "5432"),
             ("DB_NAME", "identity"),
             ("DB_USERNAME", "identity"),
@@ -155,6 +158,20 @@ mod tests {
         }
         assert!(make("production", "").unwrap().admin_cors_origin.is_none());
     }
+    #[test]
+    fn startup_passes_storage_config_to_agent() {
+        let config = AppConfig::from_source(&source_with(None, "https://api.example")).unwrap();
+        assert_eq!(
+            config.storage.private_dir,
+            PathBuf::from("/srv/test storage/private")
+        );
+        let agent = agent::AgentConfig::new(&config.storage.public_dir);
+        assert_eq!(
+            agent.distribution_dir,
+            PathBuf::from("/srv/test storage/public/agent/distributions")
+        );
+    }
+
     #[test]
     fn migrations_only_need_database_configuration() {
         let source = ConfigSource::from_values(

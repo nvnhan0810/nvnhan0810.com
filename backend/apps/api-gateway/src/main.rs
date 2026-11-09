@@ -51,6 +51,8 @@ async fn run(source: config::ConfigSource, pool: sqlx::PgPool) {
         config.production,
     );
 
+    let agent_config = agent::AgentConfig::new(&config.storage.public_dir);
+
     // 1. Mỗi IP được hồi 1 request / 500ms (2 request / giây), burst tối đa 5.
     let governor_conf = GovernorConfigBuilder::default()
         .per_millisecond(500)
@@ -66,6 +68,7 @@ async fn run(source: config::ConfigSource, pool: sqlx::PgPool) {
         .nest("/foreign", foreign.router())
         .nest("/todos", todos::routes(identity_state.clone(), pool.clone(), todos::infrastructure::worker::PushConfig::from_source(&source)))
         .nest("/wallets", wallets::wallets_routes(identity_state.clone(), pool.clone()))
+        .nest("/agent", agent::routes(agent_config))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông

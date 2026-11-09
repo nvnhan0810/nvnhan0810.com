@@ -22,12 +22,13 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared-kernel = { version = "0.1.0", path = "../../shared-kernel" }
 tokio.workspace = true
-tower-http = { version = "0.7.1", features = ["trace", "cors", "compression-full"] }
+tower-http.workspace = true
 tower_governor = { version = "0.8.0", default-features = false, features = ["axum"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
 app-config = { path = "../../crates/app-config" }
 url = "2"
 sqlx.workspace = true
+agent = { package = "agent-module", path = "../../modules/agent" }
 
 [[bin]]
 name = "api-gateway"
