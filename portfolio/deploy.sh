@@ -23,6 +23,6 @@ printf '[deploy] Building portfolio...\n'
 npm run build
 
 printf '[deploy] Restarting portfolio SSR...\n'
-sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisor.conf restart nvnhan0810-com
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart nvnhan0810-com
 
 printf '[deploy] Complete.\n'

@@ -26,6 +26,6 @@ printf '[deploy] Loading master data...\n'
 cargo run --release --locked --package console --bin console -- master-data
 
 printf '[deploy] Restarting backend API and queue...\n'
-sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisor.conf restart nvnhan0810-backend nvnhan0810-backend-queue
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart nvnhan0810-backend nvnhan0810-backend-queue
 
 printf '[deploy] Complete.\n'

@@ -135,5 +135,5 @@ Các script pull `origin main` rồi build app. Frontend cài dependencies bằn
 `npm i --include=dev --no-save` trước khi build. Portfolio restart service
 `nvnhan0810-com`; các frontend còn lại chỉ build assets. Backend chạy release build,
 migrate và master-data trước khi restart API/queue. Các script riêng gọi Supervisor
-qua `sudo -n supervisorctl -c /etc/supervisor/supervisor.conf`; user deploy cần quyền
+qua `sudo -n supervisorctl -c /etc/supervisor/supervisord.conf`; user deploy cần quyền
 NOPASSWD cho lệnh tương ứng. Git/Cargo/npm chạy dưới user deploy.
