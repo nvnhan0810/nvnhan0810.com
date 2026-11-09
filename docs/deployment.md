@@ -118,3 +118,22 @@ build/restart thất bại. Các tests không gọi service production hoặc re
 bash -n deploy.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p test_deploy.py -v
 ```
+
+## Deploy riêng từng app qua GitHub Actions
+
+Mỗi app có script `deploy.sh` trong thư mục source và workflow tương ứng trong
+`.github/workflows/`: `backend`, `foreign`, `identity`, `portfolio`, `todos`, `wallets`.
+Workflow chạy khi push lên `main` có thay đổi trong app hoặc workflow, và hỗ trợ
+`workflow_dispatch` trên `main`.
+
+Workflow gọi `https://deploy.nvnhan0810.com/deploy` với repo key
+`nvnhan0810_com_<app>` (ví dụ `nvnhan0810_com_todos`), dùng secret
+`DEPLOY_HOOK_TOKEN` hoặc fallback `DEPLOY_WEBHOOK_TOKEN`. Deploy server cần cấu hình
+các repo key này để chạy script tương ứng trong checkout trên server.
+
+Các script pull `origin main` rồi build app. Frontend cài dependencies bằng
+`npm i --include=dev --no-save` trước khi build. Portfolio restart service
+`nvnhan0810-com`; các frontend còn lại chỉ build assets. Backend chạy release build,
+migrate và master-data trước khi restart API/queue. Các script riêng gọi Supervisor
+qua `sudo -n supervisorctl -c /etc/supervisor/supervisor.conf`; user deploy cần quyền
+NOPASSWD cho lệnh tương ứng. Git/Cargo/npm chạy dưới user deploy.
