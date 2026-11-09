@@ -13,9 +13,11 @@ Build và restart riêng backend trên server bằng user `nvnhan0810`:
 ```
 
 Script chạy được từ mọi working directory khi gọi đúng đường dẫn, chạy
-`git pull origin main`, build release toàn workspace rồi chạy `sudo -n supervisorctl restart nvnhan0810-backend
-nvnhan0810-backend-queue`. Pull hoặc build lỗi thì không restart; sudo không hỏi mật khẩu
-và báo lỗi nếu chưa có quyền NOPASSWD. Script không tự chạy migration/master-data.
+`git pull origin main`, build release toàn workspace, chạy `migrate up`, rồi
+`console master-data` trước khi chạy `sudo -n supervisorctl restart nvnhan0810-backend
+nvnhan0810-backend-queue`. Pull, build, migration hoặc master data lỗi thì không restart;
+sudo không hỏi mật khẩu và báo lỗi nếu chưa có quyền NOPASSWD.
+Các lệnh migration/master data đọc cấu hình từ environment hoặc `backend/.env`.
 
 Nếu server chưa cấu hình NOPASSWD, admin dùng `visudo` để thêm rule sau
 (thay `/usr/bin/supervisorctl` bằng kết quả `command -v supervisorctl` trên server):

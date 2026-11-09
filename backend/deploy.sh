@@ -19,6 +19,12 @@ git pull origin main
 printf '[deploy] Building backend release...\n'
 cargo build --release --locked --workspace
 
+printf '[deploy] Running database migrations...\n'
+cargo run --release --locked --package console --bin migrate -- up
+
+printf '[deploy] Loading master data...\n'
+cargo run --release --locked --package console --bin console -- master-data
+
 printf '[deploy] Restarting backend API and queue...\n'
 sudo -n supervisorctl restart nvnhan0810-backend nvnhan0810-backend-queue
 
