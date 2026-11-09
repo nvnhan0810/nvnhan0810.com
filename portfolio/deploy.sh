@@ -6,7 +6,7 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 trap 'code=$?; printf "[deploy] Failed (exit %s).\n" "$code" >&2; exit "$code"' ERR
 
-for command in git npm sudo supervisorctl; do
+for command in git npm sudo /usr/bin/supervisorctl; do
   command -v "$command" >/dev/null 2>&1 || {
     printf '[deploy] Missing command: %s\n' "$command" >&2
     exit 1
@@ -23,6 +23,6 @@ printf '[deploy] Building portfolio...\n'
 npm run build
 
 printf '[deploy] Restarting portfolio SSR...\n'
-sudo -n supervisorctl -c /etc/supervisor/supervisor.conf restart nvnhan0810-com
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisor.conf restart nvnhan0810-com
 
 printf '[deploy] Complete.\n'

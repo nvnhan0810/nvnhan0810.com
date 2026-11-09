@@ -9,7 +9,7 @@ Usage: ./deploy.sh [--dry-run] [--all] [--sudo]
 Fetch/pull the current branch's upstream, then build only changed applications.
   --dry-run  Fetch and display the plan; do not pull, build, or restart services.
   --all      Build every configured application, even without remote changes.
-  --sudo     Run supervisorctl through sudo; builds still run as your user.
+  --sudo     Run /usr/bin/supervisorctl through sudo; builds still run as your user.
 
 Backend: cargo build --release --locked --workspace
          stop services, migrate up, master-data, then start
@@ -106,8 +106,8 @@ main() {
     for app in "${frontend_apps[@]}"; do changed_frontends["$app"]=1; done
   fi
 
-  local -a supervisor=(supervisorctl) services=()
-  [[ "$use_sudo" == false ]] || supervisor=(sudo supervisorctl)
+  local -a supervisor=(/usr/bin/supervisorctl) services=()
+  [[ "$use_sudo" == false ]] || supervisor=(sudo /usr/bin/supervisorctl)
   if [[ "$backend_changed" == true ]]; then
     services+=(nvnhan0810-backend nvnhan0810-backend-queue)
   fi
@@ -118,7 +118,7 @@ main() {
     [[ "$backend_changed" == false ]] || require_command cargo
     ((${#changed_frontends[@]} == 0)) || require_command npm
     if ((${#services[@]})); then
-      require_command supervisorctl
+      require_command /usr/bin/supervisorctl
       [[ "$use_sudo" == false ]] || require_command sudo
     fi
   fi
@@ -152,7 +152,7 @@ main() {
       if [[ "$dry_run" == true ]]; then
         print_command "${supervisor[@]}" stop "$service"
       else
-        # supervisorctl status returns nonzero for stopped services; retries must
+        # /usr/bin/supervisorctl status returns nonzero for stopped services; retries must
         # still work after a previous migration/master-data failure.
         service_status="$("${supervisor[@]}" status "$service")" || true
         read -r reported_service service_state service_details <<< "$service_status"
