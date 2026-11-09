@@ -38,7 +38,7 @@ pub fn identity_admin_input(portal_url: &str, redirect_uri: &str) -> Result<Clie
         redirect_uris: vec![redirect_uri.into()],
         scopes: vec!["profile".into(), "identity.clients.manage".into()],
         enabled: true,
-        is_public: true,
+        is_public: false,
     };
     Ok(input)
 }
@@ -55,6 +55,7 @@ mod tests {
         .unwrap();
         assert_eq!(input.client_id, IDENTITY_ADMIN_CLIENT_ID);
         assert_eq!(input.client_type, "public");
+        assert!(!input.is_public);
         assert_eq!(
             input.redirect_uris,
             ["https://identity.nvnhan0810.com/auth/callback"]

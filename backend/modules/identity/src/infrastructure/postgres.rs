@@ -433,14 +433,25 @@ impl crate::application::ports::MasterDataRepository for IdentityStore {
             .await?;
         let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sso_clients WHERE client_id=$1 OR ($2='Identity Admin' AND name=$2))")
             .bind(&input.client_id).bind(&input.name).fetch_one(&mut *tx).await?;
-        if exists {
-            return Ok(None);
+        let inserted = if exists {
+            None
+        } else {
+            // Keep an existing client's generated ID and user-managed settings.
+            sqlx::query_scalar("INSERT INTO sso_clients(id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled,is_public) VALUES($1,$2,$3,$4,'public',NULL,$5,$6,TRUE,$7) ON CONFLICT(client_id) DO NOTHING RETURNING client_id")
+                .bind(id).bind(&input.client_id).bind(&input.name).bind(&input.domain)
+                .bind(&input.redirect_uris).bind(&input.scopes).bind(input.is_public)
+                .fetch_optional(&mut *tx).await?
+        };
+        if input.name == "Identity Admin" {
+            // Reconcile access policy on every run, including existing clients.
+            sqlx::query("UPDATE sso_clients SET is_public=FALSE,version=version+1,updated_at=now() WHERE (client_id=$1 OR name=$2) AND is_public")
+                .bind(&input.client_id).bind(&input.name).execute(&mut *tx).await?;
+            let root_email = crate::domain::policies::system_root::SYSTEM_ROOT_EMAIL;
+            sqlx::query("INSERT INTO identity_users(id,email,name) VALUES($1,$2,$2) ON CONFLICT(lower(email)) DO NOTHING")
+                .bind(Uuid::new_v4()).bind(root_email).execute(&mut *tx).await?;
+            sqlx::query("INSERT INTO identity_user_apps(user_id,sso_client_id) SELECT u.id,c.id FROM identity_users u CROSS JOIN sso_clients c WHERE lower(u.email)=$1 AND (c.client_id=$2 OR c.name=$3) ON CONFLICT DO NOTHING")
+                .bind(root_email).bind(&input.client_id).bind(&input.name).execute(&mut *tx).await?;
         }
-        // Serialize seeds so an existing Identity Admin keeps its generated ID.
-        // Do not update an existing client's callbacks, state, scopes or version.
-        let inserted = sqlx::query_scalar("INSERT INTO sso_clients(id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled) VALUES($1,$2,$3,$4,'public',NULL,$5,$6,TRUE) ON CONFLICT(client_id) DO NOTHING RETURNING client_id")
-            .bind(id).bind(&input.client_id).bind(&input.name).bind(&input.domain)
-            .bind(&input.redirect_uris).bind(&input.scopes).fetch_optional(&mut *tx).await?;
         tx.commit().await?;
         Ok(inserted)
     }

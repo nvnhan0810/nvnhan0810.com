@@ -32,6 +32,38 @@ async fn identity_master_client_is_created_once_without_overwriting_existing_dat
     assert!(client.secret_hash.is_none());
     assert_eq!(client.redirect_uris, [callback]);
     assert_eq!(client.scopes, ["profile", "identity.clients.manage"]);
+    assert!(!client.is_public);
+    let root_email = "nguyenvannhan0810@gmail.com";
+    let assignment_count = || async {
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM identity_user_apps a JOIN identity_users u ON u.id=a.user_id WHERE lower(u.email)=$1 AND a.sso_client_id=$2")
+            .bind(root_email).bind(client.id).fetch_one(&pool).await.unwrap()
+    };
+    assert_eq!(assignment_count().await, 1);
+    // Reconcile a previously public client, even after its client ID changed.
+    sqlx::query("UPDATE sso_clients SET client_id=$1,is_public=TRUE WHERE id=$2")
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(client.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM identity_user_apps WHERE sso_client_id=$1")
+        .bind(client.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(
+        create_identity_admin(&store, portal, callback)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(!store.client_by_id(client.id).await.unwrap().is_public);
+    assert_eq!(assignment_count().await, 1);
+    sqlx::query("UPDATE sso_clients SET client_id='identity' WHERE id=$1")
+        .bind(client.id)
+        .execute(&pool)
+        .await
+        .unwrap();
     // User-managed edits and disabled state must never be reset on deploy.
     sqlx::query("UPDATE sso_clients SET name='Manually edited',enabled=FALSE,version=version+1 WHERE client_id='identity'").execute(&pool).await.unwrap();
     let before = serde_json::to_value(store.client("identity").await.unwrap()).unwrap();
