@@ -13,6 +13,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   ToggleLeft,
   ToggleRight,
 } from 'lucide-vue-next'
@@ -182,6 +183,24 @@ async function rotateId(client: IdentityClient) {
     actionId.value = ''
   }
 }
+async function remove(client: IdentityClient) {
+  if (!(await confirmAction({
+    title: 'Xóa client?',
+    message: `Xóa vĩnh viễn “${client.name}” cùng quyền đăng nhập và refresh token liên quan. Access token đã cấp có thể dùng tới khi hết hạn.`,
+    label: 'Xóa client',
+    danger: true,
+  }))) return
+  actionId.value = client.id
+  try {
+    await api.deleteClient(client.id, client.version)
+    clients.value = clients.value.filter((item) => item.id !== client.id)
+    notify('Đã xóa client.')
+  } catch (cause) {
+    notify(errorMessage(cause), 'error')
+  } finally {
+    actionId.value = ''
+  }
+}
 function clearSecret() {
   secret.value = ''
   secretClient.value = ''
@@ -308,6 +327,9 @@ onMounted(() => load())
             </td>
             <td>
               <div class="row-actions">
+                <button class="icon-button" :disabled="!!actionId" :aria-label="`Xóa ${client.name}`" title="Xóa client" @click="remove(client)">
+                  <Trash2 :size="16" />
+                </button>
                 <button
                   class="icon-button"
                   :disabled="!!actionId"

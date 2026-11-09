@@ -46,6 +46,9 @@ export class IdentityApi {
   updateClient(id: string, input: ClientUpdate): Promise<ClientResult> {
     return this.request(`/admin/sso-clients/${encodeURIComponent(id)}`, 'PATCH', input)
   }
+  deleteClient(id: string, version: number): Promise<{ success: boolean }> {
+    return this.request(`/admin/sso-clients/${encodeURIComponent(id)}`, 'DELETE', { version })
+  }
   rotateSecret(id: string, version: number): Promise<ClientResult> {
     return this.request(`/admin/sso-clients/${encodeURIComponent(id)}/rotate-secret`, 'POST', {
       version,

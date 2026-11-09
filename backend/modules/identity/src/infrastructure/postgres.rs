@@ -62,6 +62,39 @@ impl IdentityRepository for IdentityStore {
             .bind(hash).bind(id).bind(version).fetch_optional(&self.0).await?
             .ok_or(IdentityError {code:"version_conflict",status:409})
     }
+    async fn delete_client(&self, id: Uuid, version: i64) -> Result<()> {
+        let mut tx = self.0.begin().await?;
+        let current: Option<i64> =
+            sqlx::query_scalar("SELECT version FROM sso_clients WHERE id=$1 FOR UPDATE")
+                .bind(id)
+                .fetch_optional(&mut *tx)
+                .await?;
+        match current {
+            None => {
+                return Err(IdentityError {
+                    code: "not_found",
+                    status: 404,
+                });
+            }
+            Some(current) if current != version => {
+                return Err(IdentityError {
+                    code: "version_conflict",
+                    status: 409,
+                });
+            }
+            _ => {}
+        }
+        for query in [
+            "DELETE FROM identity_refresh_tokens WHERE grant_id IN (SELECT id FROM identity_grants WHERE sso_client_id=$1)",
+            "DELETE FROM identity_grants WHERE sso_client_id=$1",
+            "DELETE FROM identity_authorization_codes WHERE sso_client_id=$1",
+            "DELETE FROM sso_clients WHERE id=$1",
+        ] {
+            sqlx::query(query).bind(id).execute(&mut *tx).await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
     async fn rotate_client_id(&self, id: Uuid, version: i64, client_id: &str) -> Result<Client> {
         sqlx::query_as("UPDATE sso_clients SET client_id=$1,version=version+1,updated_at=now() WHERE id=$2 AND version=$3 RETURNING *")
             .bind(client_id).bind(id).bind(version).fetch_optional(&self.0).await?
@@ -394,11 +427,22 @@ impl crate::application::ports::MasterDataRepository for IdentityStore {
         id: Uuid,
         input: &ClientInput,
     ) -> Result<Option<String>> {
-        // The unique constraint arbitrates concurrent deploy/seed processes.
+        let mut tx = self.0.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(781245991)")
+            .execute(&mut *tx)
+            .await?;
+        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sso_clients WHERE client_id=$1 OR ($2='Identity Admin' AND name=$2))")
+            .bind(&input.client_id).bind(&input.name).fetch_one(&mut *tx).await?;
+        if exists {
+            return Ok(None);
+        }
+        // Serialize seeds so an existing Identity Admin keeps its generated ID.
         // Do not update an existing client's callbacks, state, scopes or version.
-        Ok(sqlx::query_scalar("INSERT INTO sso_clients(id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled) VALUES($1,$2,$3,$4,'public',NULL,$5,$6,TRUE) ON CONFLICT(client_id) DO NOTHING RETURNING client_id")
+        let inserted = sqlx::query_scalar("INSERT INTO sso_clients(id,client_id,name,domain,client_type,secret_hash,redirect_uris,scopes,enabled) VALUES($1,$2,$3,$4,'public',NULL,$5,$6,TRUE) ON CONFLICT(client_id) DO NOTHING RETURNING client_id")
             .bind(id).bind(&input.client_id).bind(&input.name).bind(&input.domain)
-            .bind(&input.redirect_uris).bind(&input.scopes).fetch_optional(&self.0).await?)
+            .bind(&input.redirect_uris).bind(&input.scopes).fetch_optional(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(inserted)
     }
 }
 

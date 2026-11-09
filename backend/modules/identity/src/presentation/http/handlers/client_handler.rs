@@ -93,3 +93,14 @@ pub async fn rotate(
         Json(serde_json::json!({"client":client,"client_secret":secret})),
     ))
 }
+
+pub async fn delete(
+    State(state): State<IdentityState>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(input): Json<Version>,
+) -> Result<Json<serde_json::Value>> {
+    admin(&state, &headers, true).await?;
+    state.store.delete_client(id, input.version).await?;
+    Ok(Json(serde_json::json!({"success": true})))
+}
