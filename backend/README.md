@@ -6,6 +6,24 @@ Deployment hiện tại chạy trực tiếp bằng Supervisor, queue dùng Post
 [Backend queue](#backend-queue-postgresql--supervisor) cho lệnh `console queue:work`.
 Các hướng dẫn Docker/k3s bên dưới là tài liệu triển khai cũ.
 
+Build và restart riêng backend trên server bằng user `nvnhan0810`:
+
+```sh
+./backend/deploy.sh
+```
+
+Script chạy được từ mọi working directory khi gọi đúng đường dẫn, chạy
+`git pull origin main`, build release toàn workspace rồi chạy `sudo -n supervisorctl restart nvnhan0810-backend
+nvnhan0810-backend-queue`. Pull hoặc build lỗi thì không restart; sudo không hỏi mật khẩu
+và báo lỗi nếu chưa có quyền NOPASSWD. Script không tự chạy migration/master-data.
+
+Nếu server chưa cấu hình NOPASSWD, admin dùng `visudo` để thêm rule sau
+(thay `/usr/bin/supervisorctl` bằng kết quả `command -v supervisorctl` trên server):
+
+```sudoers
+nvnhan0810 ALL=(root) NOPASSWD: /usr/bin/supervisorctl restart nvnhan0810-backend nvnhan0810-backend-queue
+```
+
 ## Kiểm tra local trước push
 
 Từ root repo chạy một lần cho mỗi clone:
@@ -18,7 +36,7 @@ Hook kiểm tra snapshot commit sắp push khi `backend/` hoặc `.githooks/chec
 thay đổi so với remote tip; không sửa working tree. Thay đổi hook portfolio,
 `install` hoặc `pre-push` không tự kích hoạt kiểm tra backend.
 Chạy lần lượt format, Clippy (warnings là lỗi) và test toàn workspace.
-Hook không build release; GitHub Actions build image và báo lỗi nếu build thất bại.
+Hook không build release; server build release qua script deploy khi nhận webhook.
 Clippy và test vẫn cần biên dịch Rust nên vẫn sử dụng RAM.
 Lỗi bất kỳ bước nào sẽ chặn push. Cần Rust 1.99.1 với rustfmt/clippy và mạng để tải
 crate chưa có trong cache. Portfolio vẫn có hook riêng. Commit không chạy check.
@@ -33,28 +51,23 @@ cargo test --locked --workspace
 cargo build --locked --release --package api-gateway
 ```
 
-## Docker và GitHub Actions
+## GitHub Actions deploy
 
-```sh
-docker build -t backend:local backend/
-docker run --rm --env-file backend/.env \
-  -v /tmp/identity-keys:/run/secrets/identity:ro \
-  -p 127.0.0.1:8080:8080 backend:local
-curl -f http://127.0.0.1:8080/healthz
+Workflow `.github/workflows/backend.yml` chạy khi push `main` có thay đổi trong
+`backend/**` hoặc chính workflow, hoặc chạy thủ công trên nhánh `main`.
+Action chỉ gửi `POST https://deploy.nvnhan0810.com/deploy`, không checkout hay build image:
+
+```json
+{"repo":"nvnhan0810_com_backend"}
 ```
 
-Workflow `.github/workflows/backend.yml` chỉ build/push image khi push main có thay
-đổi backend hoặc workflow, và khi chạy thủ công. Không chạy format, lint, test trên
-GitHub Actions. Image chỉ build `linux/amd64`, đúng kiến trúc node k3s hiện tại;
-không chạy giả lập QEMU hay build ARM64. `GITHUB_TOKEN` cần quyền packages:write.
-Dockerfile dùng cargo-chef để tách layer dependencies khỏi source, kết hợp cache
-GitHub Actions `scope=backend,mode=max`. Khi chỉ đổi source, dependencies đã compile
-có thể được tái sử dụng. Lần đầu hoặc khi đổi dependencies/toolchain vẫn build lâu.
-Sau khi build thành công, workflow gọi deploy webhook hiện có; không kết nối cluster trực tiếp.
-
-Image riêng: `ghcr.io/nvnhan0810/nvnhan0810.com/backend:<7-char-SHA>`.
-Tag là SHA commit ngắn đúng 7 ký tự, không prefix, không latest. Ví dụ `a1b2c3d`.
-Image được build và payload deploy dùng cùng tag.
+Dùng Bearer token từ secret `DEPLOY_HOOK_TOKEN`, fallback `DEPLOY_WEBHOOK_TOKEN`.
+Thiếu token hoặc HTTP trả lỗi sẽ làm workflow thất bại.
+Cấu hình deploy server để repo `nvnhan0810_com_backend` chạy
+`backend/deploy.sh` bằng user `nvnhan0810` trong clone repo này.
+Server cần quyền pull từ origin và NOPASSWD Supervisor như trên.
+Webhook thành công chỉ xác nhận request được chấp nhận; xem log deploy server
+để xác nhận build và restart hoàn tất.
 
 ## Thông tin chuyển sang repo Argo CD / k3s riêng
 
@@ -91,15 +104,8 @@ Trong repo GitOps riêng:
    nhánh deploy, `path` tới thư mục manifest backend; destination server là
    `https://kubernetes.default.svc`, namespace đúng bước 1. Cấu hình repo credential
    cho Argo nếu repo private. Có thể bật automated sync/selfHeal/prune và CreateNamespace.
-4. Cấu hình mapping deploy API: `repo=backend`, `tag=production`, image như bảng trên.
-   API cần cập nhật image tag trong repo GitOps để Argo sync. Có thể đổi mapping bằng
-   GitHub Actions variable `BACKEND_DEPLOY_REPO` (mặc định `backend`). Workflow gọi
-   `POST https://deploy.nvnhan0810.com/deploy` với payload `repo`, `tag`, `image`, `image_tag`.
-   Đặt secret `DEPLOY_HOOK_TOKEN` hoặc fallback `DEPLOY_WEBHOOK_TOKEN`; thiếu token
-   sẽ fail workflow. Argo auto-sync dựa trên thay đổi manifest trong Git.
-   Rollback bằng revert commit image hoặc chạy workflow thủ công với `deploy_only=true`
-   và `image_tag` của image có sẵn (7 ký tự hex viết thường). Bỏ trống dùng SHA hiện tại.
-   Khi `deploy_only=false`, để trống `image_tag` để build/deploy cùng commit.
+4. Workflow hiện tại không cập nhật image hay repo GitOps; phần Argo CD / k3s
+   này chỉ là tài liệu triển khai cũ. Deploy hiện tại dùng Supervisor theo phần trên.
 5. Kiểm tra rollout, pod logs, probe và gọi `/healthz`, `/`, `/auth/`, `/order/`.
 
 Lưu ý hiện trạng ứng dụng: CORS cho phép origin trang quản trị và domain của các client đang bật trong DB. Rate limiter dùng peer IP của kết
