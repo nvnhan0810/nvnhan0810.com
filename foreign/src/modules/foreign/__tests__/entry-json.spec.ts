@@ -28,6 +28,7 @@ describe('dictionary entry JSON', () => {
       ...entry,
       word: undefined,
       meanings,
+      phrases: [],
     })
   })
   it('accepts legacy arrays without clearing entry fields', () => {
@@ -60,4 +61,40 @@ describe('dictionary entry JSON', () => {
     expect(prompt).toContain('A greeting.')
     expect(prompt).toContain('never invent a URL')
   })
+})
+
+it('round trips independently stored phrases and explicitly empty links', () => {
+  const phrases = [{ word: 'look forward to', meanings }]
+  const raw = entryToPrettyJson({ word: 'look', phrases }, meanings)
+  expect(parseEntryJson(raw).phrases).toEqual(phrases)
+  expect(
+    parseEntryJson(JSON.stringify({ meanings, phrases: [] })).phrases,
+  ).toEqual([])
+  expect(parseEntryJson(JSON.stringify({ meanings })).phrases).toBeUndefined()
+})
+
+it('rejects invalid, duplicate and nested phrases before saving any entry', () => {
+  for (const phrases of [
+    'bad',
+    [{ word: '', meanings }],
+    [{ word: 'look forward to', meanings: [] }],
+    [
+      { word: 'Look Forward To', meanings },
+      { word: 'look forward to', meanings },
+    ],
+    [{ word: 'look forward to', meanings, phrases: [] }],
+  ]) {
+    expect(() =>
+      parseEntryJson(JSON.stringify({ meanings, phrases })),
+    ).toThrow()
+  }
+})
+
+it('asks AI for related phrases on words and limits standalone phrase updates', () => {
+  expect(buildMeaningsAiPrompt('look', meanings)).toContain(
+    'Suggest useful related phrases',
+  )
+  expect(
+    buildMeaningsAiPrompt('look forward to', meanings, {}, 'phrase'),
+  ).toContain('Describe only this phrase')
 })

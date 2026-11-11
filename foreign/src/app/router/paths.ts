@@ -5,6 +5,7 @@ export enum RoutePath {
   lookup = '/lookup',
   related = '/word/:word',
   vocabulary = '/vocab',
+  phrases = '/phrases',
   vocabularyDetail = '/vocab/:id',
   games = '/quiz',
   puzzle = '/puzzle',
@@ -23,6 +24,7 @@ export enum RoutePath {
 
 // The page transport still uses the backend's /home paths.
 const pagePaths = [
+  RoutePath.phrases,
   RoutePath.lookup,
   RoutePath.related,
   RoutePath.vocabulary,

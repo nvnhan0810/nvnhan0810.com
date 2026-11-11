@@ -5,6 +5,7 @@ export const LOOKUP_SESSION_KEY = 'flc-lookup-session'
 export type LookupViewMode = 'ui' | 'json'
 
 export type WebLookupSession = {
+  entityKind?: 'word' | 'phrase'
   word: string
   result: DictionaryLookupResult
   draft: boolean

@@ -43,6 +43,12 @@ const nav = [
     match: (u: string) => u.startsWith(appPath(RoutePath.vocabulary)),
   },
   {
+    href: appPath(RoutePath.phrases),
+    label: 'Cụm từ',
+    icon: '💬',
+    match: (u: string) => u.startsWith(appPath(RoutePath.phrases)),
+  },
+  {
     href: appPath(RoutePath.media),
     label: 'Listen',
     icon: '🎧',

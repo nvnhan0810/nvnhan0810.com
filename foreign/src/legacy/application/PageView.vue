@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { loadPage, page } from './navigation'
+import Phrases from '../presentation/Pages/Phrases/Index.vue'
 import Learn from '../presentation/Pages/Learn/Index.vue'
 import Vocab from '../presentation/Pages/Vocab/Index.vue'
 import VocabShow from '../presentation/Pages/Vocab/Show.vue'
@@ -21,6 +22,7 @@ const busy = ref(true),
 const components = {
   related: VocabShow,
   lookup: Learn,
+  phrases: Phrases,
   vocabulary: Vocab,
   'vocabulary-detail': VocabShow,
   games: Hub,

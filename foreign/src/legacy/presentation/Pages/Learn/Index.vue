@@ -11,6 +11,7 @@ import {
   parseMeaningsJson,
   type DictionaryLookupResult,
   type Meaning,
+  type PhraseEntry,
 } from '@/domain/meanings-json'
 import {
   clearLookupSession,
@@ -45,6 +46,8 @@ type SaveMeaningPayload = {
 
 const props = withDefaults(
   defineProps<{
+    entityKind?: 'word' | 'phrase'
+    suggestions?: { word: string; kind: 'word' | 'phrase' }[]
     word?: string
     result?: DictionaryLookupResult | null
     saved?: boolean
@@ -58,6 +61,8 @@ const props = withDefaults(
     embed?: boolean
   }>(),
   {
+    entityKind: 'word',
+    suggestions: () => [],
     word: '',
     result: null,
     saved: false,
@@ -74,6 +79,13 @@ const searchForm = useForm<{ word: string }>({
 })
 
 const activeResult = ref<DictionaryLookupResult | null>(props.result)
+const activeKind = ref<'word' | 'phrase'>(props.entityKind)
+watch(
+  () => props.entityKind,
+  (kind) => {
+    activeKind.value = kind
+  },
+)
 const isDraft = ref<boolean>(props.draft)
 const isSaved = ref<boolean>(props.saved)
 const savedVocabularyId = ref<number | string | null>(props.savedVocabularyId)
@@ -101,6 +113,8 @@ const saveForm = useForm<{
   synonyms: string[]
   antonyms: string[]
   meanings: SaveMeaningPayload[]
+  phrases: PhraseEntry[]
+  kind: 'word' | 'phrase'
   embed: boolean
 }>({
   word: '',
@@ -110,6 +124,8 @@ const saveForm = useForm<{
   synonyms: [],
   antonyms: [],
   meanings: [],
+  phrases: [],
+  kind: 'word',
   embed: false,
 })
 
@@ -291,6 +307,7 @@ function restoreFromSession(): void {
   localMeanings.value = session.meanings
   localSynonyms.value = session.synonyms
   localAntonyms.value = session.antonyms
+  activeKind.value = session.entityKind ?? 'word'
   jsonText.value = session.jsonText || currentEntryJson()
   savedEntryJson.value =
     session.savedEntryJson ??
@@ -335,6 +352,7 @@ function persistSession(): void {
   }
 
   const session: WebLookupSession = {
+    entityKind: activeKind.value,
     word: searchForm.word || activeResult.value.word,
     result: {
       ...activeResult.value,
@@ -367,6 +385,7 @@ function clearWord(): void {
   lastAutoSearchKey = null
   searchForm.word = ''
   activeResult.value = null
+  activeKind.value = 'word'
   isDraft.value = false
   isSaved.value = false
   savedVocabularyId.value = null
@@ -493,18 +512,23 @@ async function copyMeaningsPrompt(): Promise<void> {
       }
     }
     await copyTextToClipboard(
-      buildMeaningsAiPrompt(word, meaningsForPrompt, {
-        ...activeResult.value,
-        ...(meaningsViewMode.value === MeaningsViewMode.Json
-          ? (() => {
-              try {
-                return parseEntryJson(jsonText.value)
-              } catch {
-                return {}
-              }
-            })()
-          : {}),
-      }),
+      buildMeaningsAiPrompt(
+        word,
+        meaningsForPrompt,
+        {
+          ...activeResult.value,
+          ...(meaningsViewMode.value === MeaningsViewMode.Json
+            ? (() => {
+                try {
+                  return parseEntryJson(jsonText.value)
+                } catch {
+                  return {}
+                }
+              })()
+            : {}),
+        },
+        activeKind.value,
+      ),
     )
     copyPromptLabel.value = 'Copied ✓'
     setTimeout((): void => {
@@ -552,6 +576,8 @@ function submitSave(): void {
     synonyms: meaning.synonyms,
     antonyms: meaning.antonyms,
   }))
+  saveForm.kind = activeKind.value
+  saveForm.phrases = activeResult.value.phrases ?? []
   saveForm.embed = isEmbed.value
   const submittedWord = saveForm.word
   const submittedJson = canonicalEntryJson(currentEntryJson())
@@ -648,7 +674,31 @@ const saveButtonLabel = computed((): string => {
         </button>
       </form>
 
-      <div v-if="activeResult" class="lookup-result-panel">
+      <section
+        v-if="suggestions.length"
+        class="card"
+        aria-label="Search suggestions"
+      >
+        <h2 class="card-title">Words and phrases</h2>
+        <p class="muted">Select a match to view its meanings.</p>
+        <div
+          v-for="item in suggestions"
+          :key="`${item.kind}-${item.word}`"
+          class="meaning-block"
+        >
+          <Link
+            :href="`${RoutePath.lookup}?q=${encodeURIComponent(item.word)}${item.kind === 'phrase' ? '&kind=phrase' : ''}`"
+            >{{ item.word }}</Link
+          >
+          <span class="pos-tag">{{
+            item.kind === 'phrase' ? 'Cụm từ / mệnh đề' : 'Word'
+          }}</span>
+        </div>
+      </section>
+      <div
+        v-if="activeResult && !suggestions.length"
+        class="lookup-result-panel"
+      >
         <div class="card lookup-result-card">
           <div class="lookup-word-row">
             <p class="card-title lookup-word-title">{{ activeResult.word }}</p>
@@ -663,6 +713,7 @@ const saveButtonLabel = computed((): string => {
               🔊
             </button>
           </div>
+          <p v-if="activeKind === 'phrase'" class="pos-tag">Cụm từ / mệnh đề</p>
           <p v-if="activeResult.phonetic" class="card-subtitle lookup-phonetic">
             {{ activeResult.phonetic }}
           </p>
@@ -716,6 +767,31 @@ const saveButtonLabel = computed((): string => {
             :link-related="!isEmbed"
           />
 
+          <section
+            v-if="
+              !isJsonMode &&
+              activeKind !== 'phrase' &&
+              activeResult.phrases?.length
+            "
+            aria-label="Related phrases"
+          >
+            <h2 class="card-title">Cụm từ / mệnh đề liên quan</h2>
+            <article
+              v-for="phrase in activeResult.phrases"
+              :key="phrase.word"
+              class="meaning-block"
+            >
+              <Link
+                :href="`${RoutePath.lookup}?q=${encodeURIComponent(phrase.word)}&kind=phrase`"
+                >{{ phrase.word }}</Link
+              >
+              <DictionaryEntry
+                :meanings="phrase.meanings"
+                :prefer-detail="false"
+                :link-related="!isEmbed"
+              />
+            </article>
+          </section>
           <div v-show="isJsonMode" class="lookup-json-wrap">
             <textarea
               v-model="jsonText"
@@ -726,7 +802,8 @@ const saveButtonLabel = computed((): string => {
             />
             <p class="muted lookup-json-hint">
               Edit phonetic, audio_url, examples, synonyms, antonyms and
-              meanings, then Save or Update.
+              meanings and phrases, then Save or Update. Removing a phrase only
+              unlinks it; it stays in Cụm từ.
             </p>
           </div>
         </div>

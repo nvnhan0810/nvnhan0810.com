@@ -122,6 +122,8 @@ it('shows Save for an unsaved word and posts the latest JSON fields', async () =
     '/home/lookup/save',
     {
       word: 'hello',
+      kind: 'word',
+      phrases: [],
       phonetic: '/edited/',
       audio_url: 'https://example.com/edited.mp3',
       examples: ['New word example.'],
@@ -217,4 +219,66 @@ it('resets saved/dirty state when lookup props change to a different word', asyn
     savedVocabularyId: null,
   })
   expect(wrapper.get('.lookup-save-form button').text()).toBe('Save')
+})
+
+it('posts related phrases with a word and renders their meanings', async () => {
+  const wrapper = page(true)
+  const phrase = { word: 'look forward to', meanings: result.meanings }
+  const input = await jsonView(wrapper)
+  await input.setValue(
+    JSON.stringify({ ...JSON.parse(input.element.value), phrases: [phrase] }),
+  )
+  await wrapper.get('.lookup-save-form').trigger('submit')
+  expect(mocks.post.mock.calls[0]![1].phrases).toEqual([phrase])
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'UI')!
+    .trigger('click')
+  expect(wrapper.get('[aria-label="Related phrases"]').text()).toContain(
+    'look forward to',
+  )
+})
+
+it('updates only the standalone phrase and preserves its kind in a restored session', async () => {
+  const wrapper = page(true)
+  await wrapper.setProps({ entityKind: 'phrase' })
+  const input = await jsonView(wrapper)
+  await input.setValue(
+    JSON.stringify({ ...JSON.parse(input.element.value), phonetic: '/new/' }),
+  )
+  await wrapper.get('.lookup-save-form').trigger('submit')
+  expect(mocks.post.mock.calls[0]![1].kind).toBe('phrase')
+  vi.advanceTimersByTime(250)
+  wrapper.unmount()
+  mocks.post.mockClear()
+  const restored = page(false, true)
+  await restored.vm.$nextTick()
+  await restored
+    .get('textarea')
+    .setValue(
+      JSON.stringify({
+        ...JSON.parse(restored.get('textarea').element.value),
+        phonetic: '/restored/',
+      }),
+    )
+  await restored.get('.lookup-save-form').trigger('submit')
+  expect(mocks.post.mock.calls[0]![1].kind).toBe('phrase')
+})
+
+it('shows choices instead of word details for a partial match', async () => {
+  const wrapper = page()
+  await wrapper.setProps({
+    result: null,
+    suggestions: [
+      { word: 'look', kind: 'word' },
+      { word: 'look forward to', kind: 'phrase' },
+    ],
+  })
+  expect(wrapper.find('.lookup-result-panel').exists()).toBe(false)
+  expect(wrapper.get('[aria-label="Search suggestions"]').text()).toContain(
+    'look forward to',
+  )
+  expect(wrapper.get('a[href*="kind=phrase"]').attributes('href')).toContain(
+    'look%20forward%20to',
+  )
 })

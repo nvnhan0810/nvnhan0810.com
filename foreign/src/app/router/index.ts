@@ -19,6 +19,7 @@ export const router = createRouter({
     { path: RoutePath.authCallback, component: NavigationOnly },
     { path: RoutePath.lookup, name: 'lookup', component: PageView },
     { path: RoutePath.related, name: 'related', component: PageView },
+    { path: RoutePath.phrases, name: 'phrases', component: PageView },
     { path: RoutePath.vocabulary, name: 'vocabulary', component: PageView },
     {
       path: RoutePath.vocabularyDetail,

@@ -69,6 +69,7 @@ async fn page(state: &ForeignState, owner: Uuid, path: &str) -> Result<Value, Ap
     let path = url.path();
     let segments = parts(path);
     match path {
+        "/home/phrases" => super::phrases::list(&state.pool, owner).await,
         "/home/vocab" => {
             let rows:Vec<(i64,Value)>=sqlx::query_as("SELECT v.id,COALESCE(v.entry_override,e.payload) FROM foreign_vocabularies v JOIN foreign_dictionary_entries e ON e.id=v.dictionary_entry_id WHERE v.user_id=$1 ORDER BY v.id DESC").bind(owner).fetch_all(&state.pool).await.map_err(internal)?;
             let items: Vec<_> = rows
@@ -92,7 +93,13 @@ async fn page(state: &ForeignState, owner: Uuid, path: &str) -> Result<Value, Ap
                     json!({"queryWord":"","embed":url.query_pairs().any(|(key,value)|key=="embed" && (value=="1" || value=="true"))}),
                 );
             }
-            let mut result = lookup(state, owner, &q).await?;
+            let mut result = lookup(
+                state,
+                owner,
+                &q,
+                url.query_pairs().any(|(k, v)| k == "kind" && v == "phrase"),
+            )
+            .await?;
             result["embed"] = json!(
                 url.query_pairs()
                     .any(|(key, value)| key == "embed" && (value == "1" || value == "true"))
@@ -185,7 +192,12 @@ fn percent_decode(word: &str) -> String {
         })
         .unwrap_or_else(|| word.to_owned())
 }
-async fn lookup(state: &ForeignState, owner: Uuid, word: &str) -> Result<Value, ApiError> {
+async fn lookup(
+    state: &ForeignState,
+    owner: Uuid,
+    word: &str,
+    phrase_only: bool,
+) -> Result<Value, ApiError> {
     let word = normalize_word(word).ok_or_else(|| bad("Invalid word"))?;
     let local: Option<Value> =
         sqlx::query_scalar("SELECT COALESCE((SELECT v.entry_override FROM foreign_vocabularies v WHERE v.dictionary_entry_id=e.id AND v.user_id=$2),e.payload) FROM foreign_dictionary_entries e WHERE word=$1")
@@ -194,6 +206,13 @@ async fn lookup(state: &ForeignState, owner: Uuid, word: &str) -> Result<Value, 
             .fetch_optional(&state.pool)
             .await
             .map_err(internal)?;
+    let phrase = super::phrases::exact(&state.pool, owner, &word).await?;
+    if phrase_only || (local.is_none() && phrase.is_some()) {
+        let phrase = phrase.ok_or_else(missing)?;
+        return Ok(
+            json!({"word":word,"queryWord":word,"result":games::reveal(&phrase),"saved":true,"entityKind":"phrase"}),
+        );
+    }
     let result = if let Some(local) = local {
         local
     } else {
@@ -210,6 +229,10 @@ async fn lookup(state: &ForeignState, owner: Uuid, word: &str) -> Result<Value, 
                 serde_json::to_value(first).map_err(|_| bad("Invalid dictionary result"))?
             }
             Err(crate::infrastructure::dictionary::LookupError::NotFound) => {
+                let suggestions = super::phrases::suggestions(&state.pool, owner, &word).await?;
+                if !suggestions.is_empty() {
+                    return Ok(json!({"word":word,"queryWord":word,"suggestions":suggestions}));
+                }
                 json!({"word":word,"phonetic":"","meanings":[]})
             }
             Err(crate::infrastructure::dictionary::LookupError::Busy) => {
@@ -219,6 +242,10 @@ async fn lookup(state: &ForeignState, owner: Uuid, word: &str) -> Result<Value, 
                 ));
             }
             Err(_) => {
+                let suggestions = super::phrases::suggestions(&state.pool, owner, &word).await?;
+                if !suggestions.is_empty() {
+                    return Ok(json!({"word":word,"queryWord":word,"suggestions":suggestions}));
+                }
                 return Err((
                     StatusCode::BAD_GATEWAY,
                     Json(json!({"error":"Dictionary unavailable. Please retry."})),
@@ -241,6 +268,7 @@ async fn lookup(state: &ForeignState, owner: Uuid, word: &str) -> Result<Value, 
         .map(|audio| json!(audio))
         .unwrap_or(Value::Null);
     let mut result = games::reveal(&result);
+    result["phrases"] = json!(super::phrases::linked(&state.pool, owner, &word).await?);
     result["audio_url"] = audio;
     let saved:Option<i64>=sqlx::query_scalar("SELECT v.id FROM foreign_vocabularies v JOIN foreign_dictionary_entries e ON e.id=v.dictionary_entry_id WHERE v.user_id=$1 AND e.word=$2").bind(owner).bind(&word).fetch_optional(&state.pool).await.map_err(internal)?;
     let draft = result["meanings"].as_array().is_none_or(Vec::is_empty);
@@ -257,11 +285,22 @@ pub async fn action(
     let path = input.path.as_str();
     let data = &input.data;
     if (path == "/home/lookup" || path == "/lookup") && input.method == "POST" {
-        let mut result = lookup(&state, owner, data["word"].as_str().unwrap_or("")).await?;
+        let mut result = lookup(&state, owner, data["word"].as_str().unwrap_or(""), false).await?;
         result["embed"] = json!(data["embed"].as_bool().unwrap_or(false));
         return Ok(Json(json!({"props":result})));
     }
     if (path == "/home/lookup/save" || path == "/lookup/save") && input.method == "POST" {
+        if data["kind"] == "phrase" {
+            let entry = super::phrases::decode(data)?;
+            let mut tx = state.pool.begin().await.map_err(internal)?;
+            super::phrases::upsert(&mut tx, owner, &entry)
+                .await
+                .map_err(internal)?;
+            tx.commit().await.map_err(internal)?;
+            let result = lookup(&state, owner, &entry.word, true).await?;
+            return Ok(Json(json!({"props":result})));
+        }
+        let phrase_entries = super::phrases::decode_list(data)?;
         let meanings:Vec<_>=data["meanings"].as_array().into_iter().flatten().map(|m|json!({"partOfSpeech":m["part_of_speech"].as_str().unwrap_or(""),"synonyms":m["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":m["antonyms"].as_array().cloned().unwrap_or_default(),"definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"example":m["example"].as_str().unwrap_or(""),"examples":m["examples"].as_array().cloned().unwrap_or_default()}]})).collect();
         let mut entry: Entry = serde_json::from_value(
             json!({"word":data["word"],"phonetic":data["phonetic"],"examples":data["examples"].as_array().cloned().unwrap_or_default(),"synonyms":data["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":data["antonyms"].as_array().cloned().unwrap_or_default(),"meanings":meanings}),
@@ -293,11 +332,33 @@ pub async fn action(
         }
         crate::application::vocabulary::validate(&mut entry).map_err(bad)?;
 
-        let id = vocabulary::save(&state.pool, owner, &entry)
+        let mut tx = state.pool.begin().await.map_err(internal)?;
+        let id = vocabulary::save_tx(&mut tx, owner, &entry)
             .await
             .map_err(internal)?;
-        sqlx::query("UPDATE foreign_vocabularies SET entry_override=$3,updated_at=now() WHERE id=$1 AND user_id=$2").bind(id).bind(owner).bind(serde_json::to_value(&entry).map_err(|_|bad("Invalid entry"))?).execute(&state.pool).await.map_err(internal)?;
-        let mut result = lookup(&state, owner, &entry.word).await?;
+        sqlx::query("UPDATE foreign_vocabularies SET entry_override=$3,updated_at=now() WHERE id=$1 AND user_id=$2").bind(id).bind(owner).bind(serde_json::to_value(&entry).map_err(|_|bad("Invalid entry"))?).execute(&mut *tx).await.map_err(internal)?;
+        if let Some(phrases) = phrase_entries {
+            sqlx::query("DELETE FROM foreign_word_phrases WHERE vocabulary_id=$1")
+                .bind(id)
+                .execute(&mut *tx)
+                .await
+                .map_err(internal)?;
+            for phrase in phrases {
+                let phrase_id = super::phrases::upsert(&mut tx, owner, &phrase)
+                    .await
+                    .map_err(internal)?;
+                sqlx::query(
+                    "INSERT INTO foreign_word_phrases(vocabulary_id,phrase_id) VALUES($1,$2)",
+                )
+                .bind(id)
+                .bind(phrase_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(internal)?;
+            }
+        }
+        tx.commit().await.map_err(internal)?;
+        let mut result = lookup(&state, owner, &entry.word, false).await?;
         result["embed"] = json!(data["embed"].as_bool().unwrap_or(false));
         return Ok(Json(json!({"props":result})));
     }

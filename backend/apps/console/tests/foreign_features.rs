@@ -811,3 +811,160 @@ async fn vocabulary_games_media_and_profile_preserve_ownership_and_remove_import
         .unwrap();
     pool.close().await;
 }
+
+#[tokio::test]
+#[ignore = "requires FOREIGN_TEST_TARGET (empty PostgreSQL)"]
+async fn phrases_keep_their_lifetime_and_updates_separate_from_words() {
+    let pool = PgPool::connect(&std::env::var("FOREIGN_TEST_TARGET").unwrap())
+        .await
+        .unwrap();
+    console::migrations::apply(&pool, identity::MigrationAction::Up)
+        .await
+        .unwrap();
+    let (app, owner, token, _, other_token) = setup(&pool).await;
+    let meaning = json!({"part_of_speech":"verb","definition":"To direct your eyes","examples":["Look here."],"synonyms":[],"antonyms":[]});
+    let phrase = json!({"word":"look forward to","meanings":[{"part_of_speech":"phrasal verb","definition":"To feel pleased about a future event","examples":["I look forward to seeing you."]}]});
+    let mut data = json!({"word":"look","phonetic":"","meanings":[meaning],"phrases":[phrase]});
+    let save = action(
+        &app,
+        &token,
+        "/home/lookup/save",
+        "POST",
+        data.clone(),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(save.0, 200, "{save:?}");
+    assert_eq!(
+        save.1["props"]["result"]["phrases"][0]["word"],
+        "look forward to"
+    );
+    assert_eq!(save.1["props"]["result"]["word"], "look");
+    let vocabulary_id = save.1["props"]["savedVocabularyId"].as_i64().unwrap();
+    assert_eq!(
+        page(&app, &token, "/home/phrases").await.1["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        page(&app, &other_token, "/home/phrases").await.1["items"],
+        json!([])
+    );
+    let exact = page(&app, &token, "/home/lookup?q=look").await;
+    assert_eq!(exact.1["result"]["word"], "look");
+    assert!(exact.1.get("suggestions").is_none());
+    assert_eq!(
+        page(
+            &app,
+            &token,
+            "/home/lookup?q=look%20forward%20to&kind=phrase"
+        )
+        .await
+        .1["entityKind"],
+        "phrase"
+    );
+    assert_eq!(
+        page(
+            &app,
+            &other_token,
+            "/home/lookup?q=look%20forward%20to&kind=phrase"
+        )
+        .await
+        .0,
+        404
+    );
+    let mut edited = phrase.clone();
+    edited["kind"] = json!("phrase");
+    edited["meanings"][0]["definition"] = json!("An independently updated phrase");
+    edited["phrases"] = json!([{"word":"must not be created","meanings":[meaning]}]);
+    let updated = action(
+        &app,
+        &token,
+        "/home/lookup/save",
+        "POST",
+        edited,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(updated.0, 200, "{updated:?}");
+    assert_eq!(updated.1["props"]["entityKind"], "phrase");
+    let word = page(&app, &token, "/home/lookup?q=look").await;
+    assert_eq!(
+        word.1["result"]["meanings"][0]["definition"],
+        "To direct your eyes"
+    );
+    assert_eq!(
+        word.1["result"]["phrases"][0]["meanings"][0]["definition"],
+        "An independently updated phrase"
+    );
+    assert_eq!(
+        page(&app, &token, "/home/phrases").await.1["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let mut invalid = data.clone();
+    invalid["meanings"][0]["definition"] = json!("Must not persist");
+    invalid["phrases"] = json!([{"word":"broken phrase","meanings":[]}]);
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            "/home/lookup/save",
+            "POST",
+            invalid,
+            Value::Null
+        )
+        .await
+        .0,
+        400
+    );
+    assert_eq!(
+        page(&app, &token, "/home/lookup?q=look").await.1["result"]["meanings"][0]["definition"],
+        "To direct your eyes"
+    );
+    data["phrases"][0]["meanings"][0]["definition"] = json!("Updated together with the word");
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            "/home/lookup/save",
+            "POST",
+            data.clone(),
+            Value::Null
+        )
+        .await
+        .0,
+        200
+    );
+    data["phrases"] = json!([]);
+    let unlinked = action(&app, &token, "/home/lookup/save", "POST", data, Value::Null).await;
+    assert_eq!(unlinked.0, 200, "{unlinked:?}");
+    assert_eq!(unlinked.1["props"]["result"]["phrases"], json!([]));
+    assert_eq!(
+        page(&app, &token, "/home/phrases").await.1["items"][0]["meanings"][0]["definition"],
+        "Updated together with the word"
+    );
+    assert_eq!(
+        action(
+            &app,
+            &token,
+            &format!("/home/vocab/{vocabulary_id}"),
+            "DELETE",
+            json!({}),
+            Value::Null
+        )
+        .await
+        .0,
+        200
+    );
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM foreign_phrases WHERE user_id=$1")
+        .bind(owner)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+}

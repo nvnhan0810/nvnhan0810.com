@@ -6,7 +6,10 @@ export type Meaning = {
   antonyms: string[]
 }
 
+export type PhraseEntry = DictionaryLookupResult & { meanings: Meaning[] }
+
 export type DictionaryLookupResult = {
+  phrases?: PhraseEntry[]
   word: string
   phonetic?: string | null
   audio_url?: string | null
@@ -137,6 +140,11 @@ export function entryToPrettyJson(
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
       meanings: JSON.parse(meaningsToPrettyJson(meanings)),
+      phrases: (entry.phrases ?? []).map(({ word, meanings, ...metadata }) => ({
+        word,
+        ...metadata,
+        meanings: JSON.parse(meaningsToPrettyJson(meanings)),
+      })),
     },
     null,
     2,
@@ -178,6 +186,24 @@ export function parseEntryJson(
       throw new Error(`${key} must be an array of strings.`)
     result[key] = stringList(decoded[key])
   }
+  if ('phrases' in decoded) {
+    if (!Array.isArray(decoded.phrases) || decoded.phrases.length > 100)
+      throw new Error('phrases must be an array with at most 100 entries.')
+    const seen = new Set<string>()
+    result.phrases = decoded.phrases.map((phrase: unknown): PhraseEntry => {
+      if (!phrase || typeof phrase !== 'object')
+        throw new Error('Invalid phrase.')
+      const row = phrase as Record<string, unknown>
+      const word =
+        typeof row.word === 'string' ? row.word.trim().toLowerCase() : ''
+      if (!word || word.length > 100 || !/^[a-z '\-]+$/.test(word))
+        throw new Error('Each phrase needs a valid English word field.')
+      if (seen.has(word)) throw new Error('Duplicate phrase.')
+      seen.add(word)
+      if ('phrases' in row) throw new Error('Nested phrases are not supported.')
+      return { ...parseEntryJson(JSON.stringify(row)), word }
+    })
+  }
   return result
 }
 
@@ -185,6 +211,7 @@ export function buildMeaningsAiPrompt(
   word: string,
   currentMeanings: readonly MeaningLike[] = [],
   entry: Partial<DictionaryLookupResult> = {},
+  kind: 'word' | 'phrase' = 'word',
 ): string {
   return `You are helping curate an English dictionary entry for FLC.
 Word / phrase: ${word.trim() || '{WORD}'}
@@ -198,6 +225,7 @@ Return ONLY a valid JSON object, without markdown or commentary, using this sche
   "examples": ["She looks happy today."],
   "synonyms": ["joyful"],
   "antonyms": ["sad"],
+  "phrases": [{"word":"look forward to","meanings":[{"part_of_speech":"phrasal verb","definition":"To feel pleased about a future event","examples":["I look forward to seeing you."],"synonyms":[],"antonyms":[]}]}],
   "meanings": [{
     "part_of_speech": "adjective",
     "definition": "Feeling or showing pleasure",
@@ -207,6 +235,11 @@ Return ONLY a valid JSON object, without markdown or commentary, using this sche
   }]
 }
 Rules:
+${
+  kind === 'word'
+    ? '- Suggest useful related phrases, phrasal verbs, idioms and clause patterns in phrases. Each needs word and meanings with definitions and examples. Preserve useful existing phrases. Use [] if none are relevant.'
+    : '- This is a standalone phrase update. Describe only this phrase and return phrases: []; do not suggest or change other words or phrases.'
+}
 - Describe the requested word, not the example word in the schema.
 - phonetic is IPA for the whole word. Use an empty string if unknown.
 - audio_url is a verified HTTPS pronunciation audio URL. Preserve a valid existing URL; never invent a URL. Use an empty string if unavailable.
