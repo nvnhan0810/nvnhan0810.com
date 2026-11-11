@@ -42,6 +42,7 @@ branch detached, branch chưa có upstream hoặc lịch sử local ahead/diverg
 | `foreign/` | Như portfolio | Không cần restart |
 | `wallets/` | Như portfolio | Không cần restart |
 | `todos/` | Như portfolio | Không cần restart |
+| `tools/` | Như portfolio | Không cần restart |
 
 `index` và `ai-embedding-enrichment` đã được loại khỏi phạm vi deploy. Thay đổi ở
 các đường dẫn khác vẫn được pull nhưng không kích hoạt build app.
@@ -122,7 +123,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p test_deploy.p
 ## Deploy riêng từng app qua GitHub Actions
 
 Mỗi app có script `deploy.sh` trong thư mục source và workflow tương ứng trong
-`.github/workflows/`: `backend`, `foreign`, `identity`, `portfolio`, `todos`, `wallets`.
+`.github/workflows/`: `backend`, `foreign`, `identity`, `portfolio`, `todos`, `wallets`, `tools`.
 Workflow chạy khi push lên `main` có thay đổi trong app hoặc workflow, và hỗ trợ
 `workflow_dispatch` trên `main`.
 
@@ -137,3 +138,8 @@ Các script pull `origin main` rồi build app. Frontend cài dependencies bằn
 migrate và master-data trước khi restart API/queue. Các script riêng gọi Supervisor
 qua `sudo -n supervisorctl -c /etc/supervisor/supervisord.conf`; user deploy cần quyền
 NOPASSWD cho lệnh tương ứng. Git/Cargo/npm chạy dưới user deploy.
+
+Tools dùng `npm ci --include=dev` trong script riêng và build CI trước khi gọi webhook.
+Cần đăng ký key `nvnhan0810_com_tools` trên deploy service để chạy `tools/deploy.sh`.
+Nginx cho tools dùng cấu hình `tools/deploy/nginx.conf`, phục vụ directory index
+(`/agent/` → `agent/index.html`) và trả 404 khi asset không tồn tại. Xem `tools/README.md`.

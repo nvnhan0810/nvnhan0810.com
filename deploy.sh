@@ -93,7 +93,7 @@ main() {
   fi
 
   local backend_changed=false path app
-  local -a frontend_apps=(portfolio identity foreign wallets todos)
+  local -a frontend_apps=(portfolio identity foreign wallets todos tools)
   local -A changed_frontends=()
   [[ "$force_all" == false ]] || backend_changed=true
   while IFS= read -r -d '' path; do

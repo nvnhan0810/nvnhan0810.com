@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'deploy.sh'
-APPS = ['portfolio', 'identity', 'foreign', 'wallets', 'todos']
+APPS = ['portfolio', 'identity', 'foreign', 'wallets', 'todos', 'tools']
 
 
 class DeployTest(unittest.TestCase):
@@ -27,7 +27,9 @@ class DeployTest(unittest.TestCase):
         self.git('init', '--initial-branch=main', str(self.author))
         self.git('config', 'user.name', 'Deploy Test', cwd=self.author)
         self.git('config', 'user.email', 'deploy@example.test', cwd=self.author)
-        shutil.copy2(SCRIPT, self.author / 'deploy.sh')
+        # Keep absolute production Supervisor paths inside this disposable fixture.
+        (self.author / 'deploy.sh').write_text(
+            SCRIPT.read_text().replace('/usr/bin/supervisorctl', str(self.tools / 'supervisorctl')))
         (self.author / 'backend').mkdir()
         (self.author / 'backend/Cargo.toml').write_text('# fixture\n')
         for app in APPS:
@@ -117,9 +119,12 @@ fi
         ])
 
     def test_static_frontend_does_not_restart_services(self):
-        self.change('todos/src/new.ts')
+        self.change('todos/src/new.ts', 'tools/src/new.ts')
         self.deploy()
-        self.assertEqual(self.calls(), ['todos|npm|i --include=dev --no-save', 'todos|npm|run build'])
+        self.assertEqual(self.calls(), [
+            'todos|npm|i --include=dev --no-save', 'todos|npm|run build',
+            'tools|npm|i --include=dev --no-save', 'tools|npm|run build',
+        ])
 
     def test_dry_run_does_not_pull_build_restart_or_record_success(self):
         before = self.git('rev-parse', 'HEAD', cwd=self.checkout)
