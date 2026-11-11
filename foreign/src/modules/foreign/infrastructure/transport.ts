@@ -44,31 +44,32 @@ export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError))
     return error instanceof Error
       ? error.message
-      : 'Đã có lỗi xảy ra. Vui lòng thử lại.'
+      : 'Something went wrong. Please try again.'
   const messages: Record<string, string> = {
     network_error:
-      'Không kết nối được Identity API. Kiểm tra mạng, địa chỉ API và cấu hình CORS.',
+      'Unable to connect to the Identity API. Check your network, API address, and CORS settings.',
     invalid_client:
-      'Client đăng nhập chưa được đăng ký, đã bị tắt hoặc cấu hình không đúng.',
-    invalid_grant: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      'The sign-in client is not registered, is disabled, or is configured incorrectly.',
+    invalid_grant: 'Your session has expired. Please sign in again.',
     invalid_scope:
-      'Client chưa được cấp scope cần thiết. Kiểm tra cấu hình client trên Identity.',
-    access_denied: 'Tài khoản không có quyền thực hiện thao tác này.',
-    conflict: 'Client ID đã tồn tại. Hãy chọn một ID khác.',
+      'The client has not been granted the required scope. Check its settings in Identity.',
+    access_denied:
+      'Your account does not have permission to perform this action.',
+    conflict: 'This client ID already exists. Please choose another ID.',
     version_conflict:
-      'Dữ liệu đã được thay đổi ở nơi khác. Đóng cửa sổ, tải lại danh sách rồi thử lại.',
+      'The data was changed elsewhere. Close the window, reload the list, and try again.',
     invalid_client_metadata:
-      'Thông tin client không hợp lệ. Kiểm tra callback và các scope.',
+      'The client details are invalid. Check the callback and scopes.',
     system_root_protected:
-      'Tài khoản system root được bảo vệ và không thể bị khóa.',
-    server_error: 'Identity đang gặp sự cố. Vui lòng thử lại sau.',
+      'The system root account is protected and cannot be locked.',
+    server_error: 'Identity is experiencing a problem. Please try again later.',
     invalid_request:
-      'Yêu cầu chưa hợp lệ. Kiểm tra cấu hình client và callback.',
+      'The request is invalid. Check the client and callback settings.',
   }
   return (
     messages[error.code] ??
     (error.status === 429
-      ? 'Có quá nhiều yêu cầu. Chờ một chút rồi thử lại.'
-      : `Yêu cầu thất bại (${error.status}).`)
+      ? 'Too many requests. Please wait a moment and try again.'
+      : `Request failed (${error.status}).`)
   )
 }

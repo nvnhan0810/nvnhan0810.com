@@ -62,7 +62,7 @@ export function consumeTransaction(
   }
   if (!parsed || typeof parsed !== 'object')
     throw new Error(
-      'Không tìm thấy giao dịch đăng nhập. Hãy đăng nhập lại từ trang này.',
+      'No sign-in request found. Please sign in again from this page.',
     )
   const transaction = parsed as Partial<OAuthTransaction>
   if (
@@ -76,7 +76,7 @@ export function consumeTransaction(
     transaction.createdAt > Date.now() + 30000
   ) {
     throw new Error(
-      'Giao dịch đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
+      'The sign-in request is invalid or has expired. Please sign in again.',
     )
   }
   return transaction as OAuthTransaction

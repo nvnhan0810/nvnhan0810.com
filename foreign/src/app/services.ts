@@ -11,7 +11,7 @@ if (
   url.username ||
   url.password
 )
-  throw new Error('VITE_API_BASE_URL phải là một HTTP(S) origin.')
+  throw new Error('VITE_API_BASE_URL must be an HTTP(S) origin.')
 export const session = new ForeignSession({
   baseUrl,
   clientId: import.meta.env.VITE_SSO_CLIENT_ID || 'foreign-web',

@@ -2,7 +2,7 @@
   <div
     class="page-loading"
     role="status"
-    aria-label="Đang xử lý"
+    aria-label="Loading"
     aria-live="polite"
   >
     <span />

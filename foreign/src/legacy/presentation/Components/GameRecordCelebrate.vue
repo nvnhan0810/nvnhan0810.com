@@ -67,7 +67,7 @@ onUnmounted(() => {
     <div class="game-record-burst" aria-hidden="true" />
     <div class="game-record-card">
       <p class="game-record-eyebrow">New record</p>
-      <p class="game-record-title">Kỷ lục mới!</p>
+      <p class="game-record-title">New record!</p>
       <p class="game-record-score">
         {{ Number(celebrateRecord) }} <span>correct</span>
       </p>

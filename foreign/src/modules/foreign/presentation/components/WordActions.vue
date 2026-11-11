@@ -61,9 +61,7 @@ async function copy() {
     >
       {{ saved ? 'Saved' : saving ? 'Saving…' : 'Save word' }}
     </button>
-    <RouterLink v-if="saved" :to="RoutePath.vocabulary"
-      >Từ của tôi →</RouterLink
-    >
+    <RouterLink v-if="saved" :to="RoutePath.vocabulary">My Words →</RouterLink>
     <p v-if="error" class="alert" role="alert">{{ error }}</p>
     <span class="sr-only" role="status"
       >{{ saved ? 'Word saved.' : '' }}

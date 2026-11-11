@@ -223,7 +223,7 @@ function onTranscriptSeek(seconds: number): void {
                 v-if="transcriptPending && !hasTimedTranscript"
                 class="transcript-queue-loading"
                 role="status"
-                aria-label="Đang lấy transcript"
+                aria-label="Fetching transcript"
               >
                 <LoaderCircle
                   class="transcript-queue-spinner"

@@ -7,11 +7,9 @@ import { theme, toggleTheme } from './theme'
     type="button"
     class="theme-toggle"
     :aria-label="
-      theme === 'dark'
-        ? 'Chuyển sang giao diện sáng'
-        : 'Chuyển sang giao diện tối'
+      theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
     "
-    :title="theme === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'"
+    :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"
     @click="toggleTheme"
   >
     <Sun v-if="theme === 'dark'" :size="20" aria-hidden="true" />

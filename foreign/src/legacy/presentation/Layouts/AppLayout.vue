@@ -44,7 +44,7 @@ const nav = [
   },
   {
     href: appPath(RoutePath.phrases),
-    label: 'Cụm từ',
+    label: 'Phrases',
     icon: '💬',
     match: (u: string) => u.startsWith(appPath(RoutePath.phrases)),
   },

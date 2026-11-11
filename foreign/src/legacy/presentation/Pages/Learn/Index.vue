@@ -691,7 +691,7 @@ const saveButtonLabel = computed((): string => {
             >{{ item.word }}</Link
           >
           <span class="pos-tag">{{
-            item.kind === 'phrase' ? 'Cụm từ / mệnh đề' : 'Word'
+            item.kind === 'phrase' ? 'Phrase / clause' : 'Word'
           }}</span>
         </div>
       </section>
@@ -713,7 +713,7 @@ const saveButtonLabel = computed((): string => {
               🔊
             </button>
           </div>
-          <p v-if="activeKind === 'phrase'" class="pos-tag">Cụm từ / mệnh đề</p>
+          <p v-if="activeKind === 'phrase'" class="pos-tag">Phrase / clause</p>
           <p v-if="activeResult.phonetic" class="card-subtitle lookup-phonetic">
             {{ activeResult.phonetic }}
           </p>
@@ -775,7 +775,7 @@ const saveButtonLabel = computed((): string => {
             "
             aria-label="Related phrases"
           >
-            <h2 class="card-title">Cụm từ / mệnh đề liên quan</h2>
+            <h2 class="card-title">Related phrases / clauses</h2>
             <article
               v-for="phrase in activeResult.phrases"
               :key="phrase.word"
@@ -803,7 +803,7 @@ const saveButtonLabel = computed((): string => {
             <p class="muted lookup-json-hint">
               Edit phonetic, audio_url, examples, synonyms, antonyms and
               meanings and phrases, then Save or Update. Removing a phrase only
-              unlinks it; it stays in Cụm từ.
+              unlinks it; it stays in Phrases.
             </p>
           </div>
         </div>

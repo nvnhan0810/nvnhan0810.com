@@ -16,26 +16,26 @@ const filtered = computed(() => {
 })
 </script>
 <template>
-  <Head title="Cụm từ" />
-  <AppLayout title="Cụm từ" heading="Cụm từ / mệnh đề">
+  <Head title="Phrases" />
+  <AppLayout title="Phrases" heading="Phrases / clauses">
     <p class="muted">
-      Các cụm từ được lưu riêng. Chọn một cụm để xem nghĩa, copy prompt hoặc cập
-      nhật JSON.
+      Phrases are saved separately. Select a phrase to view its meanings, copy a
+      prompt, or update its JSON.
     </p>
-    <label for="phrase-search">Tìm cụm từ</label>
+    <label for="phrase-search">Search phrases</label>
     <input
       id="phrase-search"
       v-model="query"
       type="search"
       class="form-control"
-      placeholder="Tìm theo cụm từ hoặc nghĩa..."
+      placeholder="Search by phrase or meaning..."
     />
     <p v-if="!items.length" class="empty-state">
-      Chưa có cụm từ. Dùng Copy prompt ở Lookup rồi lưu JSON có danh sách
-      phrases.
+      No phrases saved yet. Use Copy prompt in Lookup, then save JSON containing
+      a phrases list.
     </p>
     <p v-else-if="!filtered.length" class="empty-state">
-      Không tìm thấy cụm từ phù hợp.
+      No matching phrases found.
     </p>
     <article v-for="item in filtered" :key="item.word" class="card">
       <h2 class="card-title">

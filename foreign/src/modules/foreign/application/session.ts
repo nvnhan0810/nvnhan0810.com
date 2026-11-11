@@ -50,7 +50,7 @@ export class ForeignSession {
       !Number.isFinite(tokens.expires_in) ||
       tokens.expires_in <= 0
     )
-      throw new Error('Identity trả về token không hợp lệ.')
+      throw new Error('Identity returned an invalid token.')
     // The shared OAuth response includes refresh_token for native clients.
     // This browser client relies on the HttpOnly cookie instead.
     this.tokens = {
@@ -131,9 +131,10 @@ export class ForeignSession {
       // Remove authorization credentials from the visible URL before HTTP calls.
       window.history.replaceState({}, '', RoutePath.authCallback)
       if (url.searchParams.has('error'))
-        throw new Error('Đăng nhập chưa hoàn tất. Vui lòng thử lại.')
+        throw new Error('Sign-in did not complete. Please try again.')
       const code = url.searchParams.get('code')
-      if (!code) throw new Error('Identity không trả về authorization code.')
+      if (!code)
+        throw new Error('Identity did not return an authorization code.')
       const tokens = await this.tokenRequest(
         new URLSearchParams({
           grant_type: 'authorization_code',

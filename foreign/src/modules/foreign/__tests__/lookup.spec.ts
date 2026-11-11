@@ -56,9 +56,9 @@ describe('Lookup', () => {
     expect(router.currentRoute.value.query.q).toBe('hello')
     expect(wrapper.text()).toContain('A greeting.')
     expect(wrapper.text()).toContain('Hello there.')
-    expect(
-      wrapper.findAll('button').some((b) => /Chỉnh sửa/.test(b.text())),
-    ).toBe(false)
+    expect(wrapper.findAll('button').some((b) => /Edit/.test(b.text()))).toBe(
+      false,
+    )
     await wrapper.get('.related-words button').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.q).toBe('greeting')

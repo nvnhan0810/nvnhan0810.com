@@ -25,18 +25,16 @@ async function signOut() {
     <section class="card profile-account">
       <h2 class="card-title">{{ session.state.user.name }}</h2>
       <p class="muted">{{ session.state.user.email }}</p>
-      <p>Bạn đã đăng nhập qua Identity.</p>
+      <p>You are signed in through Identity.</p>
     </section>
     <section class="card" aria-labelledby="profile-settings-title">
-      <h2 id="profile-settings-title" class="card-title">Cài đặt</h2>
+      <h2 id="profile-settings-title" class="card-title">Settings</h2>
       <div class="profile-setting-row">
         <div>
-          <h3>Giao diện</h3>
+          <h3>Appearance</h3>
           <p class="muted">
             {{
-              theme === 'dark'
-                ? 'Đang dùng giao diện tối'
-                : 'Đang dùng giao diện sáng'
+              theme === 'dark' ? 'Dark mode is active' : 'Light mode is active'
             }}
           </p>
         </div>
@@ -44,8 +42,8 @@ async function signOut() {
       </div>
       <div class="profile-setting-row">
         <div>
-          <h3>Phiên đăng nhập</h3>
-          <p class="muted">Đăng xuất tài khoản khỏi Foreign.</p>
+          <h3>Session</h3>
+          <p class="muted">Sign out of your Foreign account.</p>
         </div>
         <button
           type="button"
@@ -54,7 +52,7 @@ async function signOut() {
           @click="signOut"
         >
           <LogOut :size="18" aria-hidden="true" />{{
-            signingOut ? 'Đang đăng xuất…' : 'Đăng xuất'
+            signingOut ? 'Signing out…' : 'Sign out'
           }}
         </button>
       </div>
