@@ -8,6 +8,7 @@ export interface YoutubeChannel {
 export interface YoutubeVideo {
   video_id: string
   title: string
+  description: string
   channel_id: string
   channel_title: string
   thumbnail_url: string

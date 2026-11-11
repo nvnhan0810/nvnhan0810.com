@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   Plus,
@@ -122,6 +122,17 @@ async function applyDurationSettings() {
 const difficulty = ref('intermediate')
 const addDialog = ref<HTMLDialogElement | null>(null)
 const pendingVideo = ref<YoutubeVideo | null>(null)
+const previewDialog = ref<HTMLDialogElement | null>(null)
+const previewVideo = ref<YoutubeVideo | null>(null)
+async function openPreview(video: YoutubeVideo) {
+  previewVideo.value = video
+  await nextTick()
+  if (previewVideo.value) previewDialog.value?.showModal()
+}
+function closePreview() {
+  previewVideo.value = null
+  previewDialog.value?.close()
+}
 const addError = ref('')
 const addingVideo = computed(
   () => !!pendingVideo.value && saving.value.has(pendingVideo.value.video_id),
@@ -446,12 +457,12 @@ onBeforeUnmount(() => {
             class="channel-video-card"
             :data-video-id="video.video_id"
           >
-            <a
-              :href="`https://www.youtube.com/watch?v=${video.video_id}`"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               class="channel-video-thumb"
-              :aria-label="`Watch ${video.title} on YouTube`"
+              :aria-label="`Preview ${video.title}`"
+              aria-haspopup="dialog"
+              @click="openPreview(video)"
             >
               <img
                 :src="video.thumbnail_url"
@@ -467,7 +478,7 @@ onBeforeUnmount(() => {
                 :aria-label="`Duration ${durationLabel(video.duration)}`"
                 >{{ durationLabel(video.duration) }}</span
               >
-            </a>
+            </button>
             <div class="channel-video-body">
               <p class="muted channel-video-meta">
                 {{ video.channel_title
@@ -475,7 +486,16 @@ onBeforeUnmount(() => {
                   · {{ dateLabel(video.published_at) }}</template
                 >
               </p>
-              <h4 :title="video.title">{{ video.title }}</h4>
+              <h4 :title="video.title">
+                <button
+                  type="button"
+                  class="channel-video-title"
+                  aria-haspopup="dialog"
+                  @click="openPreview(video)"
+                >
+                  {{ video.title }}
+                </button>
+              </h4>
               <div class="channel-video-actions">
                 <RouterLink
                   v-if="video.media_id"
@@ -536,6 +556,50 @@ onBeforeUnmount(() => {
         </nav>
       </section>
     </div>
+
+    <dialog
+      ref="previewDialog"
+      class="video-preview-dialog"
+      aria-labelledby="video-preview-title"
+      @cancel.prevent="closePreview"
+      @close="previewVideo = null"
+    >
+      <template v-if="previewVideo">
+        <div class="channel-dialog-header">
+          <h2 id="video-preview-title">{{ previewVideo.title }}</h2>
+          <button
+            type="button"
+            class="channel-icon-button"
+            aria-label="Close video preview"
+            title="Close"
+            autofocus
+            @click="closePreview"
+          >
+            <X :size="20" aria-hidden="true" />
+          </button>
+        </div>
+        <iframe
+          :key="previewVideo.video_id"
+          class="video-preview-player"
+          :src="`https://www.youtube.com/embed/${encodeURIComponent(previewVideo.video_id)}?playsinline=1`"
+          :title="previewVideo.title"
+          allow="
+            accelerometer;
+            autoplay;
+            clipboard-write;
+            encrypted-media;
+            gyroscope;
+            picture-in-picture;
+            web-share;
+          "
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen
+        />
+        <p class="video-preview-description">
+          {{ previewVideo.description || 'No description available.' }}
+        </p>
+      </template>
+    </dialog>
 
     <dialog
       ref="durationDialog"
@@ -919,6 +983,7 @@ onBeforeUnmount(() => {
 }
 .duration-settings-dialog,
 .channel-dialog,
+.video-preview-dialog,
 .add-listening-dialog {
   width: min(420px, calc(100% - 32px));
   max-height: calc(100dvh - 48px);
@@ -932,6 +997,7 @@ onBeforeUnmount(() => {
 }
 .duration-settings-dialog::backdrop,
 .channel-dialog::backdrop,
+.video-preview-dialog::backdrop,
 .add-listening-dialog::backdrop {
   background: rgb(0 0 0 / 50%);
 }
@@ -945,6 +1011,26 @@ onBeforeUnmount(() => {
 .channel-dialog-header h2 {
   font-size: 1.1rem;
   margin: 0;
+}
+.video-preview-dialog {
+  width: min(900px, calc(100% - 32px));
+}
+.video-preview-dialog h2 {
+  overflow-wrap: anywhere;
+}
+.video-preview-player {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 10px;
+  background: #000;
+}
+.video-preview-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  margin: 16px 0 0;
 }
 .channel-add {
   display: flex;
@@ -1005,12 +1091,30 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 .channel-video-thumb {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
   flex-shrink: 0;
   display: block;
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background: var(--bg);
+}
+.channel-video-title {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.channel-video-thumb:focus-visible,
+.channel-video-title:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 .channel-video-thumb img {
   width: 100%;

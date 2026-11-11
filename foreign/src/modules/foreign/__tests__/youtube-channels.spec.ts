@@ -31,6 +31,8 @@ const channel = {
 const video = {
   video_id: 'dQw4w9WgXcQ',
   title: 'A listening lesson',
+  description:
+    'Practice your listening.\nA second line with <b>plain text</b>.',
   channel_id: channel.channel_id,
   channel_title: channel.title,
   thumbnail_url: '',
@@ -61,6 +63,47 @@ beforeEach(() => {
     items: [{ ...video }],
     next_cursor: 'next-page',
   })
+})
+it('previews videos in a dialog and removes the player on close or Escape', async () => {
+  const wrapper = mountPage()
+  await flushPromises()
+  expect(wrapper.find('iframe').exists()).toBe(false)
+  expect(wrapper.find('a[target="_blank"]').exists()).toBe(false)
+  await wrapper.get('.channel-video-thumb').trigger('click')
+  await flushPromises()
+  const dialog = wrapper.get('.video-preview-dialog')
+  expect(dialog.attributes('open')).toBeDefined()
+  expect(dialog.get('h2').text()).toBe(video.title)
+  expect(dialog.get('iframe').attributes('src')).toBe(
+    `https://www.youtube.com/embed/${video.video_id}?playsinline=1`,
+  )
+  expect(dialog.get('.video-preview-description').text()).toBe(
+    video.description,
+  )
+  expect(dialog.find('.video-preview-description b').exists()).toBe(false)
+  await dialog.get('button[aria-label="Close video preview"]').trigger('click')
+  expect(dialog.attributes('open')).toBeUndefined()
+  expect(dialog.find('iframe').exists()).toBe(false)
+  await wrapper.get('.channel-video-title').trigger('click')
+  await flushPromises()
+  expect(dialog.find('iframe').exists()).toBe(true)
+  await dialog.trigger('cancel')
+  expect(dialog.attributes('open')).toBeUndefined()
+  expect(dialog.find('iframe').exists()).toBe(false)
+  wrapper.unmount()
+})
+it('shows a fallback for videos with no description', async () => {
+  vi.mocked(youtubeApi.videos).mockResolvedValue({
+    items: [{ ...video, description: '' }],
+    next_cursor: null,
+  })
+  const wrapper = mountPage()
+  await flushPromises()
+  await wrapper.get('.channel-video-thumb').trigger('click')
+  expect(wrapper.get('.video-preview-description').text()).toBe(
+    'No description available.',
+  )
+  wrapper.unmount()
 })
 it('paginates, filters saved channels and resets the cursor when the filter changes', async () => {
   const wrapper = mountPage()

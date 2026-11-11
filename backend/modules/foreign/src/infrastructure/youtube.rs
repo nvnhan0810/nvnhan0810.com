@@ -294,6 +294,7 @@ pub fn merge_pages(pages: &[UploadPage], cursor: &mut Cursor) -> Vec<Value> {
         {
             items.push(serde_json::json!({
                 "video_id": id, "title": item["snippet"]["title"],
+                "description": item["snippet"]["description"].as_str().unwrap_or(""),
                 "channel_id": pages[index].channel_id,
                 "channel_title": item["snippet"]["videoOwnerChannelTitle"],
                 "published_at": item["contentDetails"]["videoPublishedAt"],
@@ -438,7 +439,7 @@ mod tests {
             next_token: String::new(),
             items: vec![
                 json!({"contentDetails":{"videoId":"dQw4w9WgXcQ"},"snippet":{"title":"Private video"}}),
-                json!({"contentDetails":{"videoId":"abcdefghijk"},"snippet":{"title":"Lesson"}}),
+                json!({"contentDetails":{"videoId":"abcdefghijk"},"snippet":{"title":"Lesson", "description":"Lesson description\nSecond line"}}),
             ],
         }];
         let mut cursor = Cursor::default();
@@ -448,6 +449,7 @@ mod tests {
         let items = merge_pages(&pages, &mut cursor);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0]["video_id"], "abcdefghijk");
+        assert_eq!(items[0]["description"], "Lesson description\nSecond line");
         assert!(cursor.channels["channel"].done);
     }
     #[test]
