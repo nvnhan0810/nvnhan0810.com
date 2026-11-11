@@ -211,9 +211,7 @@ pub async fn action(
                 .ok_or_else(|| bad("Invalid subtitle time"))?;
             let text = segment["text"].as_str().unwrap_or("").trim();
             if end <= start || text.is_empty() || text.len() > 10000 {
-                return Err(bad(
-                    "Subtitle lines need an end after start and text.",
-                ));
+                return Err(bad("Subtitle lines need an end after start and text."));
             }
             normalized.push(json!({"start":start,"end":end,"text":text}));
         }

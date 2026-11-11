@@ -37,7 +37,8 @@ mod tests {
         std::fs::write(storage.public_dir.join("other.txt"), "other module").unwrap();
         for (path, contents) in [
             ("install.sh", "installer"),
-            ("stable.txt", "0.1.0\n"),
+            ("stable-linux.txt", "0.1.0\n"),
+            ("stable-macos.txt", "0.2.0\n"),
             ("releases/0.1.0/binary", "binary"),
             ("releases/0.1.0/binary.sha256", "checksum"),
         ] {
@@ -46,7 +47,8 @@ mod tests {
         let app = Router::new().nest("/agent", routes(config));
         for (path, contents) in [
             ("install.sh", "installer"),
-            ("stable.txt", "0.1.0\n"),
+            ("stable-linux.txt", "0.1.0\n"),
+            ("stable-macos.txt", "0.2.0\n"),
             ("releases/0.1.0/binary", "binary"),
             ("releases/0.1.0/binary.sha256", "checksum"),
         ] {

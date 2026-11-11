@@ -42,14 +42,14 @@ download() {
 }
 
 case "$(uname -s)" in
-    Linux) os="unknown-linux-gnu" ;;
-    Darwin) os="apple-darwin" ;;
+    Linux) os="unknown-linux-gnu"; platform="linux" ;;
+    Darwin) os="apple-darwin"; platform="macos" ;;
     *) die "Only Linux and macOS are supported" ;;
 esac
-case "$(uname -m)" in
-    x86_64|amd64) arch="x86_64" ;;
-    arm64|aarch64) arch="aarch64" ;;
-    *) die "Unsupported CPU architecture: $(uname -m)" ;;
+case "$platform:$(uname -m)" in
+    linux:x86_64|linux:amd64) arch="x86_64" ;;
+    macos:arm64|macos:aarch64) arch="aarch64" ;;
+    *) die "Unsupported platform: $platform $(uname -m). Releases support Linux x86_64 (including WSL) and macOS Apple Silicon (M series) only. On Apple Silicon, run from a native ARM64 terminal." ;;
 esac
 
 mkdir -p -- "$bin_dir"
@@ -79,7 +79,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 if [[ -z "$version" ]]; then
-    download "$base_url/stable.txt" "$work_dir/stable.txt"
+    download "$base_url/stable-$platform.txt" "$work_dir/stable.txt"
     version="$(<"$work_dir/stable.txt")"
 fi
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||

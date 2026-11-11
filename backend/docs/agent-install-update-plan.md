@@ -61,7 +61,7 @@ Storage layout:
 │   └── agent/
 │       └── distributions/                 # Explicitly served at /agent/*
 │           ├── install.sh
-│           ├── stable.txt
+│           ├── stable-<platform>.txt
 │           └── releases/
 └── private/
     └── uploads/                          # Future uploads; no static HTTP mount
@@ -76,7 +76,7 @@ Deployment provides this dedicated public distribution directory:
 ```text
 /srv/nvn-storage/public/agent/distributions/
 ├── install.sh                     # Copied from module assets at deployment
-├── stable.txt                     # For example: 0.1.0 followed by a newline
+├── stable-<platform>.txt                     # For example: 0.1.0 followed by a newline
 └── releases/
     └── 0.1.0/
         ├── nvn-agent-x86_64-unknown-linux-gnu
@@ -92,7 +92,7 @@ The example lists two artifacts; publish additional targets only after validatio
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/agent/install.sh` | Download installer |
-| GET | `/agent/stable.txt` | Resolve the current stable version |
+| GET | `/agent/stable-<platform>.txt` | Resolve the current stable version |
 | GET | `/agent/releases/{version}/{artifact}` | Download immutable binary |
 | GET | `/agent/releases/{version}/{artifact}.sha256` | Download checksum |
 
@@ -302,7 +302,7 @@ Installation sequence:
 1. Require HTTPS, `curl`, platform utilities, and either `sha256sum` or `shasum`.
 2. Detect OS and CPU using `uname`; reject unsupported combinations clearly.
 3. Create the destination directory and a temporary staging directory inside it, with cleanup on exit. Reject a destination that is a directory.
-4. When no version is pinned, download `stable.txt` once. Accept stable numeric versions matching `^[0-9]+\.[0-9]+\.[0-9]+$`.
+4. When no version is pinned, download `stable-<platform>.txt` once. Accept stable numeric versions matching `^[0-9]+\.[0-9]+\.[0-9]+$`.
 5. Construct `nvn-agent-${arch}-${os}` and download the binary and checksum from the resolved version directory.
 6. Require a checksum file containing exactly a 64-character hexadecimal SHA-256 digest plus an optional trailing newline. Compare the digest with the downloaded binary, using the lowercase digest format produced by the packaging script.
 7. Set executable permissions and run the staged binary with `--version`. Require `nvn-agent <resolved-version>` before installation.
@@ -369,9 +369,9 @@ Publishing order:
 3. Publish the complete version directory without changing existing releases.
 4. Deploy the installer from the module assets.
 5. Smoke-test public downloads and a pinned installation.
-6. Atomically replace `stable.txt` to promote the release.
+6. Atomically replace `stable-<platform>.txt` to promote the release.
 
-Configure the module or reverse proxy to revalidate or avoid caching `install.sh` and `stable.txt`. Immutable versioned artifacts may use long-lived caching. Roll back the default release by atomically pointing `stable.txt` to a previously verified version; installed clients change only when installation runs again.
+Configure the module or reverse proxy to revalidate or avoid caching `install.sh` and `stable-<platform>.txt`. Immutable versioned artifacts may use long-lived caching. Roll back the default release by atomically pointing `stable-<platform>.txt` to a previously verified version; installed clients change only when installation runs again.
 
 ## User commands
 
@@ -468,8 +468,8 @@ download() {
 }
 
 case "$(uname -s)" in
-    Linux) os="unknown-linux-gnu" ;;
-    Darwin) os="apple-darwin" ;;
+    Linux) os="unknown-linux-gnu"; platform="linux" ;;
+    Darwin) os="apple-darwin"; platform="macos" ;;
     *) die "Only Linux and macOS are supported" ;;
 esac
 case "$(uname -m)" in
@@ -498,8 +498,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 if [[ -z "$version" ]]; then
-    download "$base_url/stable.txt" "$work_dir/stable.txt"
-    version="$(<"$work_dir/stable.txt")"
+    download "$base_url/stable-$platform.txt" "$work_dir/stable-<platform>.txt"
+    version="$(<"$work_dir/stable-<platform>.txt")"
 fi
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
     die "Invalid release version: $version"
@@ -665,9 +665,13 @@ mv -f "$installer_stage" "$distribution_dir/install.sh"
 stable_stage="$(mktemp "$distribution_dir/.stable.XXXXXX")"
 printf '%s\n' '0.1.0' > "$stable_stage"
 chmod 644 "$stable_stage"
-mv -f "$stable_stage" "$distribution_dir/stable.txt"
+mv -f "$stable_stage" "$distribution_dir/stable-<platform>.txt"
 ```
 
 The backend process and release publisher receive `STORAGE_DIR=/srv/nvn-storage`. The shared configuration derives `public` and `private`; the agent module derives `agent/distributions` from the public root; no module-specific storage environment variable is needed. Users normally set no environment variables: the installer defaults to the public backend domain, the stable release, and `~/.local/bin`.
 
 All code in this document is proposed implementation. Updating this document does not create the scripts, change the gateway, build releases, or publish files.
+
+## Platform release channels
+
+Use `stable-linux.txt` for Linux and `stable-macos.txt` for macOS. Linux points to an x86_64-unknown-linux-gnu binary (native Linux and Ubuntu WSL on Intel Windows); macOS points to an aarch64-apple-darwin binary for Apple Silicon M series. No Linux ARM64, Intel macOS or native Windows releases are built. Linux clients need compatible glibc and system libraries; use the same Ubuntu release as the builder where possible. The shared releases/VERSION directory and installer URL are unchanged. Publish Linux locally to storage; publish macOS through SSH to ssh.nvnhan0810.com. Promote only the OS being built after the platform binary and checksum are available. CLI release tooling is in cli/scripts/release.sh.example in the agent repository.

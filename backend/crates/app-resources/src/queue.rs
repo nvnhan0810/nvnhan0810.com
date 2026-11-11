@@ -237,11 +237,12 @@ mod tests {
                 .await
                 .unwrap();
         }
-        let entries = seen.lock().unwrap();
-        assert_eq!(entries[0].0, "transcript");
-        assert_eq!(entries[1].0, "telegram");
-        assert_eq!(entries[0].2, 2);
-        drop(entries);
+        {
+            let entries = seen.lock().unwrap();
+            assert_eq!(entries[0].0, "transcript");
+            assert_eq!(entries[1].0, "telegram");
+            assert_eq!(entries[0].2, 2);
+        }
         assert!(
             registry
                 .execute(Job::new("missing", ()).unwrap(), 1)
