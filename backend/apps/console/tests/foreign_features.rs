@@ -855,6 +855,27 @@ async fn phrases_keep_their_lifetime_and_updates_separate_from_words() {
     let exact = page(&app, &token, "/home/lookup?q=look").await;
     assert_eq!(exact.1["result"]["word"], "look");
     assert!(exact.1.get("suggestions").is_none());
+    let automatic = page(&app, &token, "/home/lookup?q=look%20forward%20to").await;
+    assert_eq!(automatic.0, 200);
+    assert_eq!(automatic.1["entityKind"], "phrase");
+    assert_eq!(automatic.1["saved"], true);
+    let draft = page(&app, &token, "/home/lookup?q=What%20do%20you%20mean%3F").await;
+    assert_eq!(draft.0, 200);
+    assert_eq!(draft.1["entityKind"], "phrase");
+    assert_eq!(draft.1["draft"], true);
+    assert_eq!(draft.1["result"]["word"], "what do you mean?");
+    assert_eq!(draft.1["result"]["meanings"], json!([]));
+    let posted = action(
+        &app,
+        &token,
+        "/home/lookup",
+        "POST",
+        json!({"word":"What do you mean?"}),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(posted.0, 200);
+    assert_eq!(posted.1["props"]["entityKind"], "phrase");
     assert_eq!(
         page(
             &app,
@@ -873,7 +894,7 @@ async fn phrases_keep_their_lifetime_and_updates_separate_from_words() {
         )
         .await
         .0,
-        404
+        200
     );
     let mut edited = phrase.clone();
     edited["kind"] = json!("phrase");
@@ -967,4 +988,30 @@ async fn phrases_keep_their_lifetime_and_updates_separate_from_words() {
         .await
         .unwrap();
     assert_eq!(count, 1);
+    // A new expression can be saved without ever creating a word or a link.
+    let standalone = action(
+        &app,
+        &token,
+        "/home/lookup/save",
+        "POST",
+        json!({"kind":"phrase","word":"what do you mean?","meanings":[{
+            "part_of_speech":"sentence","definition":"A request for clarification",
+            "examples":["What do you mean? Could you explain?"]
+        }]}),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(standalone.0, 200);
+    assert_eq!(standalone.1["props"]["entityKind"], "phrase");
+    assert_eq!(standalone.1["props"]["saved"], true);
+    let links: i64 = sqlx::query_scalar("SELECT count(*) FROM foreign_word_phrases l JOIN foreign_phrases p ON p.id=l.phrase_id WHERE p.user_id=$1 AND p.phrase='what do you mean?'")
+        .bind(owner).fetch_one(&pool).await.unwrap();
+    assert_eq!(links, 0);
+    let words: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM foreign_dictionary_entries WHERE word='what do you mean?'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(words, 0);
 }

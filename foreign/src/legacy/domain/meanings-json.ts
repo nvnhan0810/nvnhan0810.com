@@ -211,15 +211,28 @@ export function buildMeaningsAiPrompt(
   word: string,
   currentMeanings: readonly MeaningLike[] = [],
   entry: Partial<DictionaryLookupResult> = {},
-  kind: 'word' | 'phrase' = 'word',
+  kind: 'word' | 'phrase' = word.trim().split(/\s+/).length > 1
+    ? 'phrase'
+    : 'word',
 ): string {
-  return `You are helping curate an English dictionary entry for FLC.
-Word / phrase: ${word.trim() || '{WORD}'}
-Current dictionary JSON (preserve valid information and improve missing details):
-${entryToPrettyJson({ ...entry, word }, currentMeanings)}
-
-Return ONLY a valid JSON object, without markdown or commentary, using this schema:
-{
+  const isPhrase = kind === 'phrase'
+  const schema = isPhrase
+    ? `{
+  "phonetic": "",
+  "audio_url": "",
+  "examples": ["We broke the ice by introducing ourselves."],
+  "synonyms": [],
+  "antonyms": [],
+  "phrases": [],
+  "meanings": [{
+    "part_of_speech": "idiom",
+    "definition": "To make people feel more relaxed when meeting or starting a conversation",
+    "examples": ["Her joke helped break the ice."],
+    "synonyms": [],
+    "antonyms": []
+  }]
+}`
+    : `{
   "phonetic": "/ˈhæpi/",
   "audio_url": "",
   "examples": ["She looks happy today."],
@@ -233,17 +246,24 @@ Return ONLY a valid JSON object, without markdown or commentary, using this sche
     "synonyms": ["glad"],
     "antonyms": ["unhappy"]
   }]
-}
+}`
+  return `You are helping curate ${isPhrase ? 'a standalone English phrase / idiom / sentence' : 'an English dictionary entry'} for FLC.
+Word / phrase: ${word.trim() || '{WORD}'}
+Current dictionary JSON (preserve valid information and improve missing details):
+${entryToPrettyJson({ ...entry, word }, currentMeanings)}
+
+Return ONLY a valid JSON object, without markdown or commentary, using this schema:
+${schema}
 Rules:
 ${
   kind === 'word'
     ? '- Suggest useful related phrases, phrasal verbs, idioms and clause patterns in phrases. Each needs word and meanings with definitions and examples. Preserve useful existing phrases. Use [] if none are relevant.'
-    : '- This is a standalone phrase update. Describe only this phrase and return phrases: []; do not suggest or change other words or phrases.'
+    : '- This is a standalone phrase / idiom / sentence saved independently. Describe only this phrase and return phrases: []; do not suggest or change other words or phrases. Do not create or save a word entry, choose a parent word, or attach this expression to any specific word. Put the explanation of the complete expression directly in top-level meanings, never inside phrases.'
 }
-- Describe the requested word, not the example word in the schema.
-- phonetic is IPA for the whole word. Use an empty string if unknown.
+- Describe the requested ${isPhrase ? 'expression, not the example idiom' : 'word, not the example word'} in the schema.
+- phonetic is IPA for the whole ${isPhrase ? 'expression' : 'word'}. Use an empty string if unknown.
 - audio_url is a verified HTTPS pronunciation audio URL. Preserve a valid existing URL; never invent a URL. Use an empty string if unavailable.
-- Top-level examples, synonyms, and antonyms apply to the whole word. Sense-specific examples and related words belong inside meanings.
+- Top-level examples, synonyms, and antonyms apply to the whole ${isPhrase ? 'expression' : 'word'}. Sense-specific examples and related words belong inside meanings.
 - All examples, synonyms, and antonyms MUST be arrays of strings; use [] when empty.
 - Include at least one meaning with a non-empty definition and all distinct useful senses without duplication.
 - Use English only for definitions, examples, synonyms, antonyms, and part_of_speech. Use IPA for phonetic.

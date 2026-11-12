@@ -62,6 +62,42 @@ const result = {
   ],
 }
 const wrappers: ReturnType<typeof mount>[] = []
+it('opens a phrase draft with an AI prompt and saves its explanation as a phrase', async () => {
+  const wrapper = mount(Lookup, {
+    props: {
+      word: 'what do you mean?',
+      queryWord: 'what do you mean?',
+      entityKind: 'phrase',
+      draft: true,
+      result: { word: 'what do you mean?', meanings: [] },
+    },
+  })
+  wrappers.push(wrapper)
+  expect(wrapper.text()).toContain('Phrase / idiom')
+  expect(wrapper.text()).toContain('Copy prompt')
+  expect(wrapper.text()).not.toContain('No dictionary entry')
+  const clipboard = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: clipboard },
+    configurable: true,
+  })
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Copy prompt')!
+    .trigger('click')
+  expect(clipboard).toHaveBeenCalledWith(
+    expect.stringContaining('Describe only this phrase'),
+  )
+  await wrapper
+    .get('textarea')
+    .setValue(JSON.stringify({ meanings: result.meanings }))
+  await wrapper.get('.lookup-save-form').trigger('submit')
+  expect(mocks.post.mock.calls[0]![1]).toMatchObject({
+    word: 'what do you mean?',
+    kind: 'phrase',
+    meanings: result.meanings.map((m) => ({ ...m, example: m.examples[0] })),
+  })
+})
 function page(saved = false, restore = false) {
   const wrapper = mount(Lookup, {
     props: restore
@@ -253,14 +289,12 @@ it('updates only the standalone phrase and preserves its kind in a restored sess
   mocks.post.mockClear()
   const restored = page(false, true)
   await restored.vm.$nextTick()
-  await restored
-    .get('textarea')
-    .setValue(
-      JSON.stringify({
-        ...JSON.parse(restored.get('textarea').element.value),
-        phonetic: '/restored/',
-      }),
-    )
+  await restored.get('textarea').setValue(
+    JSON.stringify({
+      ...JSON.parse(restored.get('textarea').element.value),
+      phonetic: '/restored/',
+    }),
+  )
   await restored.get('.lookup-save-form').trigger('submit')
   expect(mocks.post.mock.calls[0]![1].kind).toBe('phrase')
 })

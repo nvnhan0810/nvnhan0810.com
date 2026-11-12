@@ -638,7 +638,7 @@ const saveButtonLabel = computed((): string => {
               type="text"
               name="word"
               class="form-control"
-              placeholder="Type or paste a word..."
+              placeholder="Type or paste a word, phrase or sentence..."
               autocomplete="off"
               enterkeyhint="search"
               :autofocus="!(queryWord || '').trim()"
@@ -713,13 +713,19 @@ const saveButtonLabel = computed((): string => {
               🔊
             </button>
           </div>
-          <p v-if="activeKind === 'phrase'" class="pos-tag">Phrase / clause</p>
+          <p v-if="activeKind === 'phrase'" class="pos-tag">Phrase / idiom</p>
           <p v-if="activeResult.phonetic" class="card-subtitle lookup-phonetic">
             {{ activeResult.phonetic }}
           </p>
 
           <p v-if="isDraft" class="muted lookup-draft-hint">
-            No dictionary entry yet. Add meanings with JSON or Copy prompt.
+            <template v-if="activeKind === 'phrase'">
+              Copy prompt to ask AI for an explanation, then paste its JSON
+              below and Save to Phrases.
+            </template>
+            <template v-else>
+              No dictionary entry yet. Add meanings with JSON or Copy prompt.
+            </template>
           </p>
 
           <div class="meanings-header">
@@ -801,9 +807,15 @@ const saveButtonLabel = computed((): string => {
               placeholder='{"phonetic":"","audio_url":"","examples":[],"synonyms":[],"antonyms":[],"meanings":[{"definition":"..."}]}'
             />
             <p class="muted lookup-json-hint">
-              Edit phonetic, audio_url, examples, synonyms, antonyms and
-              meanings and phrases, then Save or Update. Removing a phrase only
-              unlinks it; it stays in Phrases.
+              <template v-if="activeKind === 'phrase'">
+                Paste the AI JSON, then Save or Update this phrase / idiom. It
+                is saved independently without linking it to a word.
+              </template>
+              <template v-else>
+                Edit phonetic, audio_url, examples, synonyms, antonyms, meanings
+                and phrases, then Save or Update. Removing a phrase only unlinks
+                it; it stays in Phrases.
+              </template>
             </p>
           </div>
         </div>

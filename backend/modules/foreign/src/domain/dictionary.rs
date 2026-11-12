@@ -46,12 +46,21 @@ pub struct Definition {
 }
 
 pub fn normalize_word(word: &str) -> Option<String> {
-    let word = word.trim().to_lowercase();
+    let word = word
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
     if word.is_empty()
         || word.len() > 100
-        || !word
-            .chars()
-            .all(|c| c.is_ascii_alphabetic() || matches!(c, ' ' | '\'' | '-'))
+        || !word.chars().all(|c| {
+            c.is_ascii_alphabetic()
+                || matches!(
+                    c,
+                    ' ' | '\'' | '-' | '.' | ',' | '!' | '?' | ':' | ';' | '"'
+                )
+        })
+        || !word.chars().any(|c| c.is_ascii_alphabetic())
     {
         return None;
     }
@@ -64,6 +73,11 @@ mod tests {
     fn accepts_words_and_phrases_but_rejects_paths_and_empty_queries() {
         assert_eq!(normalize_word(" Hello ").as_deref(), Some("hello"));
         assert!(normalize_word("mother-in-law").is_some());
+        assert_eq!(
+            normalize_word(" What\n do you mean? ").as_deref(),
+            Some("what do you mean?")
+        );
+        assert!(normalize_word("...?!").is_none());
         for word in ["", "  ", "../hello", "hello?x=1", "こんにちは"] {
             assert!(normalize_word(word).is_none());
         }

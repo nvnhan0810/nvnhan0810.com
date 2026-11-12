@@ -199,6 +199,16 @@ async fn lookup(
     phrase_only: bool,
 ) -> Result<Value, ApiError> {
     let word = normalize_word(word).ok_or_else(|| bad("Invalid word"))?;
+    if phrase_only || word.split_whitespace().count() > 1 {
+        let phrase = super::phrases::exact(&state.pool, owner, &word).await?;
+        let saved = phrase.is_some();
+        let result = phrase
+            .as_ref()
+            .map(games::reveal)
+            .unwrap_or_else(|| json!({"word":word,"phonetic":"","meanings":[]}));
+        return Ok(json!({"word":word,"queryWord":word,"result":result,
+            "saved":saved,"draft":!saved,"entityKind":"phrase"}));
+    }
     let local: Option<Value> =
         sqlx::query_scalar("SELECT COALESCE((SELECT v.entry_override FROM foreign_vocabularies v WHERE v.dictionary_entry_id=e.id AND v.user_id=$2),e.payload) FROM foreign_dictionary_entries e WHERE word=$1")
             .bind(&word)
@@ -207,7 +217,7 @@ async fn lookup(
             .await
             .map_err(internal)?;
     let phrase = super::phrases::exact(&state.pool, owner, &word).await?;
-    if phrase_only || (local.is_none() && phrase.is_some()) {
+    if local.is_none() && phrase.is_some() {
         let phrase = phrase.ok_or_else(missing)?;
         return Ok(
             json!({"word":word,"queryWord":word,"result":games::reveal(&phrase),"saved":true,"entityKind":"phrase"}),

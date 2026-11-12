@@ -98,3 +98,18 @@ it('asks AI for related phrases on words and limits standalone phrase updates', 
     buildMeaningsAiPrompt('look forward to', meanings, {}, 'phrase'),
   ).toContain('Describe only this phrase')
 })
+
+it('generates phrase-only JSON without a parent word for multiword prompts', () => {
+  const prompt = buildMeaningsAiPrompt('break the ice')
+  expect(prompt).toContain('standalone English phrase / idiom / sentence')
+  expect(prompt).toContain('Do not create or save a word entry')
+  expect(prompt).toContain('directly in top-level meanings')
+  expect(prompt).not.toContain('Suggest useful related phrases')
+  const schema = JSON.parse(
+    prompt.split('using this schema:\n')[1]!.split('\nRules:')[0]!,
+  )
+  expect(schema.phrases).toEqual([])
+  expect(schema).not.toHaveProperty('word')
+  expect(schema.meanings[0].part_of_speech).toBe('idiom')
+  expect(parseEntryJson(JSON.stringify(schema)).meanings).toHaveLength(1)
+})
