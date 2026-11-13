@@ -148,7 +148,7 @@ async fn issue_code(
     validate_intent(&client, intent)?;
     let user = state.store.profile(user_id).await?;
     if !state.store.can_access_app(user_id, client.id).await? {
-        return Err(IdentityError::forbidden());
+        return denied_redirect(intent);
     }
     if intent
         .scope
@@ -156,7 +156,7 @@ async fn issue_code(
         .any(|s| s == "identity.clients.manage")
         && !crate::domain::policies::system_root::is_system_root(&user.email)
     {
-        return Err(IdentityError::forbidden());
+        return denied_redirect(intent);
     }
     let code = state.crypto.random_token();
     state
@@ -175,4 +175,13 @@ pub async fn end_login(state: &IdentityState, token: &str) -> Result<()> {
         .store
         .delete_browser_login(&state.crypto.hash(token))
         .await
+}
+
+// Called only after validating the registered client and authorization intent.
+fn denied_redirect(intent: &AuthorizeRequest) -> Result<String> {
+    let mut url = Url::parse(&intent.redirect_uri).map_err(|_| IdentityError::internal())?;
+    url.query_pairs_mut()
+        .append_pair("error", "access_denied")
+        .append_pair("state", &intent.state);
+    Ok(url.into())
 }

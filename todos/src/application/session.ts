@@ -129,6 +129,10 @@ export class TodosSession {
       );
       // Remove authorization credentials from the visible URL before HTTP calls.
       window.history.replaceState({}, "", "/auth/callback");
+      if (url.searchParams.get("error") === "access_denied")
+        throw new Error(
+          "Tài khoản chưa được cấp quyền truy cập ứng dụng này. Vui lòng liên hệ quản trị viên để được cấp quyền.",
+        );
       if (url.searchParams.has("error"))
         throw new Error("Đăng nhập chưa hoàn tất. Vui lòng thử lại.");
       const code = url.searchParams.get("code");

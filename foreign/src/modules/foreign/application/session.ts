@@ -130,6 +130,10 @@ export class ForeignSession {
       )
       // Remove authorization credentials from the visible URL before HTTP calls.
       window.history.replaceState({}, '', RoutePath.authCallback)
+      if (url.searchParams.get('error') === 'access_denied')
+        throw new Error(
+          'Your account does not have access to this app. Please contact an administrator for access.',
+        )
       if (url.searchParams.has('error'))
         throw new Error('Sign-in did not complete. Please try again.')
       const code = url.searchParams.get('code')

@@ -126,6 +126,10 @@ export class IdentitySession {
       )
       // Remove authorization credentials from the visible URL before HTTP calls.
       window.history.replaceState({}, '', '/auth/callback')
+      if (url.searchParams.get('error') === 'access_denied')
+        throw new Error(
+          'Tài khoản không có quyền truy cập trang quản trị Identity. Vui lòng đăng nhập bằng tài khoản system root.',
+        )
       if (url.searchParams.has('error'))
         throw new Error('Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.')
       const code = url.searchParams.get('code')

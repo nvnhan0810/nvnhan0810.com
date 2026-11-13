@@ -32,6 +32,60 @@ describe('Identity session', () => {
     vi.stubGlobal('crypto', webcrypto)
     history.replaceState({}, '', '/')
   })
+  it('shows an access denial without exchanging tokens and rejects callback replay', async () => {
+    const transport = vi.fn<typeof fetch>()
+    const session = new IdentitySession(settings, transport)
+    const url = await callback()
+    url.searchParams.delete('code')
+    url.searchParams.set('error', 'access_denied')
+    history.replaceState({}, '', url.pathname + url.search)
+
+    await expect(session.completeLogin(url)).rejects.toThrow(
+      'Tài khoản không có quyền truy cập trang quản trị Identity. Vui lòng đăng nhập bằng tài khoản system root.',
+    )
+    expect(transport).not.toHaveBeenCalled()
+    expect(session.state.user).toBeNull()
+    expect(session.state.busy).toBe(false)
+    expect(sessionStorage.length).toBe(0)
+    expect(location.search).toBe('')
+    await expect(session.accessToken()).rejects.toThrow('invalid_grant')
+    await expect(session.completeLogin(url)).rejects.toThrow()
+    expect(transport).not.toHaveBeenCalled()
+  })
+  it.each([null, 'incorrect-state'])(
+    'validates state before handling an error callback (%s)',
+    async (state) => {
+      const transport = vi.fn<typeof fetch>()
+      const session = new IdentitySession(settings, transport)
+      const url = await callback()
+      url.searchParams.delete('code')
+      url.searchParams.set('error', 'access_denied')
+      if (state === null) url.searchParams.delete('state')
+      else url.searchParams.set('state', state)
+
+      const error = await session.completeLogin(url).catch((cause: unknown) => cause)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).not.toBe(
+        'Tài khoản không có quyền truy cập trang quản trị Identity. Vui lòng đăng nhập bằng tài khoản system root.',
+      )
+      expect(transport).not.toHaveBeenCalled()
+      expect(session.state.user).toBeNull()
+      expect(session.state.busy).toBe(false)
+      expect(sessionStorage.length).toBe(0)
+    },
+  )
+  it('keeps a generic message for unknown OAuth errors', async () => {
+    const transport = vi.fn<typeof fetch>()
+    const session = new IdentitySession(settings, transport)
+    const url = await callback()
+    url.searchParams.set('error', 'unknown_error')
+    url.searchParams.set('error_description', 'untrusted description')
+    await expect(session.completeLogin(url)).rejects.toThrow(
+      'Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.',
+    )
+    expect(transport).not.toHaveBeenCalled()
+    expect(session.state.busy).toBe(false)
+  })
   it('exchanges PKCE, verifies profile and keeps tokens out of browser storage', async () => {
     const transport = vi
       .fn<typeof fetch>()

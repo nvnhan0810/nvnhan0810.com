@@ -505,11 +505,10 @@ async fn oauth_end_to_end_and_replay_protection() {
     // A non-admin still cannot obtain an admin scope even with an approved client.
     let mut admin_attempt = intent(&app_a);
     admin_attempt.scope = "identity.clients.manage".into();
-    assert!(
-        sso_handler::authorize(&state, admin_attempt, Some(&login))
-            .await
-            .is_err()
-    );
+    let (denied, _) = sso_handler::authorize(&state, admin_attempt, Some(&login))
+        .await
+        .unwrap();
+    assert_denied_redirect(&denied, &intent(&app_a));
 
     // New module scopes are configured in DB; all tokens use the same APP_URL.
     let dynamic_id = format!("dynamic-{suffix}");
@@ -780,11 +779,10 @@ async fn private_apps_and_precreated_google_user() {
         .save_browser_login(&state.crypto.hash(&login), user.id)
         .await
         .unwrap();
-    assert!(
-        sso_handler::authorize(&state, intent(&key), Some(&login))
-            .await
-            .is_err()
-    );
+    let (denied, _) = sso_handler::authorize(&state, intent(&key), Some(&login))
+        .await
+        .unwrap();
+    assert_denied_redirect(&denied, &intent(&key));
     assert!(!store.can_access_app(user.id, client.id).await.unwrap());
     assert!(store.create_user(&email, &[]).await.is_err());
     store.set_user_apps(user.id, &[client.id]).await.unwrap();
@@ -831,10 +829,71 @@ async fn private_apps_and_precreated_google_user() {
         .await
         .is_err()
     );
-    assert!(
-        sso_handler::authorize(&state, intent(&key), Some(&login))
-            .await
-            .is_err()
-    );
+    let (denied, _) = sso_handler::authorize(&state, intent(&key), Some(&login))
+        .await
+        .unwrap();
+    assert_denied_redirect(&denied, &intent(&key));
     assert!(!store.can_access_app(user.id, client.id).await.unwrap());
+}
+
+fn assert_denied_redirect(location: &str, intent: &AuthorizeRequest) {
+    let url = url::Url::parse(location).unwrap();
+    let params: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
+    assert_eq!(params.get("error").unwrap(), "access_denied");
+    assert_eq!(params.get("state").unwrap(), &intent.state);
+    assert!(!params.contains_key("code"));
+    assert!(location.starts_with(&format!("{}?", intent.redirect_uri)));
+}
+
+#[tokio::test]
+#[ignore = "requires IDENTITY_TEST_DATABASE_URL pointing to a disposable PostgreSQL database"]
+async fn google_callback_denied_returns_to_registered_client() {
+    let (state, _, pool) = setup().await;
+    let key = format!("denied-{}", Uuid::new_v4());
+    let mut metadata = input(&key);
+    metadata.is_public = false;
+    client_handler::register(&state, metadata).await.unwrap();
+    let before = active_grants(&pool).await;
+    let (location, cookie) = sso_handler::authorize(&state, intent(&key), None)
+        .await
+        .unwrap();
+    let google_state = url::Url::parse(&location)
+        .unwrap()
+        .query_pairs()
+        .find(|(k, _)| k == "state")
+        .unwrap()
+        .1
+        .into_owned();
+    let cookie = cookie.unwrap();
+    let cookie = cookie.split(';').next().unwrap();
+    let router = identity::identity_routes(state.clone());
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/google/callback?state={google_state}&code=fake"))
+                .header("cookie", cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(response.status().is_redirection());
+    assert_denied_redirect(
+        response.headers()["location"].to_str().unwrap(),
+        &intent(&key),
+    );
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    assert_eq!(active_grants(&pool).await, before);
+    let replay = router
+        .oneshot(
+            Request::builder()
+                .uri(format!("/google/callback?state={google_state}&code=fake"))
+                .header("cookie", cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(!replay.status().is_redirection());
 }
