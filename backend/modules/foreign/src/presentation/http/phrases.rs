@@ -21,7 +21,7 @@ pub fn decode(data: &Value) -> Result<Entry, ApiError> {
                 "partOfSpeech":m["part_of_speech"].as_str().unwrap_or(""),
                 "synonyms":m["synonyms"].as_array().cloned().unwrap_or_default(),
                 "antonyms":m["antonyms"].as_array().cloned().unwrap_or_default(),
-                "definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"definition_vi":m["definition_vi"],
+                "definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"definition_vi":m["definition_vi"],"example_translations":m["example_translations"].as_object().cloned().unwrap_or_default(),
                     "example":m["example"].as_str().unwrap_or(""),
                     "examples":m["examples"].as_array().cloned().unwrap_or_default()}]
             })
@@ -30,7 +30,7 @@ pub fn decode(data: &Value) -> Result<Entry, ApiError> {
     let mut entry: Entry = serde_json::from_value(json!({
         "word":data["word"], "phonetic":data["phonetic"].as_str().unwrap_or(""),
         "meanings":meanings,
-        "examples":data["examples"].as_array().cloned().unwrap_or_default(),
+        "examples":data["examples"].as_array().cloned().unwrap_or_default(),"example_translations":data["example_translations"].as_object().cloned().unwrap_or_default(),
         "synonyms":data["synonyms"].as_array().cloned().unwrap_or_default(),
         "antonyms":data["antonyms"].as_array().cloned().unwrap_or_default()
     }))
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn persists_vietnamese_for_each_phrase_sense() {
         let entry = decode(&json!({"word":"break the ice","meanings":[
-            {"definition":"Start a conversation", "definition_vi":"Bắt đầu cuộc trò chuyện"},
+            {"definition":"Start a conversation", "definition_vi":"Bắt đầu cuộc trò chuyện","examples":["Her joke broke the ice."],"example_translations":{"Her joke broke the ice.":"Câu đùa của cô ấy giúp mọi người bớt ngại ngùng."}},
             {"definition":"Break frozen water", "definition_vi":"Đập vỡ lớp băng"}
         ]}))
         .unwrap();
@@ -125,6 +125,10 @@ mod tests {
             "Bắt đầu cuộc trò chuyện"
         );
         assert_eq!(revealed["meanings"][1]["definition_vi"], "Đập vỡ lớp băng");
+        assert_eq!(
+            revealed["meanings"][0]["example_translations"]["Her joke broke the ice."],
+            "Câu đùa của cô ấy giúp mọi người bớt ngại ngùng."
+        );
         let legacy =
             decode(&json!({"word":"say hello","meanings":[{"definition":"Greet someone"}]}))
                 .unwrap();

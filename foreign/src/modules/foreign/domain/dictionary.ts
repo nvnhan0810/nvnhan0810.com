@@ -1,4 +1,5 @@
 export interface DictionaryEntry {
+  example_translations?: Record<string, string>
   examples?: string[]
   synonyms?: string[]
   antonyms?: string[]
@@ -12,6 +13,7 @@ export interface DictionaryEntry {
     definitions: {
       definition: string
       definition_vi?: string
+      example_translations?: Record<string, string>
       example: string
       examples?: string[]
       synonyms: string[]

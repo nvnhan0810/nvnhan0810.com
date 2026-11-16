@@ -103,6 +103,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         :synonyms="vocab.synonyms || []"
         :antonyms="vocab.antonyms || []"
         :extra-examples="vocab.examples || []"
+        :example-translations="vocab.example_translations ?? {}"
         prefer-detail
       />
     </div>

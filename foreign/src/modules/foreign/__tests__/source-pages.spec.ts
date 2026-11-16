@@ -29,7 +29,13 @@ const vocab = {
   id: 12,
   word: 'apple',
   phonetic: '/test/',
-  meanings: [{ definition: 'Fruit.', examples: ['Eat an apple.'] }],
+  meanings: [
+    {
+      definition: 'Fruit.',
+      examples: ['Eat an apple.'],
+      example_translations: { 'Eat an apple.': 'Hãy ăn một quả táo.' },
+    },
+  ],
   examples: [],
 }
 beforeEach(() => vi.clearAllMocks())
@@ -44,6 +50,7 @@ it('renders vocabulary definitions/examples on the detail page', () => {
   const wrapper = mount(VocabShow, { props: { vocab }, global })
   expect(wrapper.text()).toContain('Fruit.')
   expect(wrapper.text()).toContain('Eat an apple.')
+  expect(wrapper.get('small[lang="vi"]').text()).toBe('Hãy ăn một quả táo.')
   expect(wrapper.find('.action-menu-danger').text()).toBe('Delete')
   wrapper.unmount()
 })

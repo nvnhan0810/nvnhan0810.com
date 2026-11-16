@@ -311,9 +311,9 @@ pub async fn action(
             return Ok(Json(json!({"props":result})));
         }
         let phrase_entries = super::phrases::decode_list(data)?;
-        let meanings:Vec<_>=data["meanings"].as_array().into_iter().flatten().map(|m|json!({"partOfSpeech":m["part_of_speech"].as_str().unwrap_or(""),"synonyms":m["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":m["antonyms"].as_array().cloned().unwrap_or_default(),"definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"definition_vi":m["definition_vi"],"example":m["example"].as_str().unwrap_or(""),"examples":m["examples"].as_array().cloned().unwrap_or_default()}]})).collect();
+        let meanings:Vec<_>=data["meanings"].as_array().into_iter().flatten().map(|m|json!({"partOfSpeech":m["part_of_speech"].as_str().unwrap_or(""),"synonyms":m["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":m["antonyms"].as_array().cloned().unwrap_or_default(),"definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"definition_vi":m["definition_vi"],"example_translations":m["example_translations"].as_object().cloned().unwrap_or_default(),"example":m["example"].as_str().unwrap_or(""),"examples":m["examples"].as_array().cloned().unwrap_or_default()}]})).collect();
         let mut entry: Entry = serde_json::from_value(
-            json!({"word":data["word"],"phonetic":data["phonetic"],"examples":data["examples"].as_array().cloned().unwrap_or_default(),"synonyms":data["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":data["antonyms"].as_array().cloned().unwrap_or_default(),"meanings":meanings}),
+            json!({"word":data["word"],"phonetic":data["phonetic"],"examples":data["examples"].as_array().cloned().unwrap_or_default(),"example_translations":data["example_translations"].as_object().cloned().unwrap_or_default(),"synonyms":data["synonyms"].as_array().cloned().unwrap_or_default(),"antonyms":data["antonyms"].as_array().cloned().unwrap_or_default(),"meanings":meanings}),
         )
         .map_err(|_| bad("Invalid word"))?;
         crate::application::vocabulary::validate(&mut entry).map_err(bad)?;

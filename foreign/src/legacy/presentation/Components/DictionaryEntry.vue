@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BilingualExample from './BilingualExample.vue'
 import SenseDefinition from './SenseDefinition.vue'
 import { RoutePath } from '../../../app/router/paths'
 
@@ -14,6 +15,10 @@ const props = defineProps({
   extraExamples: {
     type: Array as PropType<(string | { example: string })[]>,
     default: () => [],
+  },
+  exampleTranslations: {
+    type: Object as PropType<Record<string, string>>,
+    default: () => ({}),
   },
   preferDetail: { type: Boolean as PropType<boolean>, default: true },
   /** When false, related words render as plain chips (embed WebView). */
@@ -71,11 +76,6 @@ const moreExamples = computed(() => {
     const text = exampleText(example)
     if (text) collected.push(text)
   }
-  for (const meaning of normalizedMeanings.value) {
-    for (const text of meaning.examples.slice(1)) {
-      collected.push(text)
-    }
-  }
   return [...new Set(collected)]
 })
 </script>
@@ -96,18 +96,15 @@ const moreExamples = computed(() => {
           :definition-vi="meaning.definition_vi"
         />
         <p
-          v-if="meaning.example"
+          v-for="example in meaning.examples"
+          :key="example"
           class="muted"
           style="font-style: italic; margin: 4px 0"
         >
-          "{{ meaning.example }}"
-        </p>
-        <p
-          v-else-if="meaning.examples?.[0]"
-          class="muted"
-          style="font-style: italic; margin: 4px 0"
-        >
-          "{{ meaning.examples[0] }}"
+          <BilingualExample
+            :text="example"
+            :translation="meaning.example_translations?.[example]"
+          />
         </p>
 
         <div v-if="meaning.synonyms.length" class="related-group">
@@ -177,7 +174,10 @@ const moreExamples = computed(() => {
         class="muted"
         style="font-style: italic; margin: 0 0 8px"
       >
-        "{{ example }}"
+        <BilingualExample
+          :text="example"
+          :translation="exampleTranslations[example]"
+        />
       </p>
     </template>
   </div>

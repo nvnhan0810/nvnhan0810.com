@@ -21,6 +21,9 @@ const reveal = {
       part_of_speech: 'noun',
       definition: 'Land beside a river',
       example: 'We sat on the river bank.',
+      example_translations: {
+        'We sat on the river bank.': 'Chúng tôi ngồi bên bờ sông.',
+      },
       examples: ['We sat on the river bank.', 'The bank was steep.'],
     },
     { definition: 'A financial institution', example: 'She visited the bank.' },
@@ -33,6 +36,12 @@ it('shows the used meaning and its examples, and asks for a fresh memory choice'
   expect(wrapper.text()).not.toContain('A financial institution')
   expect(wrapper.text()).not.toContain('She visited the bank.')
   expect(wrapper.findAll('blockquote')).toHaveLength(1)
+  expect(wrapper.get('blockquote small[lang="vi"]').text()).toBe(
+    'Chúng tôi ngồi bên bờ sông.',
+  )
+  expect(wrapper.get('blockquote [lang="en"]').text()).toContain(
+    'We sat on the river bank.',
+  )
   expect(wrapper.find('.memory-card[aria-pressed="true"]').exists()).toBe(false)
   expect(
     wrapper

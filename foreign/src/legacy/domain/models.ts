@@ -2,6 +2,7 @@ export interface Meaning {
   part_of_speech?: string | null
   definition: string
   definition_vi?: string
+  example_translations?: Record<string, string>
   example?: string | null
   examples?: string[]
   synonyms?: string[]
@@ -15,6 +16,7 @@ export interface Vocabulary {
   meanings: Meaning[]
   synonyms?: string[]
   antonyms?: string[]
+  example_translations?: Record<string, string>
   examples: (string | { example: string; definition_ref?: string | null })[]
 }
 export interface User {

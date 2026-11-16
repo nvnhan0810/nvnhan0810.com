@@ -75,6 +75,7 @@ pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec
             definitions.push(Definition {
                 definition,
                 definition_vi: None,
+                example_translations: Default::default(),
                 examples: examples(&sense["examples"]),
                 example: examples(&sense["examples"])
                     .into_iter()
@@ -104,6 +105,7 @@ pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec
             .unwrap_or_default(),
         phonetics,
         examples: vec![],
+        example_translations: Default::default(),
         synonyms: vec![],
         antonyms: vec![],
         meanings,

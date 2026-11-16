@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BilingualExample from '../../../../legacy/presentation/Components/BilingualExample.vue'
 import SenseDefinition from '../../../../legacy/presentation/Components/SenseDefinition.vue'
 import WordActions from './WordActions.vue'
 import { computed, onUnmounted, ref } from 'vue'
@@ -95,7 +96,10 @@ function unique(words: string[]) {
             :key="example"
             class="example muted"
           >
-            “{{ example }}”
+            <BilingualExample
+              :text="example"
+              :translation="definition.example_translations?.[example]"
+            />
           </p>
           <div
             v-for="group in [

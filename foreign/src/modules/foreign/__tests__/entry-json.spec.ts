@@ -135,3 +135,36 @@ it('preserves Vietnamese explanations per sense and related phrase through JSON 
   expect(prompt).toContain('definition_vi in natural Vietnamese')
   expect(prompt).toContain('Một lời chào.')
 })
+
+it('round trips example translations for entries, individual senses and related phrases', () => {
+  const senses = [
+    { ...meanings[0]!, example_translations: { 'Hello there.': 'Xin chào.' } },
+  ]
+  const entry = {
+    word: 'hello',
+    examples: ['Say hello.'],
+    example_translations: { 'Say hello.': 'Hãy nói xin chào.' },
+    phrases: [{ word: 'say hello', meanings: senses }],
+  }
+  const parsed = parseEntryJson(entryToPrettyJson(entry, senses))
+  expect(parsed.example_translations).toEqual(entry.example_translations)
+  expect(parsed.meanings).toEqual(senses)
+  expect(parsed.phrases?.[0]?.meanings).toEqual(senses)
+  expect(buildMeaningsAiPrompt('hello', senses, entry)).toContain(
+    'For EVERY English example',
+  )
+  for (const invalid of [[], null, 'translation', { sentence: 123 }]) {
+    expect(() =>
+      parseEntryJson(
+        JSON.stringify({ meanings, example_translations: invalid }),
+      ),
+    ).toThrow()
+    expect(() =>
+      parseEntryJson(
+        JSON.stringify({
+          meanings: [{ ...meanings[0], example_translations: invalid }],
+        }),
+      ),
+    ).toThrow()
+  }
+})

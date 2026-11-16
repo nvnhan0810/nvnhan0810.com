@@ -31,7 +31,7 @@ pub fn reveal(entry: &Value) -> Value {
                     .into_iter()
                     .collect()
             };
-            meanings.push(json!({"part_of_speech":meaning["partOfSpeech"],"definition":definition["definition"],"definition_vi":definition["definition_vi"],"examples":definition["examples"],"example":definition["example"],"synonyms":terms("synonyms"),"antonyms":terms("antonyms")}));
+            meanings.push(json!({"part_of_speech":meaning["partOfSpeech"],"definition":definition["definition"],"definition_vi":definition["definition_vi"],"example_translations":definition["example_translations"],"examples":definition["examples"],"example":definition["example"],"synonyms":terms("synonyms"),"antonyms":terms("antonyms")}));
         }
     }
     let audio = entry["phonetics"]
@@ -39,7 +39,7 @@ pub fn reveal(entry: &Value) -> Value {
         .into_iter()
         .flatten()
         .find_map(|p| p["audio"].as_str().filter(|s| !s.is_empty()));
-    json!({"word":entry["word"],"phonetic":entry["phonetic"],"audio_url":audio,"meanings":meanings,"examples":entry["examples"],"synonyms":entry["synonyms"],"antonyms":entry["antonyms"],"definition":definition(entry),"part_of_speech":entry["meanings"][0]["partOfSpeech"]})
+    json!({"word":entry["word"],"phonetic":entry["phonetic"],"audio_url":audio,"meanings":meanings,"examples":entry["examples"],"example_translations":entry["example_translations"],"synonyms":entry["synonyms"],"antonyms":entry["antonyms"],"definition":definition(entry),"part_of_speech":entry["meanings"][0]["partOfSpeech"]})
 }
 /// Select the least-practised sense, randomizing ties. Store only that sense
 /// in the private round so its clues, answers and review always agree.
@@ -116,6 +116,16 @@ fn round_reveal(state: &Value, id: &Value, entry: &Value) -> Value {
             examples.push(text);
         }
     }
+    let mut translations = serde_json::Map::new();
+    for sentence in &examples {
+        let translation = meaning["example_translations"][sentence]
+            .as_str()
+            .or_else(|| entry["example_translations"][sentence].as_str());
+        if let Some(translation) = translation {
+            translations.insert(sentence.clone(), json!(translation));
+        }
+    }
+    meaning["example_translations"] = json!(translations);
     meaning["examples"] = json!(examples);
     meaning["example"] = json!(examples.first());
     let phonetic = entry["phonetic"]
@@ -579,8 +589,8 @@ mod tests {
         let entry = json!({"word":"bank","phonetics":[{"text":"/bæŋk/"}],
         "meanings":[
             {"partOfSpeech":"noun","definitions":[
-                {"definition":"A financial institution", "definition_vi":"Một tổ chức tài chính", "example":"She visited the bank."},
-                {"definition":"Land beside a river", "definition_vi":"Bờ đất bên cạnh dòng sông", "examples":["We sat on the river bank."]}
+                {"definition":"A financial institution", "definition_vi":"Một tổ chức tài chính", "example":"She visited the bank.","example_translations":{"She visited the bank.":"Cô ấy đến ngân hàng."}},
+                {"definition":"Land beside a river", "definition_vi":"Bờ đất bên cạnh dòng sông", "examples":["We sat on the river bank."],"example_translations":{"We sat on the river bank.":"Chúng tôi ngồi bên bờ sông."}}
             ]},
             {"partOfSpeech":"verb","definitions":[{"definition":"To tilt an aircraft", "definition_vi":"Nghiêng máy bay"}]}
         ]});
@@ -610,6 +620,17 @@ mod tests {
                 _ => json!([]),
             };
             assert_eq!(revealed["meanings"][0]["examples"], expected);
+            if let Some(sentence) = expected[0].as_str() {
+                assert_eq!(
+                    revealed["meanings"][0]["example_translations"][sentence],
+                    selected["meanings"][0]["definitions"][0]["example_translations"][sentence]
+                );
+                assert!(
+                    revealed["meanings"][0]["example_translations"][sentence]
+                        .as_str()
+                        .is_some()
+                );
+            }
         }
         assert!(select_meaning(&json!({"meanings":[]}), &counts).is_none());
     }

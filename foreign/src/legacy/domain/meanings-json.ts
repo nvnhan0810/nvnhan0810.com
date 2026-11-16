@@ -2,6 +2,7 @@ export type Meaning = {
   part_of_speech: string | null
   definition: string
   definition_vi?: string
+  example_translations?: Record<string, string>
   examples: string[]
   synonyms: string[]
   antonyms: string[]
@@ -14,6 +15,7 @@ export type DictionaryLookupResult = {
   word: string
   phonetic?: string | null
   audio_url?: string | null
+  example_translations?: Record<string, string>
   examples?: string[]
   meanings?: MeaningLike[]
   synonyms?: string[]
@@ -26,6 +28,7 @@ export type DictionaryLookupResult = {
 export type MeaningLike = {
   part_of_speech?: string | null
   definition?: string | null
+  example_translations?: Record<string, string>
   definition_vi?: string | null
   example?: string | null
   examples?: unknown
@@ -95,6 +98,9 @@ export function parseMeaningsJson(raw: string): Meaning[] {
       ...(typeof row.definition_vi === 'string'
         ? { definition_vi: row.definition_vi.trim() }
         : {}),
+      ...(row.example_translations !== undefined
+        ? { example_translations: translationMap(row.example_translations) }
+        : {}),
       examples,
       synonyms: stringList(row.synonyms),
       antonyms: stringList(row.antonyms),
@@ -127,6 +133,9 @@ export function meaningsToPrettyJson(meanings: readonly MeaningLike[]): string {
       ...(typeof m.definition_vi === 'string'
         ? { definition_vi: m.definition_vi.trim() }
         : {}),
+      ...(m.example_translations !== undefined
+        ? { example_translations: translationMap(m.example_translations) }
+        : {}),
       examples,
       synonyms: stringList(m.synonyms),
       antonyms: stringList(m.antonyms),
@@ -145,6 +154,9 @@ export function entryToPrettyJson(
       phonetic: entry.phonetic ?? '',
       audio_url: entry.audio_url ?? '',
       examples: entry.examples ?? [],
+      ...(entry.example_translations !== undefined
+        ? { example_translations: entry.example_translations }
+        : {}),
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
       meanings: JSON.parse(meaningsToPrettyJson(meanings)),
@@ -194,6 +206,8 @@ export function parseEntryJson(
       throw new Error(`${key} must be an array of strings.`)
     result[key] = stringList(decoded[key])
   }
+  if ('example_translations' in decoded)
+    result.example_translations = translationMap(decoded.example_translations)
   if ('phrases' in decoded) {
     if (!Array.isArray(decoded.phrases) || decoded.phrases.length > 100)
       throw new Error('phrases must be an array with at most 100 entries.')
@@ -229,6 +243,7 @@ export function buildMeaningsAiPrompt(
   "phonetic": "",
   "audio_url": "",
   "examples": ["We broke the ice by introducing ourselves."],
+  "example_translations": {"We broke the ice by introducing ourselves.": "Chúng tôi làm quen bằng cách tự giới thiệu."},
   "synonyms": [],
   "antonyms": [],
   "phrases": [],
@@ -237,6 +252,7 @@ export function buildMeaningsAiPrompt(
     "definition": "To make people feel more relaxed when meeting or starting a conversation",
     "definition_vi": "Làm cho mọi người cảm thấy thoải mái hơn khi mới gặp hoặc bắt đầu trò chuyện.",
     "examples": ["Her joke helped break the ice."],
+    "example_translations": {"Her joke helped break the ice.": "Câu đùa của cô ấy giúp mọi người bớt ngại ngùng."},
     "synonyms": [],
     "antonyms": []
   }]
@@ -245,14 +261,16 @@ export function buildMeaningsAiPrompt(
   "phonetic": "/ˈhæpi/",
   "audio_url": "",
   "examples": ["She looks happy today."],
+  "example_translations": {"She looks happy today.": "Hôm nay cô ấy trông vui vẻ."},
   "synonyms": ["joyful"],
   "antonyms": ["sad"],
-  "phrases": [{"word":"look forward to","meanings":[{"part_of_speech":"phrasal verb","definition":"To feel pleased about a future event","definition_vi":"Cảm thấy vui và mong chờ một sự kiện sắp diễn ra.","examples":["I look forward to seeing you."],"synonyms":[],"antonyms":[]}]}],
+  "phrases": [{"word":"look forward to","meanings":[{"part_of_speech":"phrasal verb","definition":"To feel pleased about a future event","definition_vi":"Cảm thấy vui và mong chờ một sự kiện sắp diễn ra.","examples":["I look forward to seeing you."],"example_translations":{"I look forward to seeing you.":"Tôi mong được gặp bạn."},"synonyms":[],"antonyms":[]}]}],
   "meanings": [{
     "part_of_speech": "adjective",
     "definition": "Feeling or showing pleasure",
     "definition_vi": "Cảm thấy hoặc thể hiện niềm vui, sự hài lòng.",
     "examples": ["I am happy to help."],
+    "example_translations": {"I am happy to help.": "Tôi rất vui được giúp đỡ."},
     "synonyms": ["glad"],
     "antonyms": ["unhappy"]
   }]
@@ -277,6 +295,7 @@ ${
 - All examples, synonyms, and antonyms MUST be arrays of strings; use [] when empty.
 - Include at least one meaning with a non-empty definition and all distinct useful senses without duplication.
 - For EVERY meaning, including each related phrase meaning, provide definition in English and definition_vi in natural Vietnamese. Explain exactly the same sense, including its usage or nuance when helpful; never merge distinct senses or put a word-wide translation at the top level.
+- For EVERY English example, provide its natural Vietnamese translation in example_translations, an object mapping the exact English sentence to its Vietnamese translation at the same level as examples (entry, each meaning, and related phrases). Translate according to that specific sense. Preserve examples as English strings.
 - Keep examples, synonyms, antonyms, and part_of_speech in English. Use IPA for phonetic.
 - Use examples (plural), never example. Do not add extra keys.`
 }
@@ -322,4 +341,20 @@ function stringList(value: unknown): string[] {
     }
   }
   return out
+}
+
+function translationMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error(
+      'example_translations must map English sentences to Vietnamese strings.',
+    )
+  const entries = Object.entries(value)
+  if (entries.some(([, translation]) => typeof translation !== 'string'))
+    throw new Error('example_translations values must be strings.')
+  return Object.fromEntries(
+    entries.map(([text, translation]) => [
+      text.trim(),
+      (translation as string).trim(),
+    ]),
+  )
 }

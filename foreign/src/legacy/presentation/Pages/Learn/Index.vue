@@ -39,6 +39,7 @@ type SaveMeaningPayload = {
   part_of_speech: string
   definition: string
   definition_vi?: string
+  example_translations?: Record<string, string>
   example: string
   examples: string[]
   synonyms: string[]
@@ -110,6 +111,7 @@ const saveForm = useForm<{
   word: string
   phonetic: string
   audio_url: string
+  example_translations?: Record<string, string>
   examples: string[]
   synonyms: string[]
   antonyms: string[]
@@ -121,6 +123,7 @@ const saveForm = useForm<{
   word: '',
   phonetic: '',
   audio_url: '',
+  example_translations: {} as Record<string, string>,
   examples: [],
   synonyms: [],
   antonyms: [],
@@ -259,6 +262,9 @@ function normalizeMeanings(result: DictionaryLookupResult): Meaning[] {
         typeof meaning.definition === 'string' ? meaning.definition : '',
       ...(typeof meaning.definition_vi === 'string'
         ? { definition_vi: meaning.definition_vi }
+        : {}),
+      ...(meaning.example_translations !== undefined
+        ? { example_translations: meaning.example_translations }
         : {}),
       examples,
       synonyms,
@@ -569,6 +575,7 @@ function submitSave(): void {
   saveForm.word = activeResult.value.word || ''
   saveForm.phonetic = activeResult.value.phonetic || ''
   saveForm.audio_url = activeResult.value.audio_url || ''
+  saveForm.example_translations = activeResult.value.example_translations ?? {}
   saveForm.examples = activeResult.value.examples ?? []
   saveForm.synonyms = localSynonyms.value
   saveForm.antonyms = localAntonyms.value
@@ -579,6 +586,9 @@ function submitSave(): void {
       ? { definition_vi: meaning.definition_vi }
       : {}),
     example: meaning.examples[0] ?? '',
+    ...(meaning.example_translations !== undefined
+      ? { example_translations: meaning.example_translations }
+      : {}),
     examples: meaning.examples,
     synonyms: meaning.synonyms,
     antonyms: meaning.antonyms,
@@ -776,6 +786,7 @@ const saveButtonLabel = computed((): string => {
             :synonyms="localSynonyms"
             :antonyms="localAntonyms"
             :extra-examples="activeResult?.examples ?? []"
+            :example-translations="activeResult?.example_translations ?? {}"
             :prefer-detail="false"
             :link-related="!isEmbed"
           />

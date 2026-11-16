@@ -10,6 +10,8 @@ pub struct Entry {
     #[serde(default)]
     pub examples: Vec<String>,
     #[serde(default)]
+    pub example_translations: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
     pub synonyms: Vec<String>,
     #[serde(default)]
     pub antonyms: Vec<String>,
@@ -41,6 +43,8 @@ pub struct Definition {
     pub example: String,
     #[serde(default)]
     pub examples: Vec<String>,
+    #[serde(default)]
+    pub example_translations: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub synonyms: Vec<String>,
     #[serde(default)]

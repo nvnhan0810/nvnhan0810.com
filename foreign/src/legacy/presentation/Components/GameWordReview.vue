@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BilingualExample from './BilingualExample.vue'
 import SenseDefinition from './SenseDefinition.vue'
 import { computed, ref } from 'vue'
 import { Check, Flame, Leaf, RotateCcw, Sparkles } from 'lucide-vue-next'
@@ -103,7 +104,10 @@ function rate(level: number): void {
       </div>
       <section class="review-examples" aria-label="Example for this meaning">
         <blockquote v-for="example in examples" :key="example">
-          “{{ example }}”
+          <BilingualExample
+            :text="example"
+            :translation="meaning?.example_translations?.[example]"
+          />
         </blockquote>
         <p v-if="!examples.length" class="review-no-example">
           No example available.
