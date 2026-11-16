@@ -36,9 +36,7 @@ it('shows the used meaning and its examples, and asks for a fresh memory choice'
   expect(wrapper.text()).not.toContain('A financial institution')
   expect(wrapper.text()).not.toContain('She visited the bank.')
   expect(wrapper.findAll('blockquote')).toHaveLength(1)
-  expect(wrapper.get('blockquote small[lang="vi"]').text()).toBe(
-    'Chúng tôi ngồi bên bờ sông.',
-  )
+  expect(wrapper.find('blockquote small[lang="vi"]').exists()).toBe(false)
   expect(wrapper.get('blockquote [lang="en"]').text()).toContain(
     'We sat on the river bank.',
   )
@@ -122,6 +120,9 @@ it.each(['quiz', 'scramble', 'wordle', 'hangman', 'word-search'] as const)(
     expect(wrapper.get('[lang="vi"]').text()).toBe(
       'Bờ đất bên cạnh một dòng sông.',
     )
+    expect(wrapper.get('blockquote small[lang="vi"]').text()).toBe(
+      'Chúng tôi ngồi bên bờ sông.',
+    )
     expect(wrapper.text()).not.toContain('Ngân hàng tài chính.')
     expect(wrapper.text()).toContain('We sat on the river bank.')
     expect(post).not.toHaveBeenCalled()
@@ -129,6 +130,7 @@ it.each(['quiz', 'scramble', 'wordle', 'hangman', 'word-search'] as const)(
       .get('[aria-label="Definition language"] button:first-child')
       .trigger('click')
     expect(wrapper.get('[lang="en"]').text()).toBe('Land beside a river')
+    expect(wrapper.find('blockquote small[lang="vi"]').exists()).toBe(false)
     wrapper.unmount()
   },
 )

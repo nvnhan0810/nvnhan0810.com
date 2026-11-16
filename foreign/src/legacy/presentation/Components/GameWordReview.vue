@@ -43,6 +43,7 @@ const levels = [
     color: 'mint',
   },
 ]
+const exampleLanguage = ref<'en' | 'vi'>('en')
 const selected = ref<number | null>(null)
 const error = ref('')
 const form = useForm({ vocabulary_id: 0, level: 0 })
@@ -100,12 +101,14 @@ function rate(level: number): void {
         <SenseDefinition
           :definition="meaning?.definition || reveal.definition || ''"
           :definition-vi="meaning?.definition_vi"
+          @language-change="exampleLanguage = $event"
         />
       </div>
       <section class="review-examples" aria-label="Example for this meaning">
         <blockquote v-for="example in examples" :key="example">
           <BilingualExample
             :text="example"
+            :language="exampleLanguage"
             :translation="meaning?.example_translations?.[example]"
           />
         </blockquote>

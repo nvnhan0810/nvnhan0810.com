@@ -1,13 +1,20 @@
 <script setup lang="ts">
-defineProps<{ text: string; translation?: string | undefined }>()
+defineProps<{
+  text: string
+  translation?: string | undefined
+  language?: 'en' | 'vi'
+}>()
 </script>
 
 <template>
   <span class="bilingual-example">
     <span lang="en">“{{ text }}”</span>
-    <small v-if="translation" lang="vi" class="example-translation">{{
-      translation
-    }}</small>
+    <small
+      v-if="language === 'vi' && translation"
+      lang="vi"
+      class="example-translation"
+      >{{ translation }}</small
+    >
   </span>
 </template>
 

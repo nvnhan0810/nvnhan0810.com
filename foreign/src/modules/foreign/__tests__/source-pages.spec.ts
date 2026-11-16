@@ -46,11 +46,20 @@ it('preserves a vocabulary link to a separate detail page, without collapse cont
   expect(wrapper.text()).toContain('View details')
   wrapper.unmount()
 })
-it('renders vocabulary definitions/examples on the detail page', () => {
+it('renders vocabulary definitions/examples on the detail page', async () => {
   const wrapper = mount(VocabShow, { props: { vocab }, global })
   expect(wrapper.text()).toContain('Fruit.')
   expect(wrapper.text()).toContain('Eat an apple.')
+  expect(wrapper.find('small[lang="vi"]').exists()).toBe(false)
+  await wrapper
+    .get('[aria-label="Definition language"] button:last-child')
+    .trigger('click')
   expect(wrapper.get('small[lang="vi"]').text()).toBe('Hãy ăn một quả táo.')
+  await wrapper
+    .get('[aria-label="Definition language"] button:first-child')
+    .trigger('click')
+  expect(wrapper.find('small[lang="vi"]').exists()).toBe(false)
+  expect(wrapper.text()).toContain('Eat an apple.')
   expect(wrapper.find('.action-menu-danger').text()).toBe('Delete')
   wrapper.unmount()
 })

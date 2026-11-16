@@ -6,7 +6,7 @@ import { RoutePath } from '../../../app/router/paths'
 import { Link } from '@/application/navigation'
 import type { Meaning } from '@/domain/models'
 import type { PropType } from 'vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   meanings: { type: Array as PropType<Meaning[]>, default: () => [] },
@@ -48,6 +48,8 @@ function exampleText(example: string | { example: string }) {
   }
   return typeof example === 'string' ? example.trim() : ''
 }
+
+const extraLanguage = ref<'en' | 'vi'>('en')
 
 const entrySynonyms = computed(() => cleanWords(props.synonyms))
 const entryAntonyms = computed(() => cleanWords(props.antonyms))
@@ -94,18 +96,21 @@ const moreExamples = computed(() => {
         <SenseDefinition
           :definition="meaning.definition || ''"
           :definition-vi="meaning.definition_vi"
-        />
-        <p
-          v-for="example in meaning.examples"
-          :key="example"
-          class="muted"
-          style="font-style: italic; margin: 4px 0"
+          v-slot="{ language }"
         >
-          <BilingualExample
-            :text="example"
-            :translation="meaning.example_translations?.[example]"
-          />
-        </p>
+          <p
+            v-for="example in meaning.examples"
+            :key="example"
+            class="muted"
+            style="font-style: italic; margin: 4px 0"
+          >
+            <BilingualExample
+              :text="example"
+              :language="language"
+              :translation="meaning.example_translations?.[example]"
+            />
+          </p>
+        </SenseDefinition>
 
         <div v-if="meaning.synonyms.length" class="related-group">
           <div class="related-label">Synonyms</div>
@@ -168,6 +173,25 @@ const moreExamples = computed(() => {
 
     <template v-if="moreExamples.length">
       <h3 style="font-size: 15px; margin: 20px 0 10px">More examples</h3>
+      <div
+        class="sense-language"
+        role="group"
+        aria-label="More examples language"
+      >
+        <button
+          v-for="option in [
+            { value: 'en', label: 'English' },
+            { value: 'vi', label: 'Tiếng Việt' },
+          ] as const"
+          :key="option.value"
+          type="button"
+          class="btn btn-sm btn-secondary"
+          :aria-pressed="extraLanguage === option.value"
+          @click="extraLanguage = option.value"
+        >
+          {{ option.label }}
+        </button>
+      </div>
       <p
         v-for="(example, i) in moreExamples"
         :key="i"
@@ -177,6 +201,7 @@ const moreExamples = computed(() => {
         <BilingualExample
           :text="example"
           :translation="exampleTranslations[example]"
+          :language="extraLanguage"
         />
       </p>
     </template>

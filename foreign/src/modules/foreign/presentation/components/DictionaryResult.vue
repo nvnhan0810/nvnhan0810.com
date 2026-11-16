@@ -86,21 +86,24 @@ function unique(words: string[]) {
           <SenseDefinition
             :definition="definition.definition"
             :definition-vi="definition.definition_vi"
-          />
-          <p
-            v-for="example in unique(
-              definition.examples?.length
-                ? definition.examples
-                : [definition.example],
-            )"
-            :key="example"
-            class="example muted"
+            v-slot="{ language }"
           >
-            <BilingualExample
-              :text="example"
-              :translation="definition.example_translations?.[example]"
-            />
-          </p>
+            <p
+              v-for="example in unique(
+                definition.examples?.length
+                  ? definition.examples
+                  : [definition.example],
+              )"
+              :key="example"
+              class="example muted"
+            >
+              <BilingualExample
+                :text="example"
+                :language="language"
+                :translation="definition.example_translations?.[example]"
+              />
+            </p>
+          </SenseDefinition>
           <div
             v-for="group in [
               { label: 'Synonyms', words: definition.synonyms },

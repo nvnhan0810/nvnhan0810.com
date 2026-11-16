@@ -5,7 +5,9 @@ const props = defineProps<{
   definition: string
   definitionVi?: string | null | undefined
 }>()
+const emit = defineEmits<{ 'language-change': [language: 'en' | 'vi'] }>()
 const language = ref<'en' | 'vi'>('en')
+watch(language, (value) => emit('language-change', value))
 watch(
   () => props.definition,
   () => {
@@ -43,6 +45,7 @@ watch(
     >
       Chưa có giải thích tiếng Việt cho nghĩa này. Đang hiển thị tiếng Anh.
     </p>
+    <slot :language="language" />
   </div>
 </template>
 
