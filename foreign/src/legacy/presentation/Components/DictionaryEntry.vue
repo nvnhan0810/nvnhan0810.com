@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SenseDefinition from './SenseDefinition.vue'
 import { RoutePath } from '../../../app/router/paths'
 
 import { Link } from '@/application/navigation'
@@ -90,7 +91,10 @@ const moreExamples = computed(() => {
         <span v-if="meaning.part_of_speech" class="pos-tag">{{
           meaning.part_of_speech
         }}</span>
-        <p style="margin: 4px 0">{{ meaning.definition || '' }}</p>
+        <SenseDefinition
+          :definition="meaning.definition || ''"
+          :definition-vi="meaning.definition_vi"
+        />
         <p
           v-if="meaning.example"
           class="muted"

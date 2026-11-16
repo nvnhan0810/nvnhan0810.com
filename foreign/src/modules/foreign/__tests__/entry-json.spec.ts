@@ -113,3 +113,25 @@ it('generates phrase-only JSON without a parent word for multiword prompts', () 
   expect(schema.meanings[0].part_of_speech).toBe('idiom')
   expect(parseEntryJson(JSON.stringify(schema)).meanings).toHaveLength(1)
 })
+
+it('preserves Vietnamese explanations per sense and related phrase through JSON and prompts', () => {
+  const senses = [
+    { ...meanings[0]!, definition_vi: 'Một lời chào.' },
+    {
+      ...meanings[0]!,
+      definition: 'An expression of surprise.',
+      definition_vi: 'Một cách bày tỏ sự ngạc nhiên.',
+    },
+  ]
+  const entry = {
+    word: 'hello',
+    phrases: [{ word: 'say hello', meanings: senses }],
+  }
+  const parsed = parseEntryJson(entryToPrettyJson(entry, senses))
+  expect(parsed.meanings).toEqual(senses)
+  expect(parsed.phrases?.[0]?.meanings).toEqual(senses)
+  const prompt = buildMeaningsAiPrompt('hello', senses, entry)
+  expect(prompt).toContain('For EVERY meaning')
+  expect(prompt).toContain('definition_vi in natural Vietnamese')
+  expect(prompt).toContain('Một lời chào.')
+})

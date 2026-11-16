@@ -1,6 +1,7 @@
 export type Meaning = {
   part_of_speech: string | null
   definition: string
+  definition_vi?: string
   examples: string[]
   synonyms: string[]
   antonyms: string[]
@@ -25,6 +26,7 @@ export type DictionaryLookupResult = {
 export type MeaningLike = {
   part_of_speech?: string | null
   definition?: string | null
+  definition_vi?: string | null
   example?: string | null
   examples?: unknown
   synonyms?: unknown
@@ -90,6 +92,9 @@ export function parseMeaningsJson(raw: string): Meaning[] {
     meanings.push({
       part_of_speech: pos,
       definition,
+      ...(typeof row.definition_vi === 'string'
+        ? { definition_vi: row.definition_vi.trim() }
+        : {}),
       examples,
       synonyms: stringList(row.synonyms),
       antonyms: stringList(row.antonyms),
@@ -119,6 +124,9 @@ export function meaningsToPrettyJson(meanings: readonly MeaningLike[]): string {
           ? m.part_of_speech.trim()
           : null,
       definition: typeof m.definition === 'string' ? m.definition : '',
+      ...(typeof m.definition_vi === 'string'
+        ? { definition_vi: m.definition_vi.trim() }
+        : {}),
       examples,
       synonyms: stringList(m.synonyms),
       antonyms: stringList(m.antonyms),
@@ -227,6 +235,7 @@ export function buildMeaningsAiPrompt(
   "meanings": [{
     "part_of_speech": "idiom",
     "definition": "To make people feel more relaxed when meeting or starting a conversation",
+    "definition_vi": "Làm cho mọi người cảm thấy thoải mái hơn khi mới gặp hoặc bắt đầu trò chuyện.",
     "examples": ["Her joke helped break the ice."],
     "synonyms": [],
     "antonyms": []
@@ -238,10 +247,11 @@ export function buildMeaningsAiPrompt(
   "examples": ["She looks happy today."],
   "synonyms": ["joyful"],
   "antonyms": ["sad"],
-  "phrases": [{"word":"look forward to","meanings":[{"part_of_speech":"phrasal verb","definition":"To feel pleased about a future event","examples":["I look forward to seeing you."],"synonyms":[],"antonyms":[]}]}],
+  "phrases": [{"word":"look forward to","meanings":[{"part_of_speech":"phrasal verb","definition":"To feel pleased about a future event","definition_vi":"Cảm thấy vui và mong chờ một sự kiện sắp diễn ra.","examples":["I look forward to seeing you."],"synonyms":[],"antonyms":[]}]}],
   "meanings": [{
     "part_of_speech": "adjective",
     "definition": "Feeling or showing pleasure",
+    "definition_vi": "Cảm thấy hoặc thể hiện niềm vui, sự hài lòng.",
     "examples": ["I am happy to help."],
     "synonyms": ["glad"],
     "antonyms": ["unhappy"]
@@ -266,7 +276,8 @@ ${
 - Top-level examples, synonyms, and antonyms apply to the whole ${isPhrase ? 'expression' : 'word'}. Sense-specific examples and related words belong inside meanings.
 - All examples, synonyms, and antonyms MUST be arrays of strings; use [] when empty.
 - Include at least one meaning with a non-empty definition and all distinct useful senses without duplication.
-- Use English only for definitions, examples, synonyms, antonyms, and part_of_speech. Use IPA for phonetic.
+- For EVERY meaning, including each related phrase meaning, provide definition in English and definition_vi in natural Vietnamese. Explain exactly the same sense, including its usage or nuance when helpful; never merge distinct senses or put a word-wide translation at the top level.
+- Keep examples, synonyms, antonyms, and part_of_speech in English. Use IPA for phonetic.
 - Use examples (plural), never example. Do not add extra keys.`
 }
 

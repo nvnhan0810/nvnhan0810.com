@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SenseDefinition from '../../../../legacy/presentation/Components/SenseDefinition.vue'
 import WordActions from './WordActions.vue'
 import { computed, onUnmounted, ref } from 'vue'
 import type { DictionaryEntry } from '../../domain/dictionary'
@@ -81,7 +82,10 @@ function unique(words: string[]) {
           :key="di"
           class="definition-block"
         >
-          <p>{{ definition.definition }}</p>
+          <SenseDefinition
+            :definition="definition.definition"
+            :definition-vi="definition.definition_vi"
+          />
           <p
             v-for="example in unique(
               definition.examples?.length

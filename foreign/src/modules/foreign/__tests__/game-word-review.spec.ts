@@ -33,9 +33,11 @@ it('shows the used meaning and its examples, and asks for a fresh memory choice'
   expect(wrapper.text()).not.toContain('A financial institution')
   expect(wrapper.text()).not.toContain('She visited the bank.')
   expect(wrapper.findAll('blockquote')).toHaveLength(1)
-  expect(wrapper.find('[aria-pressed="true"]').exists()).toBe(false)
+  expect(wrapper.find('.memory-card[aria-pressed="true"]').exists()).toBe(false)
   expect(
-    wrapper.findAll('button').map((button) => button.get('strong').text()),
+    wrapper
+      .findAll('.memory-card')
+      .map((button) => button.get('strong').text()),
   ).toEqual(['Forgot it', 'Still learning', 'Almost there', 'Know it'])
   wrapper.unmount()
 })
@@ -43,7 +45,7 @@ it.each(['quiz', 'scramble', 'wordle', 'hangman', 'word-search'] as const)(
   'continues %s only after the memory rating is saved',
   async (mode) => {
     const wrapper = mount(GameWordReview, { props: { reveal, mode } })
-    await wrapper.findAll('button')[3]!.trigger('click')
+    await wrapper.findAll('.memory-card')[3]!.trigger('click')
     expect(wrapper.emitted('rated')).toBeUndefined()
     const prefix = mode === 'quiz' ? '/home/quiz' : `/home/puzzle/${mode}`
     expect(post).toHaveBeenCalledWith(
@@ -57,8 +59,10 @@ it.each(['quiz', 'scramble', 'wordle', 'hangman', 'word-search'] as const)(
     await wrapper.vm.$nextTick()
     expect(wrapper.get('[role="alert"]').text()).toContain('Could not save')
     expect(wrapper.emitted('rated')).toBeUndefined()
-    expect(wrapper.find('[aria-pressed="true"]').exists()).toBe(false)
-    await wrapper.findAll('button')[0]!.trigger('click')
+    expect(wrapper.find('.memory-card[aria-pressed="true"]').exists()).toBe(
+      false,
+    )
+    await wrapper.findAll('.memory-card')[0]!.trigger('click')
     post.mock.calls[1]![1].onSuccess()
     expect(wrapper.emitted('rated')).toEqual([[7, 1]])
     wrapper.unmount()
@@ -77,7 +81,56 @@ it('shows an explicit empty example state and disables cards while advancing', a
     },
   })
   expect(wrapper.text()).toContain('No example available.')
-  await wrapper.findAll('button')[0]!.trigger('click')
+  await wrapper.findAll('.memory-card')[0]!.trigger('click')
   expect(post).not.toHaveBeenCalled()
+  wrapper.unmount()
+})
+
+it.each(['quiz', 'scramble', 'wordle', 'hangman', 'word-search'] as const)(
+  'switches the selected sense explanation in %s without submitting a rating',
+  async (mode) => {
+    const wrapper = mount(GameWordReview, {
+      props: {
+        mode,
+        reveal: {
+          ...reveal,
+          meanings: [
+            {
+              ...reveal.meanings[0]!,
+              definition_vi: 'Bờ đất bên cạnh một dòng sông.',
+            },
+            {
+              definition: 'A financial institution',
+              definition_vi: 'Ngân hàng tài chính.',
+            },
+          ],
+        },
+      },
+    })
+    await wrapper
+      .get('[aria-label="Definition language"] button:last-child')
+      .trigger('click')
+    expect(wrapper.get('[lang="vi"]').text()).toBe(
+      'Bờ đất bên cạnh một dòng sông.',
+    )
+    expect(wrapper.text()).not.toContain('Ngân hàng tài chính.')
+    expect(wrapper.text()).toContain('We sat on the river bank.')
+    expect(post).not.toHaveBeenCalled()
+    await wrapper
+      .get('[aria-label="Definition language"] button:first-child')
+      .trigger('click')
+    expect(wrapper.get('[lang="en"]').text()).toBe('Land beside a river')
+    wrapper.unmount()
+  },
+)
+it('falls back to English explicitly when the sense has no Vietnamese explanation', async () => {
+  const wrapper = mount(GameWordReview, { props: { reveal, mode: 'quiz' } })
+  await wrapper
+    .get('[aria-label="Definition language"] button:last-child')
+    .trigger('click')
+  expect(wrapper.get('[lang="en"]').text()).toBe('Land beside a river')
+  expect(wrapper.text()).toContain(
+    'Chưa có giải thích tiếng Việt cho nghĩa này.',
+  )
   wrapper.unmount()
 })

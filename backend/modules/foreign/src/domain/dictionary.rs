@@ -35,6 +35,8 @@ pub struct Meaning {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Definition {
     pub definition: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub definition_vi: Option<String>,
     #[serde(default)]
     pub example: String,
     #[serde(default)]

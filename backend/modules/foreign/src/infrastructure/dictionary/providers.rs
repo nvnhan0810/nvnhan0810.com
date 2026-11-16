@@ -74,6 +74,7 @@ pub(super) fn normalize(source: usize, word: &str, payload: Value) -> Option<Vec
             }
             definitions.push(Definition {
                 definition,
+                definition_vi: None,
                 examples: examples(&sense["examples"]),
                 example: examples(&sense["examples"])
                     .into_iter()

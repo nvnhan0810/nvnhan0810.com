@@ -31,7 +31,7 @@ pub fn reveal(entry: &Value) -> Value {
                     .into_iter()
                     .collect()
             };
-            meanings.push(json!({"part_of_speech":meaning["partOfSpeech"],"definition":definition["definition"],"examples":definition["examples"],"example":definition["example"],"synonyms":terms("synonyms"),"antonyms":terms("antonyms")}));
+            meanings.push(json!({"part_of_speech":meaning["partOfSpeech"],"definition":definition["definition"],"definition_vi":definition["definition_vi"],"examples":definition["examples"],"example":definition["example"],"synonyms":terms("synonyms"),"antonyms":terms("antonyms")}));
         }
     }
     let audio = entry["phonetics"]
@@ -579,10 +579,10 @@ mod tests {
         let entry = json!({"word":"bank","phonetics":[{"text":"/bæŋk/"}],
         "meanings":[
             {"partOfSpeech":"noun","definitions":[
-                {"definition":"A financial institution", "example":"She visited the bank."},
-                {"definition":"Land beside a river", "examples":["We sat on the river bank."]}
+                {"definition":"A financial institution", "definition_vi":"Một tổ chức tài chính", "example":"She visited the bank."},
+                {"definition":"Land beside a river", "definition_vi":"Bờ đất bên cạnh dòng sông", "examples":["We sat on the river bank."]}
             ]},
-            {"partOfSpeech":"verb","definitions":[{"definition":"To tilt an aircraft"}]}
+            {"partOfSpeech":"verb","definitions":[{"definition":"To tilt an aircraft", "definition_vi":"Nghiêng máy bay"}]}
         ]});
         let mut counts = json!({});
         let mut seen = std::collections::BTreeSet::new();
@@ -599,6 +599,11 @@ mod tests {
             assert_eq!(revealed["phonetic"], "/bæŋk/");
             assert_eq!(revealed["meanings"].as_array().unwrap().len(), 1);
             assert_eq!(revealed["definition"], definition(&selected));
+            assert_eq!(
+                revealed["meanings"][0]["definition_vi"],
+                selected["meanings"][0]["definitions"][0]["definition_vi"]
+            );
+            assert!(revealed["meanings"][0]["definition_vi"].as_str().is_some());
             let expected = match definition(&selected) {
                 "A financial institution" => json!(["She visited the bank."]),
                 "Land beside a river" => json!(["We sat on the river bank."]),

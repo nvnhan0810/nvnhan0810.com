@@ -21,7 +21,7 @@ pub fn decode(data: &Value) -> Result<Entry, ApiError> {
                 "partOfSpeech":m["part_of_speech"].as_str().unwrap_or(""),
                 "synonyms":m["synonyms"].as_array().cloned().unwrap_or_default(),
                 "antonyms":m["antonyms"].as_array().cloned().unwrap_or_default(),
-                "definitions":[{"definition":m["definition"].as_str().unwrap_or(""),
+                "definitions":[{"definition":m["definition"].as_str().unwrap_or(""),"definition_vi":m["definition_vi"],
                     "example":m["example"].as_str().unwrap_or(""),
                     "examples":m["examples"].as_array().cloned().unwrap_or_default()}]
             })
@@ -105,4 +105,29 @@ pub async fn exact(pool: &PgPool, owner: Uuid, word: &str) -> Result<Option<Valu
 pub async fn suggestions(pool: &PgPool, owner: Uuid, word: &str) -> Result<Vec<Value>, ApiError> {
     sqlx::query_scalar("SELECT jsonb_build_object('word',term,'kind',kind) FROM (SELECT word AS term,'word' AS kind FROM foreign_dictionary_entries WHERE strpos(word,$2)>0 UNION ALL SELECT phrase,'phrase' FROM foreign_phrases WHERE user_id=$1 AND strpos(phrase,$2)>0) matches ORDER BY (term=$2) DESC,term,kind LIMIT 30")
         .bind(owner).bind(word).fetch_all(pool).await.map_err(internal)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn persists_vietnamese_for_each_phrase_sense() {
+        let entry = decode(&json!({"word":"break the ice","meanings":[
+            {"definition":"Start a conversation", "definition_vi":"Bắt đầu cuộc trò chuyện"},
+            {"definition":"Break frozen water", "definition_vi":"Đập vỡ lớp băng"}
+        ]}))
+        .unwrap();
+        let stored = serde_json::to_value(entry).unwrap();
+        let revealed = games::reveal(&stored);
+        assert_eq!(
+            revealed["meanings"][0]["definition_vi"],
+            "Bắt đầu cuộc trò chuyện"
+        );
+        assert_eq!(revealed["meanings"][1]["definition_vi"], "Đập vỡ lớp băng");
+        let legacy =
+            decode(&json!({"word":"say hello","meanings":[{"definition":"Greet someone"}]}))
+                .unwrap();
+        assert!(legacy.meanings[0].definitions[0].definition_vi.is_none());
+    }
 }

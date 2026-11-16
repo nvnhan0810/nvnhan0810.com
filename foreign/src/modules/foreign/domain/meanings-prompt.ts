@@ -2,6 +2,7 @@ import type { DictionaryEntry } from './dictionary'
 interface PromptMeaning {
   part_of_speech: string
   definition: string
+  definition_vi?: string
   examples: string[]
   synonyms: string[]
   antonyms: string[]
@@ -11,6 +12,9 @@ export function promptMeanings(entry: DictionaryEntry): PromptMeaning[] {
     m.definitions.map((d) => ({
       part_of_speech: m.partOfSpeech,
       definition: d.definition,
+      ...(d.definition_vi !== undefined
+        ? { definition_vi: d.definition_vi }
+        : {}),
       examples: d.examples?.length ? d.examples : d.example ? [d.example] : [],
       synonyms: [...new Set([...m.synonyms, ...d.synonyms])],
       antonyms: [...new Set([...m.antonyms, ...d.antonyms])],

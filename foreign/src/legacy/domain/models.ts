@@ -1,6 +1,7 @@
 export interface Meaning {
   part_of_speech?: string | null
   definition: string
+  definition_vi?: string
   example?: string | null
   examples?: string[]
   synonyms?: string[]

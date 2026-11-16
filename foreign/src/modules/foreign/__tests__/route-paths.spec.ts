@@ -15,11 +15,7 @@ it('maps page URLs to backend paths and restores redirects with query strings', 
 })
 
 it('preserves authentication and unrelated paths', () => {
-  for (const path of [
-    RoutePath.login,
-    RoutePath.authCallback,
-    '/unrelated',
-  ]) {
+  for (const path of [RoutePath.login, RoutePath.authCallback, '/unrelated']) {
     expect(toPagePath(path)).toBe(path)
     expect(fromPagePath(path)).toBe(path)
   }

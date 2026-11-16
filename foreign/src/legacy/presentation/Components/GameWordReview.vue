@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SenseDefinition from './SenseDefinition.vue'
 import { computed, ref } from 'vue'
 import { Check, Flame, Leaf, RotateCcw, Sparkles } from 'lucide-vue-next'
 import type { Reveal } from '@/domain/models'
@@ -88,14 +89,18 @@ function rate(level: number): void {
           reveal.phonetic
         }}</span>
       </div>
-      <p class="review-definition">
+      <div class="review-definition">
         <span
           v-if="meaning?.part_of_speech || reveal.part_of_speech"
           class="review-pos"
           >{{ meaning?.part_of_speech || reveal.part_of_speech }}</span
         >
-        {{ meaning?.definition || reveal.definition }}
-      </p>
+
+        <SenseDefinition
+          :definition="meaning?.definition || reveal.definition || ''"
+          :definition-vi="meaning?.definition_vi"
+        />
+      </div>
       <section class="review-examples" aria-label="Example for this meaning">
         <blockquote v-for="example in examples" :key="example">
           “{{ example }}”

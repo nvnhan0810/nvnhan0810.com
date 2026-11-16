@@ -11,6 +11,7 @@ export interface DictionaryEntry {
     antonyms: string[]
     definitions: {
       definition: string
+      definition_vi?: string
       example: string
       examples?: string[]
       synonyms: string[]

@@ -67,7 +67,7 @@ describe('Saved vocabulary and AI prompt', () => {
     const text = clipboard.write.mock.calls[0]![0] as string
     expect(text).toContain('Word / phrase: hello')
     expect(text).toContain('A greeting.')
-    expect(text).toContain('English only')
+    expect(text).toContain('definition_vi in natural Vietnamese')
     const gateway = { save: vi.fn(), list: vi.fn() }
     expect(() =>
       new SaveWord(gateway).execute({ ...entry, meanings: [] }),

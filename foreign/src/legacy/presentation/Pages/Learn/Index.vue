@@ -38,6 +38,7 @@ type MeaningsViewModeValue =
 type SaveMeaningPayload = {
   part_of_speech: string
   definition: string
+  definition_vi?: string
   example: string
   examples: string[]
   synonyms: string[]
@@ -256,6 +257,9 @@ function normalizeMeanings(result: DictionaryLookupResult): Meaning[] {
           : null,
       definition:
         typeof meaning.definition === 'string' ? meaning.definition : '',
+      ...(typeof meaning.definition_vi === 'string'
+        ? { definition_vi: meaning.definition_vi }
+        : {}),
       examples,
       synonyms,
       antonyms,
@@ -571,6 +575,9 @@ function submitSave(): void {
   saveForm.meanings = meanings.map((meaning): SaveMeaningPayload => ({
     part_of_speech: meaning.part_of_speech || '',
     definition: meaning.definition || '',
+    ...(meaning.definition_vi !== undefined
+      ? { definition_vi: meaning.definition_vi }
+      : {}),
     example: meaning.examples[0] ?? '',
     examples: meaning.examples,
     synonyms: meaning.synonyms,
@@ -804,7 +811,7 @@ const saveButtonLabel = computed((): string => {
               class="form-control lookup-json-input"
               :rows="isEmbed ? 10 : 12"
               spellcheck="false"
-              placeholder='{"phonetic":"","audio_url":"","examples":[],"synonyms":[],"antonyms":[],"meanings":[{"definition":"..."}]}'
+              placeholder='{"phonetic":"","audio_url":"","examples":[],"synonyms":[],"antonyms":[],"meanings":[{"definition":"...","definition_vi":"Giải thích tiếng Việt cho nghĩa này"}]}'
             />
             <p class="muted lookup-json-hint">
               <template v-if="activeKind === 'phrase'">
@@ -813,8 +820,8 @@ const saveButtonLabel = computed((): string => {
               </template>
               <template v-else>
                 Edit phonetic, audio_url, examples, synonyms, antonyms, meanings
-                and phrases, then Save or Update. Removing a phrase only unlinks
-                it; it stays in Phrases.
+                (definition + definition_vi per sense) and phrases, then Save or
+                Update. Removing a phrase only unlinks it; it stays in Phrases.
               </template>
             </p>
           </div>

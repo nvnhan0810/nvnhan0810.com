@@ -55,6 +55,7 @@ const result = {
     {
       part_of_speech: 'noun',
       definition: 'A greeting.',
+      definition_vi: 'Một lời chào.',
       examples: ['Hello there.'],
       synonyms: [],
       antonyms: [],
@@ -146,6 +147,7 @@ it('shows Save for an unsaved word and posts the latest JSON fields', async () =
       {
         part_of_speech: 'interjection',
         definition: 'An edited greeting.',
+        definition_vi: 'Lời chào đã chỉnh sửa.',
         examples: ['Edited example.'],
         synonyms: ['hey'],
         antonyms: ['bye'],
@@ -170,6 +172,7 @@ it('shows Save for an unsaved word and posts the latest JSON fields', async () =
         {
           part_of_speech: 'interjection',
           definition: 'An edited greeting.',
+          definition_vi: 'Lời chào đã chỉnh sửa.',
           example: 'Edited example.',
           examples: ['Edited example.'],
           synonyms: ['hey'],
