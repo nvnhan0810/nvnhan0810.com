@@ -51,12 +51,15 @@ it('renders vocabulary definitions/examples on the detail page', async () => {
   expect(wrapper.text()).toContain('Fruit.')
   expect(wrapper.text()).toContain('Eat an apple.')
   expect(wrapper.find('small[lang="vi"]').exists()).toBe(false)
+  expect(
+    wrapper.findAll('[aria-label="Definition language"] button'),
+  ).toHaveLength(1)
   await wrapper
-    .get('[aria-label="Definition language"] button:last-child')
+    .get('[aria-label="Definition language"] button')
     .trigger('click')
   expect(wrapper.get('small[lang="vi"]').text()).toBe('Hãy ăn một quả táo.')
   await wrapper
-    .get('[aria-label="Definition language"] button:first-child')
+    .get('[aria-label="Definition language"] button')
     .trigger('click')
   expect(wrapper.find('small[lang="vi"]').exists()).toBe(false)
   expect(wrapper.text()).toContain('Eat an apple.')

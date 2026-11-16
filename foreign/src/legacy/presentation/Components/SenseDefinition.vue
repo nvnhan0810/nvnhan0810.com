@@ -20,17 +20,15 @@ watch(
   <div class="sense-definition">
     <div class="sense-language" role="group" aria-label="Definition language">
       <button
-        v-for="option in [
-          { value: 'en', label: 'English' },
-          { value: 'vi', label: 'Tiếng Việt' },
-        ] as const"
-        :key="option.value"
         type="button"
         class="btn btn-sm btn-secondary"
-        :aria-pressed="language === option.value"
-        @click="language = option.value"
+        :aria-pressed="language === 'vi'"
+        :aria-label="
+          language === 'en' ? 'Chuyển sang tiếng Việt' : 'Switch to English'
+        "
+        @click="language = language === 'en' ? 'vi' : 'en'"
       >
-        {{ option.label }}
+        {{ language === 'en' ? 'English' : 'Tiếng Việt' }}
       </button>
     </div>
     <p :lang="language === 'vi' && definitionVi?.trim() ? 'vi' : 'en'">

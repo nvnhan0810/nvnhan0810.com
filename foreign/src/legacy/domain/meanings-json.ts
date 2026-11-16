@@ -134,7 +134,11 @@ export function meaningsToPrettyJson(meanings: readonly MeaningLike[]): string {
         ? { definition_vi: m.definition_vi.trim() }
         : {}),
       ...(m.example_translations !== undefined
-        ? { example_translations: translationMap(m.example_translations) }
+        ? {
+            example_translations: normalizeExampleTranslations(
+              m.example_translations,
+            ),
+          }
         : {}),
       examples,
       synonyms: stringList(m.synonyms),
@@ -155,7 +159,11 @@ export function entryToPrettyJson(
       audio_url: entry.audio_url ?? '',
       examples: entry.examples ?? [],
       ...(entry.example_translations !== undefined
-        ? { example_translations: entry.example_translations }
+        ? {
+            example_translations: normalizeExampleTranslations(
+              entry.example_translations,
+            ),
+          }
         : {}),
       synonyms: entry.synonyms ?? [],
       antonyms: entry.antonyms ?? [],
@@ -163,6 +171,13 @@ export function entryToPrettyJson(
       phrases: (entry.phrases ?? []).map(({ word, meanings, ...metadata }) => ({
         word,
         ...metadata,
+        ...(metadata.example_translations !== undefined
+          ? {
+              example_translations: normalizeExampleTranslations(
+                metadata.example_translations,
+              ),
+            }
+          : {}),
         meanings: JSON.parse(meaningsToPrettyJson(meanings)),
       })),
     },
@@ -356,5 +371,17 @@ function translationMap(value: unknown): Record<string, string> {
       text.trim(),
       (translation as string).trim(),
     ]),
+  )
+}
+
+/** API and cached data may contain null or legacy empty arrays for this field. */
+function normalizeExampleTranslations(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      )
+      .map(([text, translation]) => [text.trim(), translation.trim()]),
   )
 }

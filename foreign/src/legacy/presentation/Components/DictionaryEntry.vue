@@ -179,17 +179,17 @@ const moreExamples = computed(() => {
         aria-label="More examples language"
       >
         <button
-          v-for="option in [
-            { value: 'en', label: 'English' },
-            { value: 'vi', label: 'Tiếng Việt' },
-          ] as const"
-          :key="option.value"
           type="button"
           class="btn btn-sm btn-secondary"
-          :aria-pressed="extraLanguage === option.value"
-          @click="extraLanguage = option.value"
+          :aria-pressed="extraLanguage === 'vi'"
+          :aria-label="
+            extraLanguage === 'en'
+              ? 'Chuyển sang tiếng Việt'
+              : 'Switch to English'
+          "
+          @click="extraLanguage = extraLanguage === 'en' ? 'vi' : 'en'"
         >
-          {{ option.label }}
+          {{ extraLanguage === 'en' ? 'English' : 'Tiếng Việt' }}
         </button>
       </div>
       <p
@@ -207,3 +207,16 @@ const moreExamples = computed(() => {
     </template>
   </div>
 </template>
+
+<style scoped>
+.sense-language {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.sense-language button[aria-pressed='true'] {
+  border-color: currentColor;
+  font-weight: 700;
+}
+</style>

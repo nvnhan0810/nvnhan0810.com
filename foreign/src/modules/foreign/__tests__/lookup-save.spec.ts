@@ -323,3 +323,57 @@ it('shows choices instead of word details for a partial match', async () => {
     'look%20forward%20to',
   )
 })
+
+it.each(
+  [null, [], 'invalid', { 'Hello there.': 'Xin chào.', invalid: 123 }].map(
+    (value) => [value],
+  ),
+)(
+  'opens lookup and saves when API translations contain %j',
+  async (translations) => {
+    const wrapper = mount(Lookup, {
+      props: {
+        word: 'hello',
+        queryWord: 'hello',
+        result: JSON.parse(
+          JSON.stringify({
+            ...result,
+            example_translations: translations,
+            meanings: result.meanings.map((meaning) => ({
+              ...meaning,
+              example_translations: translations,
+            })),
+            phrases: [
+              {
+                word: 'say hello',
+                example_translations: translations,
+                meanings: result.meanings.map((meaning) => ({
+                  ...meaning,
+                  example_translations: translations,
+                })),
+              },
+            ],
+          }),
+        ),
+      },
+    })
+    wrappers.push(wrapper)
+    const input = await jsonView(wrapper)
+    const entry = JSON.parse(input.element.value)
+    const expected =
+      translations &&
+      !Array.isArray(translations) &&
+      typeof translations === 'object'
+        ? { 'Hello there.': 'Xin chào.' }
+        : {}
+    expect(entry.example_translations).toEqual(expected)
+    expect(entry.meanings[0].example_translations).toEqual(expected)
+    expect(entry.phrases[0].example_translations).toEqual(expected)
+    expect(entry.phrases[0].meanings[0].example_translations).toEqual(expected)
+    await wrapper.get('.lookup-save-form').trigger('submit')
+    expect(mocks.post).toHaveBeenCalled()
+    expect(
+      mocks.post.mock.calls[0]![1].meanings[0].example_translations,
+    ).toEqual(expected)
+  },
+)
