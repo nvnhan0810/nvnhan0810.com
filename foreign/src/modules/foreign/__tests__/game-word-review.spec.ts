@@ -145,3 +145,40 @@ it('falls back to English explicitly when the sense has no Vietnamese explanatio
   )
   wrapper.unmount()
 })
+
+it.each(['quiz', 'scramble', 'wordle', 'hangman'] as const)(
+  'marks a missed %s word as Forgot it automatically and waits for Continue',
+  async (mode) => {
+    const wrapper = mount(GameWordReview, {
+      props: { reveal, mode, missed: true },
+    })
+    expect(wrapper.findAll('.memory-card')).toHaveLength(0)
+    const prefix = mode === 'quiz' ? '/home/quiz' : `/home/puzzle/${mode}`
+    expect(post).toHaveBeenCalledOnce()
+    expect(post).toHaveBeenCalledWith(
+      expect.stringContaining(`${prefix}/rate`),
+      expect.objectContaining({ stayOnPage: true, background: true }),
+    )
+    expect(post.mock.contexts[0]).toEqual(
+      expect.objectContaining({ vocabulary_id: 7, level: 1 }),
+    )
+    const button = () => wrapper.get('.review-missed-button')
+    expect(button().attributes('disabled')).toBeDefined()
+
+    post.mock.calls[0]![1].onError()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Forgot it')
+    expect(button().text()).toContain('Try again')
+    await button().trigger('click')
+    expect(post).toHaveBeenCalledTimes(2)
+
+    post.mock.calls[1]![1].onSuccess()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('rated')).toBeUndefined()
+    expect(wrapper.text()).toContain('Marked as Forgot it')
+    expect(button().text()).toContain('Continue')
+    await button().trigger('click')
+    expect(wrapper.emitted('rated')).toEqual([[7, 1]])
+    wrapper.unmount()
+  },
+)

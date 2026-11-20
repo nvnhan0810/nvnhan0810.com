@@ -101,3 +101,22 @@ it('does not reopen already reviewed Word Search finds or auto-skip an old memor
   expect(post).not.toHaveBeenCalled()
   wrapper.unmount()
 })
+it('shows a distinct popup for a wrong answer and forwards the miss to the review', async () => {
+  const wrapper = mount(GameResultModal, {
+    props: {
+      reviews: [review],
+      mode: 'quiz',
+      resolved: true,
+      wasCorrect: false,
+      score: 0,
+    },
+    global: { stubs: { Teleport: true } },
+  })
+  await flushPromises()
+  expect(wrapper.get('dialog').classes()).toContain('is-miss')
+  expect(wrapper.get('dialog').classes()).not.toContain('is-win')
+  expect(wrapper.text()).toContain('Not quite')
+  expect(wrapper.find('.result-sparks').exists()).toBe(false)
+  expect(wrapper.getComponent(GameWordReview).props('missed')).toBe(true)
+  wrapper.unmount()
+})

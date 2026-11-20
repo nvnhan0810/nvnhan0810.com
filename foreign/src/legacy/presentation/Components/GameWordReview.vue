@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import BilingualExample from './BilingualExample.vue'
 import SenseDefinition from './SenseDefinition.vue'
-import { computed, ref } from 'vue'
-import { Check, Flame, Leaf, RotateCcw, Sparkles } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import {
+  ArrowRight,
+  Check,
+  Flame,
+  Leaf,
+  RotateCcw,
+  Sparkles,
+} from 'lucide-vue-next'
 import type { Reveal } from '@/domain/models'
 import { useForm } from '@/application/navigation'
 import { appPath } from '@/path'
@@ -11,6 +18,8 @@ const props = defineProps<{
   reveal: Reveal
   mode: 'quiz' | 'scramble' | 'wordle' | 'hangman' | 'word-search'
   locked?: boolean
+  /** The player got this word wrong: save "Forgot it" automatically. */
+  missed?: boolean
 }>()
 const emit = defineEmits<{ rated: [id: number, level: number] }>()
 const levels = [
@@ -47,6 +56,8 @@ const exampleLanguage = ref<'en' | 'vi'>('en')
 const selected = ref<number | null>(null)
 const error = ref('')
 const form = useForm({ vocabulary_id: 0, level: 0 })
+const forgotLevel = 1
+const missedSaved = ref(false)
 const meaning = computed(() => props.reveal.meanings?.[0])
 const examples = computed(() =>
   [
@@ -72,14 +83,25 @@ function rate(level: number): void {
   void form.post(appPath(`${path}/rate`), {
     stayOnPage: true,
     background: true,
-    onSuccess: () => emit('rated', props.reveal.vocabulary_id!, level),
+    onSuccess: () => {
+      if (props.missed) missedSaved.value = true
+      else emit('rated', props.reveal.vocabulary_id!, level)
+    },
     onError: () => {
       selected.value = null
-      error.value =
-        'Could not save your memory level. Pick a card to try again.'
+      error.value = props.missed
+        ? 'Could not mark this word as Forgot it. Try again.'
+        : 'Could not save your memory level. Pick a card to try again.'
     },
   })
 }
+function continueAfterMiss(): void {
+  if (!missedSaved.value || props.locked || !props.reveal.vocabulary_id) return
+  emit('rated', props.reveal.vocabulary_id, forgotLevel)
+}
+onMounted(() => {
+  if (props.missed) rate(forgotLevel)
+})
 </script>
 
 <template>
@@ -117,7 +139,35 @@ function rate(level: number): void {
         </p>
       </section>
     </div>
-    <fieldset :disabled="form.processing || locked">
+    <div v-if="missed" class="review-missed">
+      <p class="review-missed-note" role="status">
+        <RotateCcw :size="16" :stroke-width="2.2" aria-hidden="true" />
+        <span v-if="missedSaved"
+          >Marked as <strong>Forgot it</strong> — it will come back soon.</span
+        >
+        <span v-else-if="error">Not saved yet.</span>
+        <span v-else>Marking as <strong>Forgot it</strong>…</span>
+      </p>
+      <button
+        v-if="error && !missedSaved"
+        type="button"
+        class="review-missed-button"
+        :disabled="form.processing || locked"
+        @click="rate(forgotLevel)"
+      >
+        Try again <RotateCcw :size="16" aria-hidden="true" />
+      </button>
+      <button
+        v-else
+        type="button"
+        class="review-missed-button"
+        :disabled="!missedSaved || form.processing || locked"
+        @click="continueAfterMiss"
+      >
+        Continue <ArrowRight :size="16" aria-hidden="true" />
+      </button>
+    </div>
+    <fieldset v-else :disabled="form.processing || locked">
       <legend>Remember it?</legend>
       <div class="game-memory-levels">
         <button
@@ -150,7 +200,9 @@ function rate(level: number): void {
         </button>
       </div>
     </fieldset>
-    <p v-if="error" class="review-error" role="alert">{{ error }}</p>
+    <p v-if="error && !missedSaved" class="review-error" role="alert">
+      {{ error }}
+    </p>
     <p
       v-else-if="form.processing || locked"
       class="review-save-note"
@@ -307,6 +359,50 @@ fieldset:disabled .memory-card.is-selected {
 }
 fieldset:disabled .memory-card:not(.is-selected) {
   opacity: 0.45;
+}
+.review-missed {
+  flex-shrink: 0;
+  display: grid;
+  gap: 10px;
+}
+.review-missed-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #fb7185 38%, var(--border));
+  border-radius: 11px;
+  background: color-mix(in srgb, #fb7185 9%, var(--card));
+  font-size: 13px;
+  line-height: 1.4;
+}
+.review-missed-note > svg {
+  flex-shrink: 0;
+  color: #fb7185;
+}
+.review-missed-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 11px;
+  background: #e45367;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.review-missed-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.review-missed-button:focus-visible {
+  outline: 2px solid #fb7185;
+  outline-offset: 2px;
 }
 .review-save-note {
   position: absolute;

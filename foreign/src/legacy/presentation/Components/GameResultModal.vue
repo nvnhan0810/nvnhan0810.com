@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowUpRight, Sparkles, Trophy, X } from 'lucide-vue-next'
+import { ArrowUpRight, CircleX, Sparkles, Trophy, X } from 'lucide-vue-next'
 import type { Reveal } from '@/domain/models'
 import { Link, useForm } from '@/application/navigation'
 import { RoutePath } from '../../../app/router/paths'
@@ -43,14 +43,17 @@ const visible = computed(
   () => !!current.value || advancing.value || nextError.value,
 )
 const isWin = computed(() => props.wasCorrect !== false)
+const isMiss = computed(() => props.resolved && props.wasCorrect === false)
 const title = computed(() =>
   props.mode === 'word-search' && !props.resolved
     ? 'Word found!'
-    : props.record != null
-      ? 'New personal best!'
-      : isWin.value
-        ? 'Nicely done!'
-        : 'Keep going!',
+    : isMiss.value
+      ? 'Not quite — here’s the answer'
+      : props.record != null
+        ? 'New personal best!'
+        : isWin.value
+          ? 'Nicely done!'
+          : 'Keep going!',
 )
 
 function restorePage(): void {
@@ -143,7 +146,11 @@ onBeforeUnmount(() => {
       v-if="visible"
       ref="dialog"
       class="game-result-dialog"
-      :class="{ 'is-win': isWin, 'is-advancing': advancing && !nextError }"
+      :class="{
+        'is-win': isWin,
+        'is-miss': isMiss,
+        'is-advancing': advancing && !nextError,
+      }"
       aria-modal="true"
       aria-labelledby="game-result-title"
       tabindex="-1"
@@ -154,7 +161,10 @@ onBeforeUnmount(() => {
           <i v-for="spark in 10" :key="spark" :style="{ '--spark': spark }" />
         </div>
         <span class="result-outcome-icon" aria-hidden="true">
-          <Trophy v-if="isWin" :size="18" /><Sparkles v-else :size="18" />
+          <Trophy v-if="isWin" :size="18" /><CircleX
+            v-else-if="isMiss"
+            :size="18"
+          /><Sparkles v-else :size="18" />
         </span>
         <h1 id="game-result-title">{{ title }}</h1>
         <span class="result-score" :aria-label="`${score} correct this run`"
@@ -173,6 +183,7 @@ onBeforeUnmount(() => {
         :reveal="displayedReview"
         :mode="mode"
         :locked="advancing"
+        :missed="isMiss"
         @rated="onRated"
       />
       <div v-else class="result-loading" role="status">
@@ -230,6 +241,16 @@ onBeforeUnmount(() => {
   padding: 8px 10px 8px 16px;
   color: #fff;
   background: linear-gradient(115deg, #373066, #51418a);
+}
+.is-miss.game-result-dialog {
+  border-color: color-mix(in srgb, #fb7185 32%, var(--border));
+  animation-name: result-shake;
+}
+.is-miss .result-hero {
+  background: linear-gradient(115deg, #6a2638, #a13a52);
+}
+.is-miss .result-outcome-icon {
+  color: #ffc2cc;
 }
 .result-outcome-icon {
   display: grid;
@@ -326,6 +347,28 @@ onBeforeUnmount(() => {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+@keyframes result-shake {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  55% {
+    transform: translateX(-6px);
+  }
+  70% {
+    transform: translateX(5px);
+  }
+  85% {
+    transform: translateX(-2px);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 @keyframes result-confetti {
