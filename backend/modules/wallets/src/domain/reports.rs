@@ -15,7 +15,7 @@ pub fn progress(a: &Account) -> Value {
     let principal = loan.map(lending::remaining).unwrap_or(0);
     let next = loan
         .and_then(|l| l["schedule"].as_array())
-        .and_then(|rs| rs.iter().find(|r| !flag(r, "is_paid")));
+        .and_then(|rs| rs.iter().find(|r| !lending::period_settled(r)));
     let interest = next.and_then(|r| cents(r, "interest").ok()).unwrap_or(0);
     let year = next
         .map(|r| (number(r, "month_index") + 11) / 12)

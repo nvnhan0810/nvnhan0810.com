@@ -177,6 +177,11 @@ pub fn create(a: &mut Account, d: &Value) -> Result<i64> {
     a.loans.push(loan);
     Ok(id)
 }
+/// Kỳ được coi là đã TT khi đã đánh dấu trả hoặc đã qua ngày đến hạn (so với hôm nay).
+/// Mọi tính toán tổng nợ, lãi còn lại, số kỳ đã trả và kế hoạch trả nợ đều dùng hàm này.
+pub fn period_settled(r: &Value) -> bool {
+    flag(r, "is_paid") || date(text(r, "due_date")).map(|d| d < today()).unwrap_or(false)
+}
 pub fn remaining(loan: &Value) -> i64 {
     if flag(loan, "is_settled") {
         return 0;
@@ -185,7 +190,7 @@ pub fn remaining(loan: &Value) -> i64 {
     if text(loan, "type") == "bank" {
         let mut remaining = initial;
         for r in loan["schedule"].as_array().into_iter().flatten() {
-            if flag(r, "is_paid") || text(r, "due_date") < today().to_string().as_str() {
+            if period_settled(r) {
                 remaining = cents(r, "remaining_principal").unwrap_or(remaining);
             }
         }
@@ -324,4 +329,19 @@ pub fn generate_recurring(a: &mut Account) -> Result<()> {
         }
     }
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn period_is_settled_when_marked_paid_or_past_due() {
+        let past = json!({"due_date":"2000-01-01","is_paid":false});
+        let future = json!({"due_date":"2999-01-01","is_paid":false});
+        let paid_future = json!({"due_date":"2999-01-01","is_paid":true});
+        assert!(period_settled(&past));
+        assert!(!period_settled(&future));
+        assert!(period_settled(&paid_future));
+    }
 }

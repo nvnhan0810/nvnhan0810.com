@@ -54,7 +54,7 @@ pub fn page(a: &Account, path: &str, q: &Value) -> Result<Value> {
                 .as_array()
                 .into_iter()
                 .flatten()
-                .filter(|r| !flag(r, "is_paid"))
+                .filter(|r| !lending::period_settled(r))
                 .map(|r| cents(r, "interest").unwrap_or(0))
                 .sum(),
         );
@@ -63,7 +63,7 @@ pub fn page(a: &Account, path: &str, q: &Value) -> Result<Value> {
                 .as_array()
                 .into_iter()
                 .flatten()
-                .filter(|r| flag(r, "is_paid"))
+                .filter(|r| lending::period_settled(r))
                 .count()
         );
         loan["remaining_months"] =
@@ -187,7 +187,7 @@ pub fn page(a: &Account, path: &str, q: &Value) -> Result<Value> {
                     let timeline=loan["schedule"].as_array().into_iter().flatten().map(|r|json!({"type":"period","period":r,"period_due_date":r["due_date"],"is_paid":r["is_paid"],"period_payment":r["payment"],"payment":loan["payments"].as_array().and_then(|p|p.iter().find(|p|p["period_id"]==r["id"])),"note":""})).collect::<Vec<_>>();
                     (
                         "Loans/Show",
-                        json!({"loan":loan,"schedule":loan["schedule"],"timeline":timeline,"monthsPassed":loan["schedule"].as_array().into_iter().flatten().filter(|r|flag(r,"is_paid")).count(),"paymentDay":loan["payment_day"],"wallets":wallets}),
+                        json!({"loan":loan,"schedule":loan["schedule"],"timeline":timeline,"monthsPassed":loan["schedule"].as_array().into_iter().flatten().filter(|r|lending::period_settled(r)).count(),"paymentDay":loan["payment_day"],"wallets":wallets}),
                     )
                 }
             } else {
@@ -260,7 +260,7 @@ pub fn page(a: &Account, path: &str, q: &Value) -> Result<Value> {
                     let fee = reports::settlement_fee(&a.goal, (index + 11) / 12, principal);
                     let interest = cents(r, "interest")?;
                     let total = principal + fee + interest;
-                    rows.push(json!({"month_index":index,"due_date":r["due_date"],"due_date_label":r["due_date_label"],"days":r["days"],"year":(index+11)/12,"principal_before":money(principal),"principal_remaining":r["remaining_principal"],"interest":r["interest"],"principal":r["principal"],"payment":r["payment"],"fee":r["fee"],"settlement_interest":money(interest),"settlement_fee":money(fee),"settlement_total":money(total),"is_paid":r["is_paid"],"is_current":index==loan["schedule"].as_array().into_iter().flatten().filter(|r|flag(r,"is_paid")).count() as i64+1,"progress_percent":if total>0{(cents(&progress,"collected")?as f64/total as f64*100.0).min(100.0)}else{0.0},"can_settle":cents(&progress,"collected")?>=total}));
+                    rows.push(json!({"month_index":index,"due_date":r["due_date"],"due_date_label":r["due_date_label"],"days":r["days"],"year":(index+11)/12,"principal_before":money(principal),"principal_remaining":r["remaining_principal"],"interest":r["interest"],"principal":r["principal"],"payment":r["payment"],"fee":r["fee"],"settlement_interest":money(interest),"settlement_fee":money(fee),"settlement_total":money(total),"is_paid":lending::period_settled(r),"is_current":index==loan["schedule"].as_array().into_iter().flatten().filter(|r|lending::period_settled(r)).count() as i64+1,"progress_percent":if total>0{(cents(&progress,"collected")?as f64/total as f64*100.0).min(100.0)}else{0.0},"can_settle":cents(&progress,"collected")?>=total}));
                     principal = cents(r, "remaining_principal")?;
                 }
                 let current = rows
@@ -270,7 +270,7 @@ pub fn page(a: &Account, path: &str, q: &Value) -> Result<Value> {
                     .unwrap_or(Value::Null);
                 (
                     "DebtGoals/Show",
-                    json!({"goal_name":a.goal["name"],"loan":loan,"wallet":a.wallet(number(&a.goal,"wallet_id")).ok(),"months_passed":0,"payment_day":loan["payment_day"],"current":current,"collected":progress["collected"],"percent":progress["percent"],"rows":rows,"fees":a.goal["settlement_fees"]}),
+                    json!({"goal_name":a.goal["name"],"loan":loan,"wallet":a.wallet(number(&a.goal,"wallet_id")).ok(),"months_passed":loan["schedule"].as_array().into_iter().flatten().filter(|r|lending::period_settled(r)).count(),"payment_day":loan["payment_day"],"current":current,"collected":progress["collected"],"percent":progress["percent"],"rows":rows,"fees":a.goal["settlement_fees"]}),
                 )
             } else {
                 (

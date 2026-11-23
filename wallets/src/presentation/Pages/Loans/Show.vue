@@ -64,6 +64,18 @@ function scheduleDateLabel(row: TimelineRow): string | null {
   return scheduled
 }
 
+function todayIso(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// Kỳ đã qua hạn (due_date < hôm nay) được coi là đã thanh toán.
+function isPeriodSettled(row: TimelineRow): boolean {
+  const due = String(row.period_due_date ?? '').slice(0, 10)
+  return due !== '' && due < todayIso()
+}
+
 function paymentDate(p: Payment) {
   return p.paid_at ?? p.paid_at_label ?? ''
 }
@@ -308,7 +320,7 @@ const sortedPayments = computed(() =>
                     >Đã trả</span
                   >
                   <span
-                    v-else-if="row.period_payment"
+                    v-else-if="isPeriodSettled(row)"
                     class="ml-1 inline-flex px-2 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200"
                     >Đã TT</span
                   >
