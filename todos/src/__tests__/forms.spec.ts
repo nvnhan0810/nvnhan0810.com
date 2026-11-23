@@ -52,3 +52,69 @@ it("submits project changes to the existing project URL", async () => {
   );
   wrapper.unmount();
 });
+const candidates = [
+  { id: 1, title: "Same A", status: "todo" as const, project_id: 5 },
+  { id: 2, title: "Same B", status: "done" as const, project_id: 5 },
+  { id: 3, title: "Other", status: "todo" as const, project_id: 6 },
+  { id: 9, title: "Self", status: "todo" as const, project_id: 5 },
+];
+const project = (id: number) => ({
+  id,
+  name: `P${id}`,
+  git_repo_url: null,
+  domain: null,
+});
+it("offers only same-project tasks, never itself, and submits depends_on", async () => {
+  mocks.submit.mockResolvedValue(undefined);
+  const wrapper = mount(TaskEditor, {
+    props: {
+      projects: [project(5), project(6)],
+      candidates,
+      todo: {
+        id: 9,
+        project_id: 5,
+        title: "Self",
+        description: null,
+        status: "todo",
+        priority: "medium",
+        started_at: null,
+        due_at: null,
+        closed_at: null,
+        is_urgent: false,
+        is_important: false,
+        depends_on: [{ id: 2, title: "Same B", status: "done" }],
+      },
+    },
+  });
+  const boxes = wrapper.findAll(".dependencies input[type=checkbox]");
+  expect(boxes).toHaveLength(2);
+  expect(wrapper.find(".dependencies").text()).not.toContain("Other");
+  expect(wrapper.find(".dependencies").text()).not.toContain("Self");
+  await boxes[0].setValue(true);
+  await wrapper.get("form").trigger("submit");
+  await flushPromises();
+  expect(mocks.submit).toHaveBeenLastCalledWith(
+    "/todos/9",
+    "PUT",
+    expect.objectContaining({ depends_on: [2, 1] }),
+  );
+  wrapper.unmount();
+});
+it("drops selected dependencies when the project changes", async () => {
+  mocks.submit.mockResolvedValue(undefined);
+  const wrapper = mount(TaskEditor, {
+    props: { projects: [project(5), project(6)], candidates },
+  });
+  await wrapper.get("select").setValue(5);
+  await wrapper.findAll(".dependencies input[type=checkbox]")[0].setValue(true);
+  await wrapper.get("select").setValue(6);
+  await flushPromises();
+  await wrapper.get("form").trigger("submit");
+  await flushPromises();
+  expect(mocks.submit).toHaveBeenLastCalledWith(
+    "/todos",
+    "POST",
+    expect.objectContaining({ project_id: 6, depends_on: [] }),
+  );
+  wrapper.unmount();
+});

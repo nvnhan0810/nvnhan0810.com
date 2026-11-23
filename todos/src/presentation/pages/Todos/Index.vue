@@ -2,6 +2,7 @@
 import { reactive, ref, watch } from "vue";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-vue-next";
 import type { TodoItem, TodoProject } from "../../../domain/todo";
+import { pendingDependencies } from "../../../domain/todo";
 import { vueRouter } from "../../../app/router";
 import { submit } from "../../../application/navigation";
 import { t } from "../../../application/locale";
@@ -123,6 +124,14 @@ async function remove(todo: TodoItem) {
           <td>{{ todo.project?.name || "—" }}</td>
           <td>
             <span class="badge" :class="todo.status">{{ t(todo.status) }}</span>
+            <span v-if="pendingDependencies(todo).length" class="task-blocked"
+              >🔒 {{ t("waitingOn") }}:
+              {{
+                pendingDependencies(todo)
+                  .map((d) => `#${d.id}`)
+                  .join(", ")
+              }}</span
+            >
           </td>
           <td>
             <span class="badge" :class="todo.priority">{{

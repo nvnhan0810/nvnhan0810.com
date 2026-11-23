@@ -63,6 +63,11 @@ pub async fn page(pool: &sqlx::PgPool, owner: Uuid, path: &str) -> Result<Value>
             };
             json!({"component":"Projects/Form","props":{"project":project}})
         }
+    } else if parts[0] == "tasks" && parts.len() == 2 {
+        // Deep link to one task (used by Agent PRs / notifications).
+        let todo = repo::task(&mut tx, owner, id(parts.get(1))?).await?;
+        let candidates = repo::dependency_candidates(&mut tx, owner).await?;
+        json!({"component":"Todos/Form","props":{"todo":todo,"projects":projects,"candidates":candidates,"statuses":domain::STATUSES,"priorities":domain::PRIORITIES}})
     } else if parts[0] == "todos" {
         if parts.len() > 1 {
             let todo = if parts[1] == "create" {
@@ -71,7 +76,8 @@ pub async fn page(pool: &sqlx::PgPool, owner: Uuid, path: &str) -> Result<Value>
                 let id = id(parts.get(1))?;
                 repo::task(&mut tx, owner, id).await?
             };
-            json!({"component":"Todos/Form","props":{"todo":todo,"projects":projects,"statuses":domain::STATUSES,"priorities":domain::PRIORITIES}})
+            let candidates = repo::dependency_candidates(&mut tx, owner).await?;
+            json!({"component":"Todos/Form","props":{"todo":todo,"projects":projects,"candidates":candidates,"statuses":domain::STATUSES,"priorities":domain::PRIORITIES}})
         } else {
             let query: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
             let search = query
@@ -158,7 +164,7 @@ pub async fn action(
             let urgent = flag(data, "is_urgent")?;
             let important = flag(data, "is_important")?;
             let status = data["status"].as_str().unwrap_or("todo");
-            if !["todo", "in_progress"].contains(&status) {
+            if !["todo", "in_progress", "in_review"].contains(&status) {
                 return Err(Error::field("status", "Cần trạng thái đang hoạt động."));
             }
             sqlx::query("UPDATE todos SET is_urgent=$3,is_important=$4,status=$5,started_at=CASE WHEN $5='in_progress' THEN COALESCE(started_at,now()) ELSE started_at END,closed_at=NULL,updated_at=now() WHERE user_id=$1 AND id=$2").bind(owner).bind(id).bind(urgent).bind(important).bind(status).execute(&mut *tx).await?;
@@ -192,11 +198,23 @@ pub async fn action(
                 repo::ensure_project(&mut tx, owner, id).await?;
                 sqlx::query("UPDATE todo_projects SET deleted_at=now(),updated_at=now() WHERE user_id=$1 AND id=$2").bind(owner).bind(id).execute(&mut *tx).await?;
                 sqlx::query("UPDATE todos SET project_id=NULL,updated_at=now() WHERE user_id=$1 AND project_id=$2").bind(owner).bind(id).execute(&mut *tx).await?;
+                repo::prune_dependencies(&mut tx, owner).await?;
                 repo::bump(&mut tx, owner).await?;
             }
             _ => return Err(Error::NotFound),
         };
         "/todos/projects"
+    } else if parts.first() == Some(&"todos")
+        && parts.get(2) == Some(&"dependencies")
+        && parts.len() == 3
+        && method == "PUT"
+    {
+        let id = id(parts.get(1))?;
+        let ids: Vec<i64> = serde_json::from_value(data["depends_on"].clone())
+            .map_err(|_| Error::field("depends_on", "Danh sách phụ thuộc không hợp lệ."))?;
+        repo::set_dependencies(&mut tx, owner, id, &ids).await?;
+        repo::bump(&mut tx, owner).await?;
+        "/todos"
     } else if parts.first() == Some(&"todos") {
         match method {
             "POST" | "PUT" => {

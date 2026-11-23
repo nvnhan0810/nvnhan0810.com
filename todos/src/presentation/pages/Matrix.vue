@@ -18,7 +18,9 @@ import type {
   TodoProject,
   MatrixQuadrants,
   MatrixQuadrantKey,
+  DependencyCandidate,
 } from "../../domain/todo";
+import { pendingDependencies } from "../../domain/todo";
 import type { PomodoroPayload } from "../../domain/pomodoro";
 import { isPomodoro } from "../../domain/pomodoro";
 import { matrixStream } from "../../infrastructure/matrix-stream";
@@ -62,6 +64,16 @@ const quadrantMeta: {
   { key: "eliminate", urgent: false, important: false, number: "04" },
 ];
 const allTasks = computed(() => Object.values(live.value.quadrants).flat());
+const candidates = computed<DependencyCandidate[]>(() =>
+  [...allTasks.value, ...live.value.backlog]
+    .filter((task) => task.project_id !== null)
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      project_id: task.project_id!,
+    })),
+);
 watch(
   () =>
     [props.quadrants, props.backlog, props.projects, props.pomodoro] as const,
@@ -131,7 +143,9 @@ async function move(todo: TodoItem, key: MatrixQuadrantKey) {
     submit(`/matrix/todos/${todo.id}`, "PATCH", {
       is_urgent: quadrant.urgent,
       is_important: quadrant.important,
-      status: todo.status === "in_progress" ? "in_progress" : "todo",
+      status: ["in_progress", "in_review"].includes(todo.status)
+        ? todo.status
+        : "todo",
     }),
   );
 }
@@ -352,6 +366,26 @@ async function clearActiveTask() {
               }}</span>
               <span class="task-priority">{{ t(todo.priority) }}</span>
               <span
+                v-if="todo.status === 'in_review'"
+                class="badge in_review"
+                >{{ t("in_review") }}</span
+              >
+              <span
+                v-if="pendingDependencies(todo).length"
+                class="task-blocked"
+                :title="
+                  pendingDependencies(todo)
+                    .map((d) => `#${d.id} ${d.title}`)
+                    .join(', ')
+                "
+                >🔒 {{ t("waitingOn") }}:
+                {{
+                  pendingDependencies(todo)
+                    .map((d) => `#${d.id}`)
+                    .join(", ")
+                }}</span
+              >
+              <span
                 v-if="todo.due_at"
                 class="due"
                 :class="{ overdue: new Date(todo.due_at) < new Date() }"
@@ -373,6 +407,7 @@ async function clearActiveTask() {
         :todo="editing"
         :defaults="createDefaults"
         :projects="live.projects"
+        :candidates="candidates"
         return-to="matrix"
         @saved="editing = undefined"
         @cancel="editing = undefined" /></Modal

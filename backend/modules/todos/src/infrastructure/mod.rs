@@ -6,6 +6,11 @@ use crate::{
 use serde_json::{Value, json};
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
+macro_rules! deps_json {
+    () => {
+        "jsonb_build_object('depends_on',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',d.id,'title',d.title,'status',d.status) ORDER BY d.id),'[]'::jsonb) FROM todo_dependencies x JOIN todos d ON d.id=x.depends_on_id AND d.user_id=x.user_id AND d.deleted_at IS NULL WHERE x.todo_id=t.id))"
+    };
+}
 pub type Tx<'a> = Transaction<'a, Postgres>;
 pub async fn lock(tx: &mut Tx<'_>, owner: Uuid) -> Result<i64> {
     sqlx::query("INSERT INTO todo_user_states(user_id) VALUES($1) ON CONFLICT DO NOTHING")
@@ -30,7 +35,7 @@ pub async fn projects(tx: &mut Tx<'_>, owner: Uuid) -> Result<Vec<Value>> {
     Ok(sqlx::query_scalar("SELECT (to_jsonb(p)-'user_id')||jsonb_build_object('todos_count',(SELECT count(*) FROM todos t WHERE t.user_id=$1 AND t.project_id=p.id AND t.deleted_at IS NULL)) FROM todo_projects p WHERE p.user_id=$1 AND p.deleted_at IS NULL ORDER BY p.name,p.id").bind(owner).fetch_all(&mut **tx).await?)
 }
 pub async fn tasks(tx: &mut Tx<'_>, owner: Uuid) -> Result<Vec<Value>> {
-    Ok(sqlx::query_scalar("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END) FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND t.status IN ('backlog','todo','in_progress') ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,t.due_at NULLS LAST,t.created_at,t.id").bind(owner).fetch_all(&mut **tx).await?)
+    Ok(sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND t.status IN ('backlog','todo','in_progress','in_review') ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,t.due_at NULLS LAST,t.created_at,t.id")).bind(owner).fetch_all(&mut **tx).await?)
 }
 pub async fn ensure_task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> Result<()> {
     let exists: bool = sqlx::query_scalar(
@@ -84,8 +89,64 @@ pub async fn save_task(
         sqlx::query("UPDATE todo_pomodoro_states SET active_todo_id=NULL,client_updated_at=GREATEST(client_updated_at+1,$3) WHERE user_id=$1 AND active_todo_id=$2").bind(owner).bind(result).bind(chrono::Utc::now().timestamp_millis()).execute(&mut **tx).await?;
     }
     log_flags(tx, owner, result, d.is_urgent, d.is_important).await?;
+    if id.is_some() {
+        prune_dependencies(tx, owner).await?;
+    }
+    if let Some(ids) = &d.depends_on {
+        set_dependencies(tx, owner, result, ids).await?;
+    }
     bump(tx, owner).await?;
     Ok(result)
+}
+/// Drop dependency edges whose two tasks no longer share a project (project changed/deleted).
+pub async fn prune_dependencies(tx: &mut Tx<'_>, owner: Uuid) -> Result<()> {
+    sqlx::query("DELETE FROM todo_dependencies x USING todos a, todos b WHERE x.user_id=$1 AND a.id=x.todo_id AND b.id=x.depends_on_id AND (a.project_id IS NULL OR a.project_id IS DISTINCT FROM b.project_id)").bind(owner).execute(&mut **tx).await?;
+    Ok(())
+}
+/// Replace the set of tasks `todo` waits for. Every dependency must be a live task of the same
+/// project, and the new edges must not create a cycle. Caller holds the per-user lock.
+pub async fn set_dependencies(tx: &mut Tx<'_>, owner: Uuid, todo: i64, ids: &[i64]) -> Result<()> {
+    let ids = crate::domain::normalize_dependencies(Some(todo), ids)
+        .map_err(|m| Error::field("depends_on", m))?;
+    let project: Option<Option<i64>> = sqlx::query_scalar(
+        "SELECT project_id FROM todos WHERE user_id=$1 AND id=$2 AND deleted_at IS NULL",
+    )
+    .bind(owner)
+    .bind(todo)
+    .fetch_optional(&mut **tx)
+    .await?;
+    let project = project.ok_or(Error::NotFound)?;
+    if !ids.is_empty() {
+        let Some(project) = project else {
+            return Err(Error::field(
+                "depends_on",
+                "Chọn project trước khi đặt công việc phụ thuộc.",
+            ));
+        };
+        let matching: i64 = sqlx::query_scalar("SELECT count(*) FROM todos WHERE user_id=$1 AND project_id=$2 AND deleted_at IS NULL AND id=ANY($3)").bind(owner).bind(project).bind(&ids).fetch_one(&mut **tx).await?;
+        if matching != ids.len() as i64 {
+            return Err(Error::field(
+                "depends_on",
+                "Chỉ có thể phụ thuộc vào công việc cùng project.",
+            ));
+        }
+        let cycle: bool = sqlx::query_scalar("WITH RECURSIVE r(id) AS (SELECT unnest($2::bigint[]) UNION SELECT x.depends_on_id FROM todo_dependencies x JOIN r ON x.todo_id=r.id) SELECT EXISTS(SELECT 1 FROM r WHERE id=$1)").bind(todo).bind(&ids).fetch_one(&mut **tx).await?;
+        if cycle {
+            return Err(Error::field(
+                "depends_on",
+                "Phụ thuộc này tạo vòng lặp giữa các công việc.",
+            ));
+        }
+    }
+    sqlx::query("DELETE FROM todo_dependencies WHERE user_id=$1 AND todo_id=$2")
+        .bind(owner)
+        .bind(todo)
+        .execute(&mut **tx)
+        .await?;
+    if !ids.is_empty() {
+        sqlx::query("INSERT INTO todo_dependencies(user_id,todo_id,depends_on_id) SELECT $1,$2,unnest($3::bigint[])").bind(owner).bind(todo).bind(&ids).execute(&mut **tx).await?;
+    }
+    Ok(())
 }
 pub async fn save_project(
     tx: &mut Tx<'_>,
@@ -144,7 +205,7 @@ pub async fn snapshot(pool: &sqlx::PgPool, owner: Uuid) -> Result<Value> {
     let mut backlog = Vec::new();
     for t in todos {
         match t["status"].as_str() {
-            Some("todo" | "in_progress") => {
+            Some("todo" | "in_progress" | "in_review") => {
                 let key =
                     crate::domain::quadrant(t["is_urgent"] == true, t["is_important"] == true);
                 quadrants[key].as_array_mut().unwrap().push(t)
@@ -160,7 +221,7 @@ pub async fn snapshot(pool: &sqlx::PgPool, owner: Uuid) -> Result<Value> {
     )
 }
 pub async fn task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> Result<Value> {
-    sqlx::query_scalar("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END) FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.id=$2 AND t.deleted_at IS NULL").bind(owner).bind(id).fetch_optional(&mut **tx).await?.ok_or(Error::NotFound)
+    sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.id=$2 AND t.deleted_at IS NULL")).bind(owner).bind(id).fetch_optional(&mut **tx).await?.ok_or(Error::NotFound)
 }
 pub async fn paginate(
     tx: &mut Tx<'_>,
@@ -173,6 +234,11 @@ pub async fn paginate(
     let total:i64=sqlx::query_scalar("SELECT count(*) FROM todos t WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0)").bind(owner).bind(project).bind(status).bind(search).fetch_one(&mut **tx).await?;
     let last = ((total + 19) / 20).max(1);
     let page = page.clamp(1, last);
-    let data:Vec<Value>=sqlx::query_scalar("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END) FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0) ORDER BY t.updated_at DESC,t.id DESC LIMIT 20 OFFSET $5").bind(owner).bind(project).bind(status).bind(search).bind((page-1)*20).fetch_all(&mut **tx).await?;
+    let data:Vec<Value>=sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0) ORDER BY t.updated_at DESC,t.id DESC LIMIT 20 OFFSET $5")).bind(owner).bind(project).bind(status).bind(search).bind((page-1)*20).fetch_all(&mut **tx).await?;
     Ok(json!({"data":data,"current_page":page,"last_page":last,"total":total}))
+}
+
+/// Live tasks with a project, offered by the "waits for" picker (the FE filters by project).
+pub async fn dependency_candidates(tx: &mut Tx<'_>, owner: Uuid) -> Result<Vec<Value>> {
+    Ok(sqlx::query_scalar("SELECT jsonb_build_object('id',id,'title',title,'status',status,'project_id',project_id) FROM todos WHERE user_id=$1 AND deleted_at IS NULL AND project_id IS NOT NULL AND status<>'rejected' ORDER BY id DESC LIMIT 1000").bind(owner).fetch_all(&mut **tx).await?)
 }

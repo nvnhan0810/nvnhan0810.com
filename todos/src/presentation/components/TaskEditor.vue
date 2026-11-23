@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { reactive, ref, computed } from "vue";
-import type { TodoItem, TodoProject } from "../../domain/todo";
+import { reactive, ref, computed, watch } from "vue";
+import type {
+  DependencyCandidate,
+  TodoItem,
+  TodoProject,
+} from "../../domain/todo";
 import { submit } from "../../application/navigation";
 import { ValidationError } from "../../infrastructure/todos-api";
 import Modal from "./Modal.vue";
@@ -10,6 +14,7 @@ const props = defineProps<{
   todo?: TodoItem | null;
   defaults?: Partial<TodoItem>;
   projects: TodoProject[];
+  candidates?: DependencyCandidate[];
   returnTo?: "matrix" | "todos";
 }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
@@ -27,7 +32,24 @@ const form = reactive({
   is_urgent: props.todo?.is_urgent ?? props.defaults?.is_urgent ?? false,
   is_important:
     props.todo?.is_important ?? props.defaults?.is_important ?? false,
+  depends_on: (props.todo?.depends_on ?? []).map((d) => d.id),
 });
+// Only tasks of the selected project can be waited for; keep ones already selected visible.
+const dependencyOptions = computed(() => {
+  if (!form.project_id) return [];
+  const known = new Map<number, DependencyCandidate>();
+  for (const c of props.candidates ?? [])
+    if (c.project_id === form.project_id && c.id !== props.todo?.id)
+      known.set(c.id, c);
+  return [...known.values()];
+});
+watch(
+  () => form.project_id,
+  () => {
+    const allowed = new Set(dependencyOptions.value.map((c) => c.id));
+    form.depends_on = form.depends_on.filter((id) => allowed.has(id));
+  },
+);
 const showProject = ref(false),
   createdProjects = ref<TodoProject[]>([]);
 const availableProjects = computed(() => [
@@ -112,6 +134,26 @@ async function save() {
     <button type="button" class="small text-button" @click="showProject = true">
       + {{ t("newProject") }}
     </button>
+    <fieldset class="dependencies">
+      <legend>{{ t("waitsFor") }}</legend>
+      <p v-if="!dependencyOptions.length" class="muted">
+        {{ t("noDependencyCandidates") }}
+      </p>
+      <label
+        v-for="candidate in dependencyOptions"
+        :key="candidate.id"
+        class="checkbox"
+        ><input
+          v-model="form.depends_on"
+          type="checkbox"
+          :value="candidate.id"
+        />#{{ candidate.id }}
+        {{ candidate.title }}
+        <span class="badge" :class="candidate.status">{{
+          t(candidate.status)
+        }}</span></label
+      >
+    </fieldset>
     <label
       >{{ t("description") }}<textarea v-model="form.description" rows="4" />
     </label>
@@ -124,6 +166,7 @@ async function save() {
               'backlog',
               'todo',
               'in_progress',
+              'in_review',
               'done',
               'rejected',
             ]"

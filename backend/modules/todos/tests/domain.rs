@@ -67,6 +67,7 @@ fn task_validation_rejects_missing_titles_bad_statuses_and_dates() {
         due_at: Some("not-a-date".into()),
         is_urgent: false,
         is_important: true,
+        depends_on: None,
     };
     let errors = d.validate().unwrap_err();
     for field in ["title", "status", "priority", "due_at"] {
@@ -114,4 +115,37 @@ fn push_subscription_cannot_target_private_hosts() {
         "https://fcm.googleapis.com/fcm/send/example"
     ));
     assert!(valid_endpoint("https://web.push.apple.com/QH/example"));
+}
+#[test]
+fn in_review_is_a_valid_status() {
+    assert!(todos::domain::STATUSES.contains(&"in_review"));
+    let mut d = TodoInput {
+        title: "Task".into(),
+        description: None,
+        project_id: None,
+        status: "in_review".into(),
+        priority: "medium".into(),
+        due_at: None,
+        is_urgent: false,
+        is_important: false,
+        depends_on: None,
+    };
+    assert!(d.validate().is_ok());
+}
+#[test]
+fn dependencies_are_deduped_and_reject_self_and_invalid_ids() {
+    use todos::domain::{MAX_DEPENDENCIES, normalize_dependencies};
+    assert_eq!(
+        normalize_dependencies(Some(1), &[5, 3, 5]).unwrap(),
+        vec![3, 5]
+    );
+    assert_eq!(
+        normalize_dependencies(None, &[]).unwrap(),
+        Vec::<i64>::new()
+    );
+    assert!(normalize_dependencies(Some(3), &[1, 3]).is_err());
+    assert!(normalize_dependencies(Some(1), &[0]).is_err());
+    assert!(normalize_dependencies(Some(1), &[-2]).is_err());
+    let many: Vec<i64> = (1..=MAX_DEPENDENCIES as i64 + 1).collect();
+    assert!(normalize_dependencies(None, &many).is_err());
 }

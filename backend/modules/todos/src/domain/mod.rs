@@ -3,7 +3,14 @@ use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const STATUSES: [&str; 5] = ["backlog", "todo", "in_progress", "done", "rejected"];
+pub const STATUSES: [&str; 6] = [
+    "backlog",
+    "todo",
+    "in_progress",
+    "in_review",
+    "done",
+    "rejected",
+];
 pub const PRIORITIES: [&str; 4] = ["low", "medium", "high", "urgent"];
 pub type Errors = BTreeMap<String, String>;
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -18,6 +25,9 @@ pub struct TodoInput {
     pub is_urgent: bool,
     #[serde(default)]
     pub is_important: bool,
+    /// Tasks (same project) that must be `done` before this one may run. `None` keeps the current set.
+    #[serde(default)]
+    pub depends_on: Option<Vec<i64>>,
 }
 impl TodoInput {
     pub fn validate(&mut self) -> Result<(), Errors> {
@@ -43,8 +53,32 @@ impl TodoInput {
         {
             e.insert("due_at".into(), "Ngày hạn không hợp lệ.".into());
         }
+        if self
+            .depends_on
+            .as_ref()
+            .is_some_and(|d| d.len() > MAX_DEPENDENCIES)
+        {
+            e.insert("depends_on".into(), "Quá nhiều công việc phụ thuộc.".into());
+        }
         if e.is_empty() { Ok(()) } else { Err(e) }
     }
+}
+pub const MAX_DEPENDENCIES: usize = 50;
+/// Sort + dedupe a dependency list, rejecting self references and non-positive ids.
+pub fn normalize_dependencies(todo: Option<i64>, ids: &[i64]) -> Result<Vec<i64>, &'static str> {
+    if ids.len() > MAX_DEPENDENCIES {
+        return Err("Quá nhiều công việc phụ thuộc.");
+    }
+    if ids.iter().any(|id| *id <= 0) {
+        return Err("Công việc phụ thuộc không hợp lệ.");
+    }
+    if todo.is_some_and(|t| ids.contains(&t)) {
+        return Err("Công việc không thể phụ thuộc vào chính nó.");
+    }
+    let mut v = ids.to_vec();
+    v.sort_unstable();
+    v.dedup();
+    Ok(v)
 }
 pub fn parse_datetime(s: &str) -> Option<DateTime<FixedOffset>> {
     DateTime::parse_from_rfc3339(s).ok()
