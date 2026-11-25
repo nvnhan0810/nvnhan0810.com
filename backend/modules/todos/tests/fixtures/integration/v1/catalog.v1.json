@@ -1,0 +1,22 @@
+{
+  "workspaces": [
+    {
+      "id": "6f1d2c3a-0000-4000-8000-000000000001",
+      "name": "Work",
+      "repos": [
+        {
+          "id": "3b1e0000-0000-4000-8000-000000000002",
+          "name": "api",
+          "full_name": "acme/api",
+          "has_main": true
+        },
+        {
+          "id": "3b1e0000-0000-4000-8000-000000000003",
+          "name": "web",
+          "full_name": "acme/web",
+          "has_main": false
+        }
+      ]
+    }
+  ]
+}

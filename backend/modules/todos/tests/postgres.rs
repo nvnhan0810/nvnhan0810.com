@@ -48,6 +48,11 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     )))
     .await
     .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261123000003_agent_targets.up.sql"
+    )))
+    .await
+    .unwrap();
     tx.commit().await.unwrap();
     let owner = Uuid::new_v4();
     let other = Uuid::new_v4();
@@ -236,6 +241,11 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     )))
     .await
     .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261123000003_agent_targets.up.sql"
+    )))
+    .await
+    .unwrap();
     tx.commit().await.unwrap();
     pool.close().await;
     admin
@@ -288,6 +298,11 @@ async fn in_review_status_and_task_dependencies() {
     .unwrap();
     tx.execute(sqlx::raw_sql(include_str!(
         "../migrations/20261123000001_in_review_and_dependencies.up.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261123000003_agent_targets.up.sql"
     )))
     .await
     .unwrap();

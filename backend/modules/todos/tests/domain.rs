@@ -68,6 +68,9 @@ fn task_validation_rejects_missing_titles_bad_statuses_and_dates() {
         is_urgent: false,
         is_important: true,
         depends_on: None,
+        agent_repo_id: None,
+        agent_repo_name: None,
+        agent_auto: false,
     };
     let errors = d.validate().unwrap_err();
     for field in ["title", "status", "priority", "due_at"] {
@@ -86,6 +89,8 @@ fn projects_only_expose_safe_http_urls() {
         name: "Work".into(),
         git_repo_url: Some("javascript:alert(1)".into()),
         domain: Some("https://user:secret@example.com".into()),
+        agent_workspace_id: None,
+        agent_workspace_name: None,
     };
     assert_eq!(d.validate().unwrap_err().len(), 2);
     d.git_repo_url = Some("https://github.com/user/repo".into());
@@ -129,6 +134,9 @@ fn in_review_is_a_valid_status() {
         is_urgent: false,
         is_important: false,
         depends_on: None,
+        agent_repo_id: None,
+        agent_repo_name: None,
+        agent_auto: false,
     };
     assert!(d.validate().is_ok());
 }
@@ -148,4 +156,100 @@ fn dependencies_are_deduped_and_reject_self_and_invalid_ids() {
     assert!(normalize_dependencies(Some(1), &[-2]).is_err());
     let many: Vec<i64> = (1..=MAX_DEPENDENCIES as i64 + 1).collect();
     assert!(normalize_dependencies(None, &many).is_err());
+}
+
+#[test]
+fn agent_catalog_matches_the_agent_contract_fixture() {
+    use todos::application::agent_link::Catalog;
+    let raw = include_str!("fixtures/integration/v1/catalog.v1.json");
+    let catalog: Catalog = serde_json::from_str(raw).unwrap();
+    let catalog = catalog.validated().expect("fixture passes validation");
+    let work = catalog
+        .workspace("6f1d2c3a-0000-4000-8000-000000000001")
+        .expect("workspace");
+    assert_eq!(work.name, "Work");
+    assert!(work.repos[0].has_main);
+    assert!(!work.repos[1].has_main);
+    assert_eq!(work.repos[0].full_name, "acme/api");
+}
+#[test]
+fn agent_catalog_rejects_hostile_or_oversized_replies() {
+    use todos::application::agent_link::{Catalog, CatalogRepo, CatalogWorkspace};
+    let repo = CatalogRepo {
+        id: "ok-1".into(),
+        name: "api".into(),
+        full_name: "acme/api".into(),
+        has_main: true,
+    };
+    let bad_id = Catalog {
+        workspaces: vec![CatalogWorkspace {
+            id: "../../etc".into(),
+            name: "x".into(),
+            repos: vec![repo.clone()],
+        }],
+    };
+    assert!(bad_id.validated().is_none());
+    let long_name = Catalog {
+        workspaces: vec![CatalogWorkspace {
+            id: "w1".into(),
+            name: "n".repeat(256),
+            repos: vec![repo],
+        }],
+    };
+    assert!(long_name.validated().is_none());
+}
+#[test]
+fn agent_fields_are_validated_before_they_reach_the_database() {
+    use todos::domain::{ProjectInput, TodoInput};
+    let base = || TodoInput {
+        title: "Task".into(),
+        description: None,
+        project_id: Some(1),
+        status: "todo".into(),
+        priority: "medium".into(),
+        due_at: None,
+        is_urgent: false,
+        is_important: false,
+        depends_on: None,
+        agent_repo_id: Some("3b1e0000-0000-4000-8000-000000000002".into()),
+        agent_repo_name: Some("client-supplied".into()),
+        agent_auto: true,
+    };
+    let mut ok = base();
+    assert!(ok.validate().is_ok());
+    // Name is a snapshot; the server overwrites it, but validation must not trust it either.
+    let mut no_project = base();
+    no_project.project_id = None;
+    assert!(
+        no_project
+            .validate()
+            .unwrap_err()
+            .contains_key("agent_repo_id")
+    );
+    let mut auto_without_repo = base();
+    auto_without_repo.agent_repo_id = Some("   ".into());
+    assert!(
+        auto_without_repo
+            .validate()
+            .unwrap_err()
+            .contains_key("agent_auto")
+    );
+    let mut bad_id = base();
+    bad_id.agent_repo_id = Some("a/../b".into());
+    assert!(bad_id.validate().unwrap_err().contains_key("agent_repo_id"));
+    let mut bad_workspace = ProjectInput {
+        name: "Work".into(),
+        git_repo_url: None,
+        domain: None,
+        agent_workspace_id: Some("x y".into()),
+        agent_workspace_name: None,
+    };
+    assert!(
+        bad_workspace
+            .validate()
+            .unwrap_err()
+            .contains_key("agent_workspace_id")
+    );
+    bad_workspace.agent_workspace_id = Some("ws-1".into());
+    assert!(bad_workspace.validate().is_ok());
 }

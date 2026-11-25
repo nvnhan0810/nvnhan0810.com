@@ -1,5 +1,6 @@
+mod agent_link;
 use crate::{
-    application::{self, Error},
+    application::{self, Error, agent_link::AgentLinkConfig},
     infrastructure::{self, worker::PushConfig},
 };
 use axum::{
@@ -21,6 +22,9 @@ pub struct TodoState {
     pub identity: identity::IdentityState,
     pub pool: sqlx::PgPool,
     pub push: PushConfig,
+    pub agent: AgentLinkConfig,
+    pub http: reqwest::Client,
+    pub catalogs: agent_link::CatalogCache,
 }
 type HttpError = (StatusCode, Json<Value>);
 fn response(e: Error) -> HttpError {
@@ -84,9 +88,16 @@ async fn page(
     if !q.path.starts_with('/') || q.path.starts_with("//") || q.path.len() > 4000 {
         return Err(response(Error::NotFound));
     }
-    let mut result = application::page(&state.pool, user.id, &q.path)
-        .await
-        .map_err(response)?;
+    let mut result = if q.path.split(['?', '#']).next() == Some("/settings/integrations") {
+        let agent = application::agent_link::status(&state.pool, &state.agent, user.id)
+            .await
+            .map_err(agent_link::error)?;
+        json!({"component":"Settings/Integrations","props":{"agent":agent}})
+    } else {
+        application::page(&state.pool, user.id, &q.path)
+            .await
+            .map_err(response)?
+    };
     result["props"]["auth"] = json!({"user":user});
     Ok(Json(result))
 }
@@ -109,6 +120,8 @@ async fn action(
             .map(Json)
             .map_err(response);
     }
+    let mut input = input;
+    agent_link::enrich_action(&state, user.id, &input.path, &input.method, &mut input.data).await?;
     application::action(
         &state.pool,
         user.id,
@@ -235,7 +248,12 @@ async fn push_action(state: &TodoState, user: Uuid, input: &Action) -> applicati
     sqlx::query("INSERT INTO web_push_subscriptions(user_id,endpoint,public_key,auth_token,user_agent) VALUES($1,$2,$3,$4,$5) ON CONFLICT(user_id,endpoint) DO UPDATE SET public_key=EXCLUDED.public_key,auth_token=EXCLUDED.auth_token,is_active=true,failed_sent=0,last_failed_reason=NULL,updated_at=now()").bind(user).bind(endpoint).bind(public).bind(auth).bind(d["userAgent"].as_str().unwrap_or("").chars().take(500).collect::<String>()).execute(&state.pool).await?;
     Ok(json!({"ok":true}))
 }
-pub fn routes(identity: identity::IdentityState, pool: sqlx::PgPool, push: PushConfig) -> Router {
+pub fn routes(
+    identity: identity::IdentityState,
+    pool: sqlx::PgPool,
+    push: PushConfig,
+    agent: AgentLinkConfig,
+) -> Router {
     Router::new()
         .route("/pages", get(page))
         .route("/actions", post(action))
@@ -243,9 +261,24 @@ pub fn routes(identity: identity::IdentityState, pool: sqlx::PgPool, push: PushC
         .route("/matrix/stream", get(stream))
         .route("/web-push/public-key", get(public_key))
         .route("/web-push/status", get(push_status))
+        .route("/integrations/agent/status", get(agent_link::status))
+        .route("/integrations/agent/catalog", get(agent_link::catalog))
+        .route("/integrations/agent/link/start", post(agent_link::start))
+        .route(
+            "/integrations/agent/link",
+            axum::routing::delete(agent_link::unlink),
+        )
         .with_state(TodoState {
             identity,
             pool,
             push,
+            agent,
+            http: agent_link::http_client(),
+            catalogs: Default::default(),
         })
+}
+/// Routes the Agent server calls with its `tdi_` token. Mounted by the gateway outside the
+/// per-IP limiter, under `/todo/v1/integrations/agent`.
+pub fn integration_routes(pool: sqlx::PgPool, agent: AgentLinkConfig) -> Router {
+    agent_link::integration_routes(pool, agent)
 }

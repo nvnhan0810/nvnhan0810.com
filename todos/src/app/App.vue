@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   CheckSquare,
   FolderKanban,
+  Plug,
   LogOut,
   SunMoon,
   Languages,
@@ -64,6 +65,8 @@ async function logout() {
           ><CheckSquare :size="18" />{{ t("tasks") }}</RouterLink
         ><RouterLink to="/todos/projects"
           ><FolderKanban :size="18" />{{ t("projects") }}</RouterLink
+        ><RouterLink to="/settings/integrations"
+          ><Plug :size="18" />{{ t("integrations") }}</RouterLink
         >
       </nav>
       <div class="header-actions">

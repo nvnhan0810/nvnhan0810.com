@@ -1,3 +1,4 @@
+pub mod agent_link;
 use crate::{
     domain::{self, Errors, ProjectInput, TodoInput},
     infrastructure as repo,
@@ -197,7 +198,7 @@ pub async fn action(
                 let id = id(parts.get(2))?;
                 repo::ensure_project(&mut tx, owner, id).await?;
                 sqlx::query("UPDATE todo_projects SET deleted_at=now(),updated_at=now() WHERE user_id=$1 AND id=$2").bind(owner).bind(id).execute(&mut *tx).await?;
-                sqlx::query("UPDATE todos SET project_id=NULL,updated_at=now() WHERE user_id=$1 AND project_id=$2").bind(owner).bind(id).execute(&mut *tx).await?;
+                sqlx::query("UPDATE todos SET project_id=NULL,agent_repo_id=NULL,agent_repo_name=NULL,agent_auto=false,updated_at=now() WHERE user_id=$1 AND project_id=$2").bind(owner).bind(id).execute(&mut *tx).await?;
                 repo::prune_dependencies(&mut tx, owner).await?;
                 repo::bump(&mut tx, owner).await?;
             }

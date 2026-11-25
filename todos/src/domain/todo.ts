@@ -3,6 +3,9 @@ export type TodoProject = {
   name: string;
   git_repo_url: string | null;
   domain: string | null;
+  /** Agent workspace (= Agent project) this Todo project maps to. */
+  agent_workspace_id?: string | null;
+  agent_workspace_name?: string | null;
   todos_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -33,6 +36,10 @@ export type TodoItem = {
   is_important: boolean;
   project?: Pick<TodoProject, "id" | "name"> | null;
   depends_on?: TodoDependency[];
+  /** Agent repo this task runs in, and whether the Agent picks it up automatically. */
+  agent_repo_id?: string | null;
+  agent_repo_name?: string | null;
+  agent_auto?: boolean;
   created_at?: string;
   updated_at?: string;
 };

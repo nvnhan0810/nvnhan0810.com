@@ -77,6 +77,64 @@ const labels: Record<string, [string, string]> = {
   domain: ["Địa chỉ website", "Website URL"],
   confirmDelete: ["Bạn muốn xóa mục này?", "Delete this item?"],
   notifications: ["Thông báo", "Notifications"],
+  integrations: ["Tích hợp", "Integrations"],
+  agentIntro: [
+    "Liên kết với NVN Agent để agent tự nhận và xử lý công việc. Cần cùng tài khoản Identity và cùng email ở cả hai bên.",
+    "Link NVN Agent so it can pick up and handle tasks. Both sides need the same Identity account and email.",
+  ],
+  agentConnect: ["Kết nối Agent", "Connect Agent"],
+  agentDisconnect: ["Ngắt kết nối", "Disconnect"],
+  agentConnectedAs: ["Đã kết nối với tài khoản", "Connected as"],
+  agentLastSeen: ["Agent hoạt động lần cuối:", "Agent last seen:"],
+  agentNotConnected: ["Chưa kết nối Agent.", "Agent is not connected."],
+  agentDisabled: [
+    "Tích hợp Agent chưa được bật trên máy chủ.",
+    "The Agent integration is not enabled on the server.",
+  ],
+  agentLinked: ["Đã kết nối Agent.", "Agent connected."],
+  agentUnlinked: ["Đã ngắt kết nối Agent.", "Agent disconnected."],
+  agentUnlinkedLocal: [
+    "Đã ngắt kết nối phía Todo. Agent chưa nhận được thông báo; hãy ngắt kết nối bên Agent nếu cần.",
+    "Disconnected on the Todo side. Agent could not be notified; disconnect there too if needed.",
+  ],
+  agentUnlinkConfirm: [
+    "Ngắt kết nối Agent? Agent sẽ không nhận công việc nữa.",
+    "Disconnect Agent? It will stop picking up tasks.",
+  ],
+  agentWorkspace: ["Workspace Agent", "Agent workspace"],
+  agentWorkspaceNone: ["— Không gắn —", "— Not linked —"],
+  agentWorkspaceChanged: [
+    "Đổi workspace sẽ bỏ chọn repository của các task trong project này.",
+    "Changing the workspace clears the repositories of this project's tasks.",
+  ],
+  agentRepo: ["Repository Agent", "Agent repository"],
+  agentRepoNone: ["— Không chọn —", "— None —"],
+  agentNoMain: ["(chưa có main)", "(no main branch)"],
+  agentAuto: ["Agent tự động xử lý", "Let Agent handle it automatically"],
+  agentAutoHint: [
+    "Agent nhận task khi đến lượt, theo thứ tự ma trận Eisenhower. Chỉ nhận khi các task phụ thuộc đã Done.",
+    "The Agent picks the task up in Eisenhower order once its dependencies are Done.",
+  ],
+  agentPickWorkspaceFirst: [
+    "Gắn project với workspace Agent để chọn repository.",
+    "Link the project to an Agent workspace to pick a repository.",
+  ],
+  agentCatalogNotLinked: [
+    "Chưa kết nối Agent. Kết nối ở Settings → Tích hợp để chọn workspace và repository.",
+    "Agent is not connected. Connect it in Settings → Integrations to pick a workspace and repository.",
+  ],
+  agentCatalogUnavailable: [
+    "Không lấy được danh sách từ Agent. Hãy thử lại sau.",
+    "Could not load the list from Agent. Try again later.",
+  ],
+  agentAutoNeedsRepo: [
+    "Chọn repository trước khi bật tự động xử lý.",
+    "Pick a repository before turning on automatic handling.",
+  ],
+  agentRepoNeedsMain: [
+    "Repository chưa có nhánh main nên Agent không thể xử lý.",
+    "The repository has no main branch, so the Agent cannot work on it.",
+  ],
 };
 export function t(key: string) {
   return labels[key]?.[locale.value === "vi" ? 0 : 1] ?? key;

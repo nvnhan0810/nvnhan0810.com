@@ -4,9 +4,9 @@ Plan chi tiết (quyết định đã chốt, kiến trúc, data model, API cont
 `agent/docs/todo-agent-integration-plan.md` (v4).
 
 Phần việc phía repo này:
-- Phase 1: status `in_review`, deep link `/tasks/:id`, dependency giữa task (`todo_dependencies`, chống vòng, picker trên FE).
-- Phase 2: liên kết tài khoản (link request, token `tdi_`, limiter riêng ở gateway).
-- Phase 3: proxy catalog, gắn workspace cho project, chọn repo + checkbox auto cho task.
+- Phase 1 ✅: status `in_review`, deep link `/tasks/:id`, dependency giữa task (`todo_dependencies`, chống vòng, picker trên FE).
+- Phase 2 ✅ (code xong, chưa chạy test Postgres/e2e): liên kết tài khoản (`todo_agent_links`, `todo_agent_link_requests`, token `tdi_`/`agi_`, limiter riêng theo token ở gateway, trang Settings → Tích hợp). Env: `TODO_AGENT_INTEGRATION_ENABLED`, `AGENT_BASE_URL`, `AGENT_WEB_URL`, `TODO_INTEGRATION_KEY`. Chi tiết và chỗ khác plan gốc: mục Phase 2 trong plan chính.
+- Phase 3 ✅ (code xong, test Postgres đã chạy trên DB tạm; chưa e2e staging): proxy catalog `GET /todos/integrations/agent/catalog` (cache 60 s theo user, `?refresh=1` bỏ cache), chọn workspace trong form project, chọn repo + checkbox "Agent tự động xử lý" trong form task. Repo chỉ lấy trong workspace của project; repo chưa có `main` bị disable; đổi workspace của project thì bỏ chọn repo của các task. Server kiểm tra lại mọi tên/ID từ client qua catalog, tên được lưu làm snapshot. Contract fixture `catalog.v1.json` nằm ở cả hai repo.
 - Phase 4: API claim/heartbeat/report/release/`pr-updated`, ghi khối `agent-result` vào body, sweeper lease.
   - Claim nhận `{workspaces, limit}`, trả **tối đa `limit` task** (nhiều task cùng workspace được phép, chạy song song ở worktree riêng).
   - Thứ tự theo ma trận Eisenhower: Do → Schedule → Delegate → Eliminate, rồi `priority`, `due_at`, `created_at`.

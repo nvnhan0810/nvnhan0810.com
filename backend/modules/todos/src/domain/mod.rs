@@ -28,6 +28,15 @@ pub struct TodoInput {
     /// Tasks (same project) that must be `done` before this one may run. `None` keeps the current set.
     #[serde(default)]
     pub depends_on: Option<Vec<i64>>,
+    /// Agent repo this task runs in (must belong to the project's Agent workspace).
+    #[serde(default)]
+    pub agent_repo_id: Option<String>,
+    /// Display snapshot; always overwritten by the server from the Agent catalog.
+    #[serde(default)]
+    pub agent_repo_name: Option<String>,
+    /// Let the Agent pick this task up automatically (needs a repo).
+    #[serde(default)]
+    pub agent_auto: bool,
 }
 impl TodoInput {
     pub fn validate(&mut self) -> Result<(), Errors> {
@@ -60,8 +69,43 @@ impl TodoInput {
         {
             e.insert("depends_on".into(), "Quá nhiều công việc phụ thuộc.".into());
         }
+        self.agent_repo_id = clean_id(self.agent_repo_id.take());
+        if self.agent_repo_id.is_none() {
+            self.agent_repo_name = None;
+        }
+        if self
+            .agent_repo_id
+            .as_deref()
+            .is_some_and(|id| !valid_agent_id(id))
+        {
+            e.insert(
+                "agent_repo_id".into(),
+                "Repository Agent không hợp lệ.".into(),
+            );
+        } else if self.agent_repo_id.is_some() && self.project_id.is_none() {
+            e.insert(
+                "agent_repo_id".into(),
+                "Cần chọn project trước khi chọn repository.".into(),
+            );
+        } else if self.agent_auto && self.agent_repo_id.is_none() {
+            e.insert(
+                "agent_auto".into(),
+                "Cần chọn repository để Agent tự động xử lý.".into(),
+            );
+        }
         if e.is_empty() { Ok(()) } else { Err(e) }
     }
+}
+/// Trim; empty means "not set".
+pub fn clean_id(v: Option<String>) -> Option<String> {
+    v.map(|s| s.trim().to_owned()).filter(|s| !s.is_empty())
+}
+/// Agent ids are opaque (UUID today); accept a conservative charset and length only.
+pub fn valid_agent_id(id: &str) -> bool {
+    (1..=100).contains(&id.len())
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
 }
 pub const MAX_DEPENDENCIES: usize = 50;
 /// Sort + dedupe a dependency list, rejecting self references and non-positive ids.
@@ -88,11 +132,30 @@ pub struct ProjectInput {
     pub name: String,
     pub git_repo_url: Option<String>,
     pub domain: Option<String>,
+    /// Agent workspace this project maps to.
+    #[serde(default)]
+    pub agent_workspace_id: Option<String>,
+    /// Display snapshot; always overwritten by the server from the Agent catalog.
+    #[serde(default)]
+    pub agent_workspace_name: Option<String>,
 }
 impl ProjectInput {
     pub fn validate(&mut self) -> Result<(), Errors> {
         self.name = self.name.trim().into();
         let mut e = Errors::new();
+        self.agent_workspace_id = clean_id(self.agent_workspace_id.take());
+        if self.agent_workspace_id.is_none() {
+            self.agent_workspace_name = None;
+        } else if self
+            .agent_workspace_id
+            .as_deref()
+            .is_some_and(|id| !valid_agent_id(id))
+        {
+            e.insert(
+                "agent_workspace_id".into(),
+                "Workspace Agent không hợp lệ.".into(),
+            );
+        }
         if self.name.is_empty() || self.name.chars().count() > 255 {
             e.insert(
                 "name".into(),

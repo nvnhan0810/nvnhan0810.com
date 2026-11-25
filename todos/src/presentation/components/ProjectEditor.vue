@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import type { TodoProject } from "../../domain/todo";
 import { submit } from "../../application/navigation";
 import { action, ValidationError } from "../../infrastructure/todos-api";
 import { t } from "../../application/locale";
+import {
+  agentCatalog,
+  catalogProblem,
+  type AgentCatalog,
+} from "../../application/agent-link";
 const props = defineProps<{ inline?: boolean; project?: TodoProject | null }>();
 const emit = defineEmits<{
   saved: [];
@@ -14,9 +19,37 @@ const form = reactive({
   name: props.project?.name ?? "",
   git_repo_url: props.project?.git_repo_url ?? "",
   domain: props.project?.domain ?? "",
+  agent_workspace_id: props.project?.agent_workspace_id ?? "",
 });
 const busy = ref(false),
   errors = ref<Record<string, string>>({});
+
+// Agent workspace picker. Loaded once; a failure only disables the picker and explains why.
+const catalog = ref<AgentCatalog | null>(null),
+  catalogIssue = ref("");
+const originalWorkspace = props.project?.agent_workspace_id ?? "";
+const workspaceChanged = computed(
+  () => (form.agent_workspace_id || "") !== originalWorkspace,
+);
+// Keep the stored name visible when the Agent is offline and the selection is unchanged.
+const storedWorkspace = computed(() =>
+  props.project?.agent_workspace_id && props.project.agent_workspace_name
+    ? {
+        id: props.project.agent_workspace_id,
+        name: props.project.agent_workspace_name,
+      }
+    : null,
+);
+onMounted(async () => {
+  try {
+    catalog.value = await agentCatalog();
+  } catch (e) {
+    catalogIssue.value = catalogProblem(e);
+  }
+});
+function payload() {
+  return { ...form, agent_workspace_id: form.agent_workspace_id || null };
+}
 async function save() {
   if (busy.value) return;
   busy.value = true;
@@ -26,7 +59,7 @@ async function save() {
       const result = await action<{ project: TodoProject }>(
         "/todos/projects",
         "POST",
-        { ...form, inline: true },
+        { ...payload(), inline: true },
       );
       emit("created", result.project);
       emit("saved");
@@ -35,7 +68,7 @@ async function save() {
     await submit(
       props.project ? `/todos/projects/${props.project.id}` : "/todos/projects",
       props.project ? "PUT" : "POST",
-      form,
+      payload(),
     );
     emit("saved");
   } catch (e) {
@@ -64,6 +97,35 @@ async function save() {
         type="url"
         placeholder="https://github.com/…"
     /></label>
+    <label
+      >{{ t("agentWorkspace")
+      }}<select
+        v-model="form.agent_workspace_id"
+        :disabled="!catalog && !storedWorkspace"
+      >
+        <option value="">{{ t("agentWorkspaceNone") }}</option>
+        <option
+          v-for="workspace in catalog?.workspaces ?? []"
+          :key="workspace.id"
+          :value="workspace.id"
+        >
+          {{ workspace.name }}
+        </option>
+        <option
+          v-if="
+            storedWorkspace &&
+            !catalog?.workspaces.some((w) => w.id === storedWorkspace?.id)
+          "
+          :value="storedWorkspace.id"
+        >
+          {{ storedWorkspace.name }}
+        </option>
+      </select></label
+    >
+    <p v-if="catalogIssue" class="muted">{{ catalogIssue }}</p>
+    <p v-if="workspaceChanged && originalWorkspace" class="muted">
+      {{ t("agentWorkspaceChanged") }}
+    </p>
     <p
       v-for="(message, key) in errors"
       :key="key"

@@ -60,17 +60,34 @@ async fn run(source: config::ConfigSource, pool: sqlx::PgPool) {
         .finish()
         .expect("Rate limiter configuration must have a non-zero period and burst size");
 
+    // Server-to-server routes (Agent -> Todo): ~20 req/s per token, burst 40, per-IP fallback.
+    let integration_conf = GovernorConfigBuilder::default()
+        .per_millisecond(50)
+        .burst_size(40)
+        .key_extractor(api_gateway::integration_limit::IntegrationKeyExtractor)
+        .finish()
+        .expect("Integration rate limiter configuration must be valid");
+    let agent_link = todos::application::agent_link::AgentLinkConfig::from_source(&source)
+        .expect("Invalid Todo/Agent integration configuration");
+    let integration_routes = Router::new()
+        .nest(
+            "/todo/v1/integrations/agent",
+            todos::integration_routes(pool.clone(), agent_link.clone()),
+        )
+        .layer(GovernorLayer::new(integration_conf));
+
     // 2. Khai báo router và gắn các middleware (Thứ tự thực thi từ dưới lên trên)
     let app = Router::new()
         .route("/", get(root_handler))
         .nest("/auth", identity::identity_routes(identity_state.clone()))
         .nest("/order", ordering::ordering_routes())
         .nest("/foreign", foreign.router())
-        .nest("/todos", todos::routes(identity_state.clone(), pool.clone(), todos::infrastructure::worker::PushConfig::from_source(&source)))
+        .nest("/todos", todos::routes(identity_state.clone(), pool.clone(), todos::infrastructure::worker::PushConfig::from_source(&source), agent_link))
         .nest("/wallets", wallets::wallets_routes(identity_state.clone(), pool.clone()))
         .nest("/agent", agent::routes(agent_config))
         // Gắn các middleware tầng ứng dụng:
         .layer(GovernorLayer::new(governor_conf)) // Chống spam request
+        .merge(integration_routes)
         .layer(CompressionLayer::new()) // Nén response để tiết kiệm băng thông
         .layer(cors) // Exact browser origins; Identity supports credentialed cookie requests.
         .layer(
