@@ -8,12 +8,14 @@
           "id": "3b1e0000-0000-4000-8000-000000000002",
           "name": "api",
           "full_name": "acme/api",
+          "base_branch": "main",
           "has_main": true
         },
         {
           "id": "3b1e0000-0000-4000-8000-000000000003",
           "name": "web",
           "full_name": "acme/web",
+          "base_branch": "develop",
           "has_main": false
         }
       ]

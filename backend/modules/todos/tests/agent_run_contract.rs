@@ -70,6 +70,9 @@ fn claim_response_fixture_has_the_documented_shape() {
     assert_eq!(task["identifier"], "API-42");
     assert_eq!(task["project"]["agent_workspace_id"], "ws-1");
     assert_eq!(task["repo"]["agent_repo_id"], "repo-1");
+    // Optional: absent/null means the repo's default base on Agent.
+    assert_eq!(task["base_branch"], "release/1.2");
+    assert!(task["project"].get("base_branch").is_none());
     assert_eq!(
         task["depends_on"][0]["pr_url"],
         "https://github.com/o/r/pull/9"

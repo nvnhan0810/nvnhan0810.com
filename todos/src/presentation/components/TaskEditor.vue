@@ -46,6 +46,7 @@ const form = reactive({
   depends_on: (props.todo?.depends_on ?? []).map((d) => d.id),
   agent_repo_id: props.todo?.agent_repo_id ?? null,
   agent_auto: props.todo?.agent_auto ?? false,
+  agent_base_branch: props.todo?.agent_base_branch ?? "",
 });
 // Only tasks of the selected project can be waited for; keep ones already selected visible.
 const dependencyOptions = computed(() => {
@@ -100,16 +101,25 @@ const repos = computed(() => workspaceRepos(catalog.value, workspaceId.value));
 const selectedRepo = computed(() =>
   repos.value.find((r) => r.id === form.agent_repo_id),
 );
+// Placeholder for the task base: the repo default from Agent, if known.
+const repoBase = computed(() => selectedRepo.value?.base_branch || "main");
+// A task with its own base does not need the repo default to exist (Agent checks it on fetch).
+const ownBase = computed(() => form.agent_base_branch.trim() !== "");
 // With the catalog we know whether the repo can run. Without it (Agent offline) we only keep
 // what was already stored; the server re-checks on save.
 const autoDisabled = computed(() => {
   if (!form.agent_repo_id) return true;
-  if (catalog.value) return !selectedRepo.value?.has_main;
+  if (catalog.value) return !ownBase.value && !selectedRepo.value?.has_main;
   return catalogCode.value === "not_linked";
 });
 const autoHint = computed(() => {
   if (!form.agent_repo_id) return t("agentAutoNeedsRepo");
-  if (catalog.value && selectedRepo.value && !selectedRepo.value.has_main)
+  if (
+    catalog.value &&
+    selectedRepo.value &&
+    !ownBase.value &&
+    !selectedRepo.value.has_main
+  )
     return t("agentRepoNeedsMain");
   if (catalogIssue.value) return catalogIssue.value;
   return t("agentAutoHint");
@@ -245,7 +255,7 @@ async function save() {
           v-for="repo in repos"
           :key="repo.id"
           :value="repo.id"
-          :disabled="!repo.has_main"
+          :disabled="!repo.has_main && !ownBase"
         >
           {{ repo.name }}{{ repo.has_main ? "" : ` ${t("agentNoMain")}` }}
         </option>
@@ -257,6 +267,13 @@ async function save() {
         </option>
       </select></label
     >
+    <label v-if="form.agent_repo_id"
+      >{{ t("agentBaseBranch")
+      }}<input
+        v-model="form.agent_base_branch"
+        maxlength="120"
+        :placeholder="repoBase"
+    /></label>
     <p v-if="form.project_id && !workspaceId" class="muted">
       {{ t("agentPickWorkspaceFirst") }}
     </p>

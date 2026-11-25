@@ -39,6 +39,10 @@ pub struct TodoInput {
     /// Let the Agent pick this task up automatically (needs a repo).
     #[serde(default)]
     pub agent_auto: bool,
+    /// Branch to cut this task's branch from and open the PR against. Empty means the repo's
+    /// default base, configured on the Agent side.
+    #[serde(default)]
+    pub agent_base_branch: Option<String>,
 }
 impl TodoInput {
     pub fn validate(&mut self) -> Result<(), Errors> {
@@ -95,6 +99,17 @@ impl TodoInput {
                 "Cần chọn repository để Agent tự động xử lý.".into(),
             );
         }
+        self.agent_base_branch = clean_id(self.agent_base_branch.take());
+        if self
+            .agent_base_branch
+            .as_deref()
+            .is_some_and(|b| !valid_base_branch(b))
+        {
+            e.insert(
+                "agent_base_branch".into(),
+                "Nhánh gốc không hợp lệ (ví dụ: main, develop, release/1.2).".into(),
+            );
+        }
         if e.is_empty() { Ok(()) } else { Err(e) }
     }
 }
@@ -143,15 +158,11 @@ pub struct ProjectInput {
     /// Prefix for task identifiers (`PREFIX-N`). Empty means the default `DEF`.
     #[serde(default)]
     pub identifier_prefix: Option<String>,
-    /// Branch Agent cuts task branches from and opens PRs against. Empty means `main`.
-    #[serde(default)]
-    pub base_branch: Option<String>,
 }
 /// Prefix used when a project has none, and for tasks without a project.
 pub const DEFAULT_PREFIX: &str = "DEF";
-/// Base branch used when a project has none.
-pub const DEFAULT_BASE_BRANCH: &str = "main";
-/// Conservative subset of `git check-ref-format` rules for a branch name used as a base.
+/// Conservative subset of `git check-ref-format` rules for a branch name used as a base. Agent
+/// applies the same rules (`check_base_branch`), so a value accepted here is accepted there.
 pub fn valid_base_branch(b: &str) -> bool {
     (1..=120).contains(&b.len())
         && b.starts_with(|c: char| c.is_ascii_alphanumeric())
@@ -184,15 +195,6 @@ impl ProjectInput {
             e.insert(
                 "identifier_prefix".into(),
                 "Prefix cần 2–10 ký tự, bắt đầu bằng chữ cái, chỉ gồm chữ và số.".into(),
-            );
-        }
-        let base = clean_id(self.base_branch.take()).unwrap_or_else(|| DEFAULT_BASE_BRANCH.into());
-        if valid_base_branch(&base) {
-            self.base_branch = Some(base);
-        } else {
-            e.insert(
-                "base_branch".into(),
-                "Nhánh gốc không hợp lệ (ví dụ: main, develop, release/1.2).".into(),
             );
         }
         self.agent_workspace_id = clean_id(self.agent_workspace_id.take());

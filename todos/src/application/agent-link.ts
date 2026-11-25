@@ -34,6 +34,9 @@ export interface AgentRepo {
   name: string;
   full_name: string;
   /** `origin/main` exists. Agent cannot work on a repo without it. */
+  /** Repo's default base branch on Agent (older Agents omit it: main). */
+  base_branch?: string;
+  /** Whether origin/<base_branch> exists. */
   has_main: boolean;
 }
 export interface AgentWorkspace {

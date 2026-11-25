@@ -450,10 +450,16 @@ async fn enrich_task(
                         "Repository không thuộc workspace của project này.",
                     )
                 })?;
-            if (!unchanged || (auto && !was_auto)) && !found.has_main {
+            // A task with its own base does not need the repo default; Agent checks that base
+            // when it fetches.
+            let own_base = text(data, "agent_base_branch").is_some();
+            if (!unchanged || (auto && !was_auto)) && !own_base && !found.has_main {
                 return Err(invalid(
                     "agent_repo_id",
-                    "Repository chưa có nhánh main nên Agent không thể xử lý.",
+                    &format!(
+                        "Repository chưa có nhánh gốc `{}` nên Agent không thể xử lý. Đổi nhánh gốc của repo trên Agent hoặc chọn nhánh gốc cho task.",
+                        found.base_branch
+                    ),
                 ));
             }
             found.name.clone()

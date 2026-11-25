@@ -8,8 +8,6 @@ export type TodoProject = {
   agent_workspace_name?: string | null;
   /** Prefix for task identifiers (PREFIX-N). Server default: DEF. */
   identifier_prefix?: string;
-  /** Branch Agent cuts task branches from and opens PRs against. Server default: main. */
-  base_branch?: string;
   todos_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -46,6 +44,8 @@ export type TodoItem = {
   agent_repo_id?: string | null;
   agent_repo_name?: string | null;
   agent_auto?: boolean;
+  /** Branch to cut the task branch from and open the PR against. Null: the repo's default on Agent. */
+  agent_base_branch?: string | null;
   created_at?: string;
   updated_at?: string;
 } & AgentRunFields;

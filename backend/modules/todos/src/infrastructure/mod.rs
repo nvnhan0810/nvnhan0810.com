@@ -109,10 +109,10 @@ pub async fn save_task(
         crate::domain::agent_run::with_result(d.description.as_deref(), stored.as_deref());
     let result = if let Some(id) = id {
         ensure_task(tx, owner, id).await?;
-        sqlx::query_scalar("UPDATE todos SET project_id=$3,title=$4,description=$5,status=$6,priority=$7,due_at=$8,is_urgent=$9,is_important=$10,agent_repo_id=$11,agent_repo_name=$12,agent_auto=$13,started_at=CASE WHEN $6='in_progress' THEN COALESCE(started_at,now()) ELSE started_at END,closed_at=CASE WHEN $6 IN ('done','rejected') THEN COALESCE(closed_at,now()) ELSE NULL END,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(d.project_id).bind(&d.title).bind(&description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("UPDATE todos SET project_id=$3,title=$4,description=$5,status=$6,priority=$7,due_at=$8,is_urgent=$9,is_important=$10,agent_repo_id=$11,agent_repo_name=$12,agent_auto=$13,agent_base_branch=$14,started_at=CASE WHEN $6='in_progress' THEN COALESCE(started_at,now()) ELSE started_at END,closed_at=CASE WHEN $6 IN ('done','rejected') THEN COALESCE(closed_at,now()) ELSE NULL END,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(d.project_id).bind(&d.title).bind(&description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).bind(&d.agent_base_branch).fetch_one(&mut **tx).await?
     } else {
         let (prefix, seq) = next_identifier(tx, owner, d.project_id).await?;
-        sqlx::query_scalar("INSERT INTO todos(user_id,project_id,title,description,status,priority,due_at,is_urgent,is_important,agent_repo_id,agent_repo_name,agent_auto,started_at,closed_at,identifier_prefix,identifier_seq) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $5='in_progress' THEN now() END,CASE WHEN $5 IN ('done','rejected') THEN now() END,$13,$14) RETURNING id").bind(owner).bind(d.project_id).bind(&d.title).bind(&description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).bind(&prefix).bind(seq).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("INSERT INTO todos(user_id,project_id,title,description,status,priority,due_at,is_urgent,is_important,agent_repo_id,agent_repo_name,agent_auto,started_at,closed_at,identifier_prefix,identifier_seq,agent_base_branch) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $5='in_progress' THEN now() END,CASE WHEN $5 IN ('done','rejected') THEN now() END,$13,$14,$15) RETURNING id").bind(owner).bind(d.project_id).bind(&d.title).bind(&description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).bind(&prefix).bind(seq).bind(&d.agent_base_branch).fetch_one(&mut **tx).await?
     };
     if !["todo", "in_progress"].contains(&d.status.as_str()) {
         sqlx::query("UPDATE todo_pomodoro_states SET active_todo_id=NULL,client_updated_at=GREATEST(client_updated_at+1,$3) WHERE user_id=$1 AND active_todo_id=$2").bind(owner).bind(result).bind(chrono::Utc::now().timestamp_millis()).execute(&mut **tx).await?;
@@ -216,10 +216,6 @@ pub async fn save_project(
         .identifier_prefix
         .as_deref()
         .unwrap_or(crate::domain::DEFAULT_PREFIX);
-    let base = d
-        .base_branch
-        .as_deref()
-        .unwrap_or(crate::domain::DEFAULT_BASE_BRANCH);
     let result = if let Some(id) = id {
         ensure_project(tx, owner, id).await?;
         let old: Option<String> = sqlx::query_scalar(
@@ -234,9 +230,9 @@ pub async fn save_project(
             sqlx::query("UPDATE todos SET agent_repo_id=NULL,agent_repo_name=NULL,agent_auto=false,updated_at=now() WHERE user_id=$1 AND project_id=$2 AND (agent_repo_id IS NOT NULL OR agent_auto)").bind(owner).bind(id).execute(&mut **tx).await?;
         }
         // Changing the prefix only affects tasks created afterwards; existing identifiers stay put.
-        sqlx::query_scalar("UPDATE todo_projects SET name=$3,git_repo_url=$4,domain=$5,agent_workspace_id=$6,agent_workspace_name=$7,identifier_prefix=$8,base_branch=$9,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).bind(base).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("UPDATE todo_projects SET name=$3,git_repo_url=$4,domain=$5,agent_workspace_id=$6,agent_workspace_name=$7,identifier_prefix=$8,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).fetch_one(&mut **tx).await?
     } else {
-        sqlx::query_scalar("INSERT INTO todo_projects(user_id,name,git_repo_url,domain,agent_workspace_id,agent_workspace_name,identifier_prefix,base_branch) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id").bind(owner).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).bind(base).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("INSERT INTO todo_projects(user_id,name,git_repo_url,domain,agent_workspace_id,agent_workspace_name,identifier_prefix) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id").bind(owner).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).fetch_one(&mut **tx).await?
     };
     bump(tx, owner).await?;
     Ok(result)

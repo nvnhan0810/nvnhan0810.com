@@ -71,6 +71,7 @@ fn task_validation_rejects_missing_titles_bad_statuses_and_dates() {
         agent_repo_id: None,
         agent_repo_name: None,
         agent_auto: false,
+        agent_base_branch: None,
     };
     let errors = d.validate().unwrap_err();
     for field in ["title", "status", "priority", "due_at"] {
@@ -92,7 +93,6 @@ fn projects_only_expose_safe_http_urls() {
         agent_workspace_id: None,
         agent_workspace_name: None,
         identifier_prefix: None,
-        base_branch: None,
     };
     assert_eq!(d.validate().unwrap_err().len(), 2);
     d.git_repo_url = Some("https://github.com/user/repo".into());
@@ -139,6 +139,7 @@ fn in_review_is_a_valid_status() {
         agent_repo_id: None,
         agent_repo_name: None,
         agent_auto: false,
+        agent_base_branch: None,
     };
     assert!(d.validate().is_ok());
 }
@@ -172,6 +173,8 @@ fn agent_catalog_matches_the_agent_contract_fixture() {
     assert_eq!(work.name, "Work");
     assert!(work.repos[0].has_main);
     assert!(!work.repos[1].has_main);
+    assert_eq!(work.repos[0].base_branch, "main");
+    assert_eq!(work.repos[1].base_branch, "develop");
     assert_eq!(work.repos[0].full_name, "acme/api");
 }
 #[test]
@@ -181,6 +184,7 @@ fn agent_catalog_rejects_hostile_or_oversized_replies() {
         id: "ok-1".into(),
         name: "api".into(),
         full_name: "acme/api".into(),
+        base_branch: "main".into(),
         has_main: true,
     };
     let bad_id = Catalog {
@@ -216,6 +220,7 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
         agent_repo_id: Some("3b1e0000-0000-4000-8000-000000000002".into()),
         agent_repo_name: Some("client-supplied".into()),
         agent_auto: true,
+        agent_base_branch: None,
     };
     let mut ok = base();
     assert!(ok.validate().is_ok());
@@ -239,6 +244,25 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
     let mut bad_id = base();
     bad_id.agent_repo_id = Some("a/../b".into());
     assert!(bad_id.validate().unwrap_err().contains_key("agent_repo_id"));
+    // Task base branch: blank means the repo default; bad names never reach the database.
+    let mut blank_base = base();
+    blank_base.agent_base_branch = Some("  ".into());
+    blank_base.validate().unwrap();
+    assert_eq!(blank_base.agent_base_branch, None);
+    let mut release = base();
+    release.agent_base_branch = Some(" release/1.2 ".into());
+    release.validate().unwrap();
+    assert_eq!(release.agent_base_branch.as_deref(), Some("release/1.2"));
+    for bad in [
+        "-x", "_x", ".x", "a..b", "a//b", "a/", "x.lock", "a b", "a@{1}", "a;rm",
+    ] {
+        let mut d = base();
+        d.agent_base_branch = Some(bad.into());
+        assert!(
+            d.validate().unwrap_err().contains_key("agent_base_branch"),
+            "{bad} should be rejected"
+        );
+    }
     let mut bad_workspace = ProjectInput {
         name: "Work".into(),
         git_repo_url: None,
@@ -246,7 +270,6 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
         agent_workspace_id: Some("x y".into()),
         agent_workspace_name: None,
         identifier_prefix: None,
-        base_branch: None,
     };
     assert!(
         bad_workspace
@@ -268,7 +291,6 @@ fn project_prefix_defaults_to_def_and_is_normalized() {
         agent_workspace_id: None,
         agent_workspace_name: None,
         identifier_prefix: prefix.map(Into::into),
-        base_branch: None,
     };
     let mut none = base(None);
     none.validate().unwrap();
@@ -289,39 +311,4 @@ fn project_prefix_defaults_to_def_and_is_normalized() {
         );
     }
     assert!(valid_prefix("AB") && valid_prefix("A123456789"));
-}
-
-#[test]
-fn project_base_branch_defaults_to_main_and_rejects_bad_names() {
-    use todos::domain::{DEFAULT_BASE_BRANCH, ProjectInput, valid_base_branch};
-    let base = |b: Option<&str>| ProjectInput {
-        name: "Work".into(),
-        git_repo_url: None,
-        domain: None,
-        agent_workspace_id: None,
-        agent_workspace_name: None,
-        identifier_prefix: None,
-        base_branch: b.map(Into::into),
-    };
-    let mut none = base(None);
-    none.validate().unwrap();
-    assert_eq!(none.base_branch.as_deref(), Some(DEFAULT_BASE_BRANCH));
-    let mut blank = base(Some("  "));
-    blank.validate().unwrap();
-    assert_eq!(blank.base_branch.as_deref(), Some("main"));
-    let mut release = base(Some(" release/1.2 "));
-    release.validate().unwrap();
-    assert_eq!(release.base_branch.as_deref(), Some("release/1.2"));
-    for bad in [
-        "-x", "_x", ".x", "a..b", "a//b", "a/", "x.lock", "a b", "a@{1}", "a;rm",
-    ] {
-        assert!(!valid_base_branch(bad), "{bad} should be rejected");
-        assert!(
-            base(Some(bad))
-                .validate()
-                .unwrap_err()
-                .contains_key("base_branch"),
-            "{bad} should fail validation"
-        );
-    }
 }

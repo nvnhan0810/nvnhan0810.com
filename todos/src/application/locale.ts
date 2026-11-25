@@ -111,7 +111,10 @@ const labels: Record<string, [string, string]> = {
     "Prefix mã task (mặc định DEF)",
     "Task identifier prefix (default DEF)",
   ],
-  baseBranch: ["Nhánh gốc (mặc định main)", "Base branch (default main)"],
+  agentBaseBranch: [
+    "Nhánh gốc (để trống = mặc định của repo)",
+    "Base branch (empty = repo default)",
+  ],
   agentWorkspaceNone: ["— Không gắn —", "— Not linked —"],
   agentWorkspaceChanged: [
     "Đổi workspace sẽ bỏ chọn repository của các task trong project này.",
@@ -119,7 +122,7 @@ const labels: Record<string, [string, string]> = {
   ],
   agentRepo: ["Repository Agent", "Agent repository"],
   agentRepoNone: ["— Không chọn —", "— None —"],
-  agentNoMain: ["(chưa có main)", "(no main branch)"],
+  agentNoMain: ["(chưa có nhánh gốc)", "(no base branch)"],
   agentAuto: ["Agent tự động xử lý", "Let Agent handle it automatically"],
   agentAutoHint: [
     "Agent nhận task khi đến lượt, theo thứ tự ma trận Eisenhower. Chỉ nhận khi các task phụ thuộc đã Done.",
@@ -142,8 +145,8 @@ const labels: Record<string, [string, string]> = {
     "Pick a repository before turning on automatic handling.",
   ],
   agentRepoNeedsMain: [
-    "Repository chưa có nhánh main nên Agent không thể xử lý.",
-    "The repository has no main branch, so the Agent cannot work on it.",
+    "Repository chưa có nhánh gốc mặc định nên Agent không thể xử lý. Đổi nhánh gốc của repo trên Agent hoặc nhập nhánh gốc cho task.",
+    "The repository has no default base branch, so the Agent cannot work on it. Change the repo's base on Agent or enter a base branch for this task.",
   ],
   agent_running: ["Agent đang xử lý", "Agent working"],
   agent_succeeded: ["Agent ✅", "Agent ✅"],

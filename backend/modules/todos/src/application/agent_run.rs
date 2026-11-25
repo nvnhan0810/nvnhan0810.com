@@ -188,10 +188,10 @@ struct Detail {
     project_id: i64,
     project_name: String,
     project_workspace: Option<String>,
-    project_base_branch: String,
+    agent_base_branch: Option<String>,
 }
 
-const DETAIL: &str = "SELECT t.identifier,t.title,t.description,t.priority,t.due_at,t.is_urgent,t.is_important,t.agent_repo_id,t.agent_repo_name,t.agent_lease_until AS lease_until,p.id AS project_id,p.name AS project_name,p.agent_workspace_id AS project_workspace,p.base_branch AS project_base_branch FROM todos t JOIN todo_projects p ON p.user_id=t.user_id AND p.id=t.project_id WHERE t.user_id=$1 AND t.id=$2";
+const DETAIL: &str = "SELECT t.identifier,t.title,t.description,t.priority,t.due_at,t.is_urgent,t.is_important,t.agent_repo_id,t.agent_repo_name,t.agent_lease_until AS lease_until,t.agent_base_branch,p.id AS project_id,p.name AS project_name,p.agent_workspace_id AS project_workspace FROM todos t JOIN todo_projects p ON p.user_id=t.user_id AND p.id=t.project_id WHERE t.user_id=$1 AND t.id=$2";
 
 /// Hand out up to `req.limit` tasks, each with its own claim id and lease.
 pub async fn claim(
@@ -252,8 +252,10 @@ pub async fn claim(
             "identifier": d.identifier,
             "title": d.title,
             "description": run::strip_result(d.description.as_deref().unwrap_or("")),
-            "project": {"id": d.project_id, "name": d.project_name, "agent_workspace_id": d.project_workspace, "base_branch": d.project_base_branch},
+            "project": {"id": d.project_id, "name": d.project_name, "agent_workspace_id": d.project_workspace},
             "repo": {"agent_repo_id": d.agent_repo_id, "name": d.agent_repo_name},
+            // `null` = the repo's default base on Agent.
+            "base_branch": d.agent_base_branch,
             "depends_on": deps,
             "todo_url": todo_url(config, c.id),
             "attempt": c.attempts + 1,

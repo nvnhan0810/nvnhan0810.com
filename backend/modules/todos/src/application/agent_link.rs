@@ -369,7 +369,14 @@ pub struct CatalogRepo {
     pub id: String,
     pub name: String,
     pub full_name: String,
+    /// Repo's default base branch on Agent. Older Agents omit it: `main`.
+    #[serde(default = "default_base_branch")]
+    pub base_branch: String,
+    /// Whether `origin/<base_branch>` exists (named before bases were configurable).
     pub has_main: bool,
+}
+fn default_base_branch() -> String {
+    "main".into()
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct CatalogWorkspace {
@@ -396,6 +403,7 @@ impl Catalog {
                         crate::domain::valid_agent_id(&r.id)
                             && r.name.chars().count() <= 255
                             && r.full_name.chars().count() <= 255
+                            && crate::domain::valid_base_branch(&r.base_branch)
                     })
             });
         ok.then_some(self)
