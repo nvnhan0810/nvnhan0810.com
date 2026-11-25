@@ -228,8 +228,11 @@ pub async fn claim(
             .bind(c.id)
             .fetch_all(&mut *tx)
             .await?;
-        // Previous run on this task: the branch and PR are reused (D7), so the Agent needs them.
-        let previous = (c.attempts > 0 && (c.branch.is_some() || c.pr_url.is_some())).then(|| {
+        // Previous run on this task: the branch and PR are reused (D7), and the failure text tells the
+        // Agent why the last run stopped, even when it failed before any branch existed.
+        let previous = (c.attempts > 0
+            && (c.branch.is_some() || c.pr_url.is_some() || c.result_md.is_some()))
+        .then(|| {
             json!({
                 "branch": c.branch,
                 "pr_url": c.pr_url,
