@@ -92,6 +92,7 @@ fn projects_only_expose_safe_http_urls() {
         agent_workspace_id: None,
         agent_workspace_name: None,
         identifier_prefix: None,
+        base_branch: None,
     };
     assert_eq!(d.validate().unwrap_err().len(), 2);
     d.git_repo_url = Some("https://github.com/user/repo".into());
@@ -245,6 +246,7 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
         agent_workspace_id: Some("x y".into()),
         agent_workspace_name: None,
         identifier_prefix: None,
+        base_branch: None,
     };
     assert!(
         bad_workspace
@@ -266,6 +268,7 @@ fn project_prefix_defaults_to_def_and_is_normalized() {
         agent_workspace_id: None,
         agent_workspace_name: None,
         identifier_prefix: prefix.map(Into::into),
+        base_branch: None,
     };
     let mut none = base(None);
     none.validate().unwrap();
@@ -278,9 +281,47 @@ fn project_prefix_defaults_to_def_and_is_normalized() {
     assert_eq!(lower.identifier_prefix.as_deref(), Some("API2"));
     for bad in ["A", "1AB", "AB-C", "ABCDEFGHIJK", "AB CD", "ÀB"] {
         assert!(
-            base(Some(bad)).validate().unwrap_err().contains_key("identifier_prefix"),
+            base(Some(bad))
+                .validate()
+                .unwrap_err()
+                .contains_key("identifier_prefix"),
             "{bad} should be rejected"
         );
     }
     assert!(valid_prefix("AB") && valid_prefix("A123456789"));
+}
+
+#[test]
+fn project_base_branch_defaults_to_main_and_rejects_bad_names() {
+    use todos::domain::{DEFAULT_BASE_BRANCH, ProjectInput, valid_base_branch};
+    let base = |b: Option<&str>| ProjectInput {
+        name: "Work".into(),
+        git_repo_url: None,
+        domain: None,
+        agent_workspace_id: None,
+        agent_workspace_name: None,
+        identifier_prefix: None,
+        base_branch: b.map(Into::into),
+    };
+    let mut none = base(None);
+    none.validate().unwrap();
+    assert_eq!(none.base_branch.as_deref(), Some(DEFAULT_BASE_BRANCH));
+    let mut blank = base(Some("  "));
+    blank.validate().unwrap();
+    assert_eq!(blank.base_branch.as_deref(), Some("main"));
+    let mut release = base(Some(" release/1.2 "));
+    release.validate().unwrap();
+    assert_eq!(release.base_branch.as_deref(), Some("release/1.2"));
+    for bad in [
+        "-x", "_x", ".x", "a..b", "a//b", "a/", "x.lock", "a b", "a@{1}", "a;rm",
+    ] {
+        assert!(!valid_base_branch(bad), "{bad} should be rejected");
+        assert!(
+            base(Some(bad))
+                .validate()
+                .unwrap_err()
+                .contains_key("base_branch"),
+            "{bad} should fail validation"
+        );
+    }
 }

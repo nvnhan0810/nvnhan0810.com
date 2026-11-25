@@ -111,6 +111,7 @@ const labels: Record<string, [string, string]> = {
     "Prefix mã task (mặc định DEF)",
     "Task identifier prefix (default DEF)",
   ],
+  baseBranch: ["Nhánh gốc (mặc định main)", "Base branch (default main)"],
   agentWorkspaceNone: ["— Không gắn —", "— Not linked —"],
   agentWorkspaceChanged: [
     "Đổi workspace sẽ bỏ chọn repository của các task trong project này.",

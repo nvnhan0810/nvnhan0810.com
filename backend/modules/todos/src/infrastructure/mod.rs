@@ -216,6 +216,10 @@ pub async fn save_project(
         .identifier_prefix
         .as_deref()
         .unwrap_or(crate::domain::DEFAULT_PREFIX);
+    let base = d
+        .base_branch
+        .as_deref()
+        .unwrap_or(crate::domain::DEFAULT_BASE_BRANCH);
     let result = if let Some(id) = id {
         ensure_project(tx, owner, id).await?;
         let old: Option<String> = sqlx::query_scalar(
@@ -230,9 +234,9 @@ pub async fn save_project(
             sqlx::query("UPDATE todos SET agent_repo_id=NULL,agent_repo_name=NULL,agent_auto=false,updated_at=now() WHERE user_id=$1 AND project_id=$2 AND (agent_repo_id IS NOT NULL OR agent_auto)").bind(owner).bind(id).execute(&mut **tx).await?;
         }
         // Changing the prefix only affects tasks created afterwards; existing identifiers stay put.
-        sqlx::query_scalar("UPDATE todo_projects SET name=$3,git_repo_url=$4,domain=$5,agent_workspace_id=$6,agent_workspace_name=$7,identifier_prefix=$8,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("UPDATE todo_projects SET name=$3,git_repo_url=$4,domain=$5,agent_workspace_id=$6,agent_workspace_name=$7,identifier_prefix=$8,base_branch=$9,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).bind(base).fetch_one(&mut **tx).await?
     } else {
-        sqlx::query_scalar("INSERT INTO todo_projects(user_id,name,git_repo_url,domain,agent_workspace_id,agent_workspace_name,identifier_prefix) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id").bind(owner).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("INSERT INTO todo_projects(user_id,name,git_repo_url,domain,agent_workspace_id,agent_workspace_name,identifier_prefix,base_branch) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id").bind(owner).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).bind(base).fetch_one(&mut **tx).await?
     };
     bump(tx, owner).await?;
     Ok(result)

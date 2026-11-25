@@ -21,6 +21,7 @@ const form = reactive({
   domain: props.project?.domain ?? "",
   agent_workspace_id: props.project?.agent_workspace_id ?? "",
   identifier_prefix: props.project?.identifier_prefix ?? "",
+  base_branch: props.project?.base_branch ?? "",
 });
 const busy = ref(false),
   errors = ref<Record<string, string>>({});
@@ -93,6 +94,12 @@ async function save() {
         v-model="form.identifier_prefix"
         maxlength="10"
         placeholder="DEF" /></label
+    ><label
+      >{{ t("baseBranch")
+      }}<input
+        v-model="form.base_branch"
+        maxlength="120"
+        placeholder="main" /></label
     ><label
       >{{ t("domain")
       }}<input v-model="form.domain" type="url" placeholder="https://…"

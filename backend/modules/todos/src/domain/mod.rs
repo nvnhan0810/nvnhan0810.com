@@ -143,9 +143,26 @@ pub struct ProjectInput {
     /// Prefix for task identifiers (`PREFIX-N`). Empty means the default `DEF`.
     #[serde(default)]
     pub identifier_prefix: Option<String>,
+    /// Branch Agent cuts task branches from and opens PRs against. Empty means `main`.
+    #[serde(default)]
+    pub base_branch: Option<String>,
 }
 /// Prefix used when a project has none, and for tasks without a project.
 pub const DEFAULT_PREFIX: &str = "DEF";
+/// Base branch used when a project has none.
+pub const DEFAULT_BASE_BRANCH: &str = "main";
+/// Conservative subset of `git check-ref-format` rules for a branch name used as a base.
+pub fn valid_base_branch(b: &str) -> bool {
+    (1..=120).contains(&b.len())
+        && b.starts_with(|c: char| c.is_ascii_alphanumeric())
+        && !b.ends_with(['/', '.'])
+        && !b.contains("..")
+        && !b.contains("//")
+        && !b.contains("@{")
+        && !b.ends_with(".lock")
+        && b.bytes()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.' | b'/'))
+}
 /// Upper-case letters and digits, 2..=10 chars, first char a letter. Matches the DB CHECK.
 pub fn valid_prefix(p: &str) -> bool {
     let b = p.as_bytes();
@@ -167,6 +184,15 @@ impl ProjectInput {
             e.insert(
                 "identifier_prefix".into(),
                 "Prefix cần 2–10 ký tự, bắt đầu bằng chữ cái, chỉ gồm chữ và số.".into(),
+            );
+        }
+        let base = clean_id(self.base_branch.take()).unwrap_or_else(|| DEFAULT_BASE_BRANCH.into());
+        if valid_base_branch(&base) {
+            self.base_branch = Some(base);
+        } else {
+            e.insert(
+                "base_branch".into(),
+                "Nhánh gốc không hợp lệ (ví dụ: main, develop, release/1.2).".into(),
             );
         }
         self.agent_workspace_id = clean_id(self.agent_workspace_id.take());
