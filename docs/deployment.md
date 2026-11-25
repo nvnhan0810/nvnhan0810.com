@@ -109,6 +109,30 @@ không được nâng, portfolio chưa được restart. Sửa lỗi rồi chạ
 sẽ thử lại cả migrate và master-data trước khi start services. Các migration đã
 commit trước lỗi không tự rollback. Xem thêm [queue lifecycle](../backend/docs/queue-lifecycle.md).
 
+## Tích hợp Todo ↔ Agent
+
+Tắt mặc định. Chi tiết luồng ở [todo-agent-integration.md](todo-agent-integration.md).
+
+**Env backend** (xem `backend/.env.example`):
+
+| Biến | Ý nghĩa |
+|---|---|
+| `TODO_AGENT_INTEGRATION_ENABLED` | Bật tích hợp. Đọc một lần lúc khởi động. |
+| `AGENT_BASE_URL` | API Agent, ví dụ `https://agent-api.nvnhan0810.com`. |
+| `AGENT_WEB_URL` | Web Agent (trang đồng ý liên kết). |
+| `TODO_INTEGRATION_KEY` | base64 của 32 byte ngẫu nhiên (`openssl rand -base64 32`). Đổi key thì mọi liên kết cũ hỏng. |
+| `TODO_WEB_ORIGIN` | Origin web Todo, dùng để sinh `todo_url` gửi cho Agent. |
+
+**Sweeper lease (bắt buộc khi bật tích hợp).** Deploy script không cài cron, giống các lệnh
+`wallets:*`. Nếu không có cron, task bị Agent bỏ dở sẽ kẹt ở trạng thái "Agent đang xử lý"
+và không tự về `in_review`. Chạy mỗi phút bằng user chạy backend:
+
+```cron
+* * * * * cd /home/nvnhan0810/www/nvnhan0810.com/backend && ./target/release/console todo:sweep-agent-leases >> /var/log/nvnhan0810-todo-sweeper.log 2>&1
+```
+
+Lệnh này idempotent, chạy chồng nhau cũng an toàn. Nó chỉ xử lý claim đã quá hạn lease.
+
 ## Kiểm tra script
 
 Tests tạo bare remote và checkout tạm trên máy local, dùng Cargo/npm/Supervisor giả

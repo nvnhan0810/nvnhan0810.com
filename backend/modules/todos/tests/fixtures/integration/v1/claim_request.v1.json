@@ -1,0 +1,5 @@
+{
+  "workspaces": ["ws-1", "ws-2"],
+  "limit": 2,
+  "lease_seconds": 900
+}

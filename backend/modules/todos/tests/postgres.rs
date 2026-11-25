@@ -53,6 +53,16 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     )))
     .await
     .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000001_agent_runs.up.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000002_task_identifiers.up.sql"
+    )))
+    .await
+    .unwrap();
     tx.commit().await.unwrap();
     let owner = Uuid::new_v4();
     let other = Uuid::new_v4();
@@ -222,6 +232,16 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     assert!(document_columns.is_empty());
     let mut tx = pool.begin().await.unwrap();
     tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000002_task_identifiers.down.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000001_agent_runs.down.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
         "../migrations/20261123000001_in_review_and_dependencies.down.sql"
     )))
     .await
@@ -243,6 +263,16 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     .unwrap();
     tx.execute(sqlx::raw_sql(include_str!(
         "../migrations/20261123000003_agent_targets.up.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000001_agent_runs.up.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000002_task_identifiers.up.sql"
     )))
     .await
     .unwrap();
@@ -303,6 +333,16 @@ async fn in_review_status_and_task_dependencies() {
     .unwrap();
     tx.execute(sqlx::raw_sql(include_str!(
         "../migrations/20261123000003_agent_targets.up.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000001_agent_runs.up.sql"
+    )))
+    .await
+    .unwrap();
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261125000002_task_identifiers.up.sql"
     )))
     .await
     .unwrap();

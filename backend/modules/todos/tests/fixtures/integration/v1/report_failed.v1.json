@@ -1,0 +1,10 @@
+{
+  "claim_id": "7f1c2a7e-3b52-4c1e-9f0a-2d5e8b9c1a01",
+  "state": "failed",
+  "chat_url": "https://agent.example/chats/9",
+  "branch": "agent/todo-123-fix-login",
+  "branch_pushed": false,
+  "failed_step": "test",
+  "error": "cargo test thất bại",
+  "summary_md": "Không chạy được test."
+}

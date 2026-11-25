@@ -1,0 +1,27 @@
+{
+  "tasks": [
+    {
+      "id": 123,
+      "identifier": "API-42",
+      "claim_id": "7f1c2a7e-3b52-4c1e-9f0a-2d5e8b9c1a01",
+      "lease_until": "2026-11-25T10:15:00Z",
+      "quadrant": "do",
+      "priority": "high",
+      "due_at": "2026-11-26T09:00:00Z",
+      "title": "Sửa đăng nhập",
+      "description": "Mô tả task",
+      "project": {"id": 7, "name": "Web", "agent_workspace_id": "ws-1"},
+      "repo": {"agent_repo_id": "repo-1", "name": "api"},
+      "depends_on": [{"id": 120, "title": "Thiết kế", "pr_url": "https://github.com/o/r/pull/9"}],
+      "todo_url": "https://todo.example/tasks/123",
+      "attempt": 2,
+      "previous": {
+        "branch": "agent/todo-123-fix-login",
+        "pr_url": "https://github.com/o/r/pull/10",
+        "agent_state": "succeeded",
+        "has_conflict": true,
+        "result_md": "**🤖 Agent · ✅ Thành công**"
+      }
+    }
+  ]
+}

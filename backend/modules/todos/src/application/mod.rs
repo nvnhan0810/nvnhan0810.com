@@ -1,4 +1,5 @@
 pub mod agent_link;
+pub mod agent_run;
 use crate::{
     domain::{self, Errors, ProjectInput, TodoInput},
     infrastructure as repo,
@@ -251,6 +252,8 @@ pub async fn action(
     } else {
         return Err(Error::NotFound);
     };
+    // A user change may have taken a task out of the Agent's hands (status moved, automation off).
+    agent_run::guard_live_claims(&mut tx, owner).await?;
     tx.commit().await?;
     Ok(json!({"redirect":redirect,"flash":{"success":"Đã lưu thay đổi."}}))
 }

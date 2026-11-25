@@ -1,0 +1,11 @@
+{
+  "claim_id": "7f1c2a7e-3b52-4c1e-9f0a-2d5e8b9c1a01",
+  "state": "succeeded",
+  "chat_url": "https://agent.example/chats/9",
+  "branch": "agent/todo-123-fix-login",
+  "pr_url": "https://github.com/o/r/pull/10",
+  "branch_pushed": true,
+  "has_conflict": true,
+  "conflict_files": ["src/x.rs"],
+  "summary_md": "Đã sửa đăng nhập."
+}

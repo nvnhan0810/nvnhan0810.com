@@ -40,6 +40,8 @@ async fn database() -> PgPool {
         include_str!("../migrations/20261123000001_in_review_and_dependencies.up.sql"),
         include_str!("../migrations/20261123000002_agent_links.up.sql"),
         include_str!("../migrations/20261123000003_agent_targets.up.sql"),
+        include_str!("../migrations/20261125000001_agent_runs.up.sql"),
+        include_str!("../migrations/20261125000002_task_identifiers.up.sql"),
     ] {
         pool.execute(sqlx::raw_sql(sql)).await.unwrap();
     }

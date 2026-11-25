@@ -116,6 +116,7 @@ async function remove(todo: TodoItem) {
         </tr>
         <tr v-for="todo in todos.data" :key="todo.id">
           <td>
+            <small class="task-identifier">{{ todo.identifier }}</small>
             <RouterLink class="task-title" :to="`/todos/${todo.id}/edit`">{{
               todo.title
             }}</RouterLink>

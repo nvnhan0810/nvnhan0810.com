@@ -29,6 +29,8 @@ pub struct AgentLinkConfig {
     pub agent_base_url: String,
     /// Agent web origin, used to build the consent redirect.
     pub agent_web_url: String,
+    /// Todo web origin (`TODO_WEB_ORIGIN`), used to build `todo_url` in claim payloads. Empty = unset.
+    pub todo_web_url: String,
     key: Option<[u8; 32]>,
 }
 
@@ -74,10 +76,15 @@ impl AgentLinkConfig {
             .ok()
             .and_then(|bytes| bytes.try_into().ok())
             .ok_or("TODO_INTEGRATION_KEY must be base64 of exactly 32 bytes")?;
+        let todo_web_url = source
+            .optional("TODO_WEB_ORIGIN")
+            .map(|v| v.trim().trim_end_matches('/').to_owned())
+            .unwrap_or_default();
         Ok(Self {
             enabled,
             agent_base_url: base,
             agent_web_url: web,
+            todo_web_url,
             key: Some(key),
         })
     }
@@ -87,6 +94,7 @@ impl AgentLinkConfig {
             enabled: true,
             agent_base_url: agent_base_url.trim_end_matches('/').into(),
             agent_web_url: agent_web_url.trim_end_matches('/').into(),
+            todo_web_url: String::new(),
             key: Some(key),
         }
     }

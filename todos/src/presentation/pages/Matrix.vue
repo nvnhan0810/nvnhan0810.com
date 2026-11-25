@@ -20,7 +20,7 @@ import type {
   MatrixQuadrantKey,
   DependencyCandidate,
 } from "../../domain/todo";
-import { pendingDependencies } from "../../domain/todo";
+import { agentBadgeState, pendingDependencies } from "../../domain/todo";
 import type { PomodoroPayload } from "../../domain/pomodoro";
 import { isPomodoro } from "../../domain/pomodoro";
 import { matrixStream } from "../../infrastructure/matrix-stream";
@@ -319,7 +319,10 @@ async function clearActiveTask() {
             @dragstart="drag($event, todo)"
           >
             <div class="task-card-top">
-              <span class="task-title">{{ todo.title }}</span>
+              <span class="task-title"
+                ><small class="task-identifier">{{ todo.identifier }}</small>
+                {{ todo.title }}</span
+              >
               <div class="task-card-tools">
                 <template v-if="live.pomodoro.runtime.activeTodoId === todo.id">
                   <img
@@ -370,6 +373,15 @@ async function clearActiveTask() {
                 class="badge in_review"
                 >{{ t("in_review") }}</span
               >
+              <span
+                v-if="agentBadgeState(todo)"
+                class="badge"
+                :class="`agent-${agentBadgeState(todo)}`"
+                >{{ t(`agent_${agentBadgeState(todo)}`) }}</span
+              >
+              <span v-if="todo.agent_pr_has_conflict" class="badge conflict">{{
+                t("agentConflict")
+              }}</span>
               <span
                 v-if="pendingDependencies(todo).length"
                 class="task-blocked"

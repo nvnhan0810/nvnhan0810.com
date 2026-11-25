@@ -20,6 +20,7 @@ const form = reactive({
   git_repo_url: props.project?.git_repo_url ?? "",
   domain: props.project?.domain ?? "",
   agent_workspace_id: props.project?.agent_workspace_id ?? "",
+  identifier_prefix: props.project?.identifier_prefix ?? "",
 });
 const busy = ref(false),
   errors = ref<Record<string, string>>({});
@@ -86,6 +87,12 @@ async function save() {
     <label
       >{{ t("name")
       }}<input v-model="form.name" required maxlength="255" autofocus /></label
+    ><label
+      >{{ t("identifierPrefix")
+      }}<input
+        v-model="form.identifier_prefix"
+        maxlength="10"
+        placeholder="DEF" /></label
     ><label
       >{{ t("domain")
       }}<input v-model="form.domain" type="url" placeholder="https://…"

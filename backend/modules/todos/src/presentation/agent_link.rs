@@ -1,9 +1,13 @@
 //! HTTP adapter for the Todo <-> Agent link (Phase 2).
 use super::{HttpError, TodoState, owner};
 use crate::application::agent_link::{self as link, AgentLinkConfig, CompleteInput, LinkError};
+use crate::{
+    application::agent_run::{self as runs, RunError},
+    domain::agent_run as run,
+};
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{get, post},
 };
@@ -123,10 +127,117 @@ async fn agent_unlink(
         .map_err(error)?;
     Ok(Json(json!({"linked":false})))
 }
+
+// ---- Agent runs (Phase 4): claim, heartbeat, report, release, pr-updated ------------------------
+fn run_error(e: RunError) -> HttpError {
+    match e {
+        RunError::Validation(errors) => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({"error":"validation_error","errors":errors})),
+        ),
+        RunError::NotFound => (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))),
+        // The claim was replaced or released: the Agent must drop this run.
+        RunError::Conflict => (
+            StatusCode::CONFLICT,
+            Json(json!({"error":"claim_mismatch"})),
+        ),
+        // The task no longer qualifies (status moved or automation off on Todo).
+        RunError::Gone => (StatusCode::GONE, Json(json!({"error":"cancelled"}))),
+        RunError::Db(error) => {
+            tracing::error!(%error, "Todo agent run failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":"server_error"})),
+            )
+        }
+    }
+}
+/// `tdi_` auth for run routes. Also refuses everything while the integration is switched off.
+async fn agent_user(state: &IntegrationState, headers: &HeaderMap) -> Result<Uuid, HttpError> {
+    if !state.agent.enabled {
+        return Err(error(LinkError::new(503, "integration_disabled")));
+    }
+    link::authenticate(&state.pool, bearer(headers))
+        .await
+        .map(|linked| linked.user_id)
+        .map_err(error)
+}
+#[derive(Deserialize)]
+struct ClaimRef {
+    claim_id: Uuid,
+}
+async fn run_claim(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    let request = run::parse_claim(&body).map_err(|e| run_error(RunError::Validation(e)))?;
+    runs::claim(&state.pool, &state.agent, user, &request)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+async fn run_heartbeat(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(body): Json<ClaimRef>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    runs::heartbeat(&state.pool, user, id, body.claim_id)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+async fn run_release(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(body): Json<ClaimRef>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    runs::release(&state.pool, user, id, body.claim_id)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+async fn run_report(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(body): Json<run::ReportInput>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    let checked = run::check_report(body).map_err(|e| run_error(RunError::Validation(e)))?;
+    runs::report(&state.pool, user, id, checked)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+async fn run_pr_updated(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(body): Json<run::PrUpdateInput>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    let checked = run::check_pr_update(body).map_err(|e| run_error(RunError::Validation(e)))?;
+    runs::pr_updated(&state.pool, user, id, checked)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+
 pub(super) fn integration_routes(pool: sqlx::PgPool, agent: AgentLinkConfig) -> Router {
     Router::new()
         .route("/link/complete", post(complete))
         .route("/link", get(whoami).delete(agent_unlink))
+        .route("/tasks/claim", post(run_claim))
+        .route("/tasks/{id}/heartbeat", post(run_heartbeat))
+        .route("/tasks/{id}/report", post(run_report))
+        .route("/tasks/{id}/release", post(run_release))
+        .route("/tasks/{id}/pr-updated", post(run_pr_updated))
         .with_state(IntegrationState { pool, agent })
 }
 

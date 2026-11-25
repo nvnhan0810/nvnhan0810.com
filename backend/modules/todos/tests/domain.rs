@@ -91,6 +91,7 @@ fn projects_only_expose_safe_http_urls() {
         domain: Some("https://user:secret@example.com".into()),
         agent_workspace_id: None,
         agent_workspace_name: None,
+        identifier_prefix: None,
     };
     assert_eq!(d.validate().unwrap_err().len(), 2);
     d.git_repo_url = Some("https://github.com/user/repo".into());
@@ -243,6 +244,7 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
         domain: None,
         agent_workspace_id: Some("x y".into()),
         agent_workspace_name: None,
+        identifier_prefix: None,
     };
     assert!(
         bad_workspace
@@ -252,4 +254,33 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
     );
     bad_workspace.agent_workspace_id = Some("ws-1".into());
     assert!(bad_workspace.validate().is_ok());
+}
+
+#[test]
+fn project_prefix_defaults_to_def_and_is_normalized() {
+    use todos::domain::{DEFAULT_PREFIX, ProjectInput, valid_prefix};
+    let base = |prefix: Option<&str>| ProjectInput {
+        name: "Work".into(),
+        git_repo_url: None,
+        domain: None,
+        agent_workspace_id: None,
+        agent_workspace_name: None,
+        identifier_prefix: prefix.map(Into::into),
+    };
+    let mut none = base(None);
+    none.validate().unwrap();
+    assert_eq!(none.identifier_prefix.as_deref(), Some(DEFAULT_PREFIX));
+    let mut blank = base(Some("  "));
+    blank.validate().unwrap();
+    assert_eq!(blank.identifier_prefix.as_deref(), Some("DEF"));
+    let mut lower = base(Some("api2"));
+    lower.validate().unwrap();
+    assert_eq!(lower.identifier_prefix.as_deref(), Some("API2"));
+    for bad in ["A", "1AB", "AB-C", "ABCDEFGHIJK", "AB CD", "ÀB"] {
+        assert!(
+            base(Some(bad)).validate().unwrap_err().contains_key("identifier_prefix"),
+            "{bad} should be rejected"
+        );
+    }
+    assert!(valid_prefix("AB") && valid_prefix("A123456789"));
 }

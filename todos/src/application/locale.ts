@@ -57,6 +57,11 @@ const labels: Record<string, [string, string]> = {
   search: ["Tìm công việc…", "Search tasks…"],
   all: ["Tất cả", "All"],
   title: ["Tiêu đề", "Title"],
+  identifier: ["Mã task", "Task ID"],
+  identifierHint: [
+    "Mã cố định, Agent dùng để đặt tên nhánh và PR.",
+    "Fixed ID. The Agent uses it to name branches and PRs.",
+  ],
   description: ["Mô tả", "Description"],
   priority: ["Độ ưu tiên", "Priority"],
   status: ["Trạng thái", "Status"],
@@ -102,6 +107,10 @@ const labels: Record<string, [string, string]> = {
     "Disconnect Agent? It will stop picking up tasks.",
   ],
   agentWorkspace: ["Workspace Agent", "Agent workspace"],
+  identifierPrefix: [
+    "Prefix mã task (mặc định DEF)",
+    "Task identifier prefix (default DEF)",
+  ],
   agentWorkspaceNone: ["— Không gắn —", "— Not linked —"],
   agentWorkspaceChanged: [
     "Đổi workspace sẽ bỏ chọn repository của các task trong project này.",
@@ -134,6 +143,33 @@ const labels: Record<string, [string, string]> = {
   agentRepoNeedsMain: [
     "Repository chưa có nhánh main nên Agent không thể xử lý.",
     "The repository has no main branch, so the Agent cannot work on it.",
+  ],
+  agent_running: ["Agent đang xử lý", "Agent working"],
+  agent_succeeded: ["Agent ✅", "Agent ✅"],
+  agent_failed: ["Agent ❌", "Agent ❌"],
+  agent_cancelled: ["Agent đã hủy", "Agent cancelled"],
+  agentConflict: ["⚠️ Conflict", "⚠️ Conflict"],
+  agentPanel: ["Agent", "Agent"],
+  agentBranch: ["Nhánh", "Branch"],
+  agentPr: ["Pull request", "Pull request"],
+  agentChat: ["Mở chat của Agent", "Open the Agent chat"],
+  agentResult: ["Kết quả lần chạy gần nhất", "Latest run result"],
+  agentTimeline: ["Lịch sử Agent", "Agent timeline"],
+  agentDoneWarning: [
+    "Công việc này có PR, có thể chưa merge. Nếu có công việc phụ thuộc, hãy merge PR trước khi chuyển Done.",
+    "This task has a PR that may not be merged yet. If other tasks depend on it, merge the PR before marking Done.",
+  ],
+  ev_claimed: ["Agent nhận việc", "Agent claimed"],
+  ev_running: ["Bắt đầu chạy", "Started running"],
+  ev_progress: ["Tiến độ", "Progress"],
+  ev_succeeded: ["Hoàn thành, đã tạo PR", "Finished, PR created"],
+  ev_failed: ["Thất bại", "Failed"],
+  ev_cancelled: ["Đã hủy", "Cancelled"],
+  ev_released: ["Trả về hàng chờ", "Released back to queue"],
+  ev_pr_updated: ["PR đã cập nhật", "PR updated"],
+  ev_lease_expired: [
+    "Mất kết nối (hết lease)",
+    "Lost connection (lease expired)",
   ],
 };
 export function t(key: string) {

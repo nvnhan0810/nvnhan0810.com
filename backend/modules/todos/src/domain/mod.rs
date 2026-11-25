@@ -1,4 +1,6 @@
+pub mod agent_run;
 pub mod pomodoro;
+
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -138,11 +140,35 @@ pub struct ProjectInput {
     /// Display snapshot; always overwritten by the server from the Agent catalog.
     #[serde(default)]
     pub agent_workspace_name: Option<String>,
+    /// Prefix for task identifiers (`PREFIX-N`). Empty means the default `DEF`.
+    #[serde(default)]
+    pub identifier_prefix: Option<String>,
+}
+/// Prefix used when a project has none, and for tasks without a project.
+pub const DEFAULT_PREFIX: &str = "DEF";
+/// Upper-case letters and digits, 2..=10 chars, first char a letter. Matches the DB CHECK.
+pub fn valid_prefix(p: &str) -> bool {
+    let b = p.as_bytes();
+    (2..=10).contains(&b.len())
+        && b[0].is_ascii_uppercase()
+        && b.iter()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
 }
 impl ProjectInput {
     pub fn validate(&mut self) -> Result<(), Errors> {
         self.name = self.name.trim().into();
         let mut e = Errors::new();
+        let prefix = clean_id(self.identifier_prefix.take())
+            .map(|p| p.to_ascii_uppercase())
+            .unwrap_or_else(|| DEFAULT_PREFIX.into());
+        if valid_prefix(&prefix) {
+            self.identifier_prefix = Some(prefix);
+        } else {
+            e.insert(
+                "identifier_prefix".into(),
+                "Prefix cần 2–10 ký tự, bắt đầu bằng chữ cái, chỉ gồm chữ và số.".into(),
+            );
+        }
         self.agent_workspace_id = clean_id(self.agent_workspace_id.take());
         if self.agent_workspace_id.is_none() {
             self.agent_workspace_name = None;

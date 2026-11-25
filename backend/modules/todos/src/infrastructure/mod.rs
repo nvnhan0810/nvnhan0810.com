@@ -34,8 +34,22 @@ pub async fn bump(tx: &mut Tx<'_>, owner: Uuid) -> Result<()> {
 pub async fn projects(tx: &mut Tx<'_>, owner: Uuid) -> Result<Vec<Value>> {
     Ok(sqlx::query_scalar("SELECT (to_jsonb(p)-'user_id')||jsonb_build_object('todos_count',(SELECT count(*) FROM todos t WHERE t.user_id=$1 AND t.project_id=p.id AND t.deleted_at IS NULL)) FROM todo_projects p WHERE p.user_id=$1 AND p.deleted_at IS NULL ORDER BY p.name,p.id").bind(owner).fetch_all(&mut **tx).await?)
 }
+/// Browser view of a task: the description without the Agent result block, and no claim id.
+pub fn present(v: &mut Value) {
+    if let Some(text) = v.get("description").and_then(Value::as_str) {
+        let clean = crate::domain::agent_run::strip_result(text);
+        v["description"] = Value::String(clean);
+    }
+    if let Some(object) = v.as_object_mut() {
+        object.remove("agent_claim_id");
+    }
+}
+fn presented(mut rows: Vec<Value>) -> Vec<Value> {
+    rows.iter_mut().for_each(present);
+    rows
+}
 pub async fn tasks(tx: &mut Tx<'_>, owner: Uuid) -> Result<Vec<Value>> {
-    Ok(sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND t.status IN ('backlog','todo','in_progress','in_review') ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,t.due_at NULLS LAST,t.created_at,t.id")).bind(owner).fetch_all(&mut **tx).await?)
+    Ok(presented(sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND t.status IN ('backlog','todo','in_progress','in_review') ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,t.due_at NULLS LAST,t.created_at,t.id")).bind(owner).fetch_all(&mut **tx).await?))
 }
 pub async fn ensure_task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> Result<()> {
     let exists: bool = sqlx::query_scalar(
@@ -79,11 +93,26 @@ pub async fn save_task(
         .as_deref()
         .filter(|s| !s.is_empty())
         .and_then(crate::domain::parse_datetime);
+    // The result block belongs to the Agent: keep the stored copy, whatever the form sent back.
+    let stored: Option<String> = match id {
+        Some(id) => sqlx::query_scalar::<_, Option<String>>(
+            "SELECT agent_result_md FROM todos WHERE user_id=$1 AND id=$2",
+        )
+        .bind(owner)
+        .bind(id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .flatten(),
+        None => None,
+    };
+    let description =
+        crate::domain::agent_run::with_result(d.description.as_deref(), stored.as_deref());
     let result = if let Some(id) = id {
         ensure_task(tx, owner, id).await?;
-        sqlx::query_scalar("UPDATE todos SET project_id=$3,title=$4,description=$5,status=$6,priority=$7,due_at=$8,is_urgent=$9,is_important=$10,agent_repo_id=$11,agent_repo_name=$12,agent_auto=$13,started_at=CASE WHEN $6='in_progress' THEN COALESCE(started_at,now()) ELSE started_at END,closed_at=CASE WHEN $6 IN ('done','rejected') THEN COALESCE(closed_at,now()) ELSE NULL END,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(d.project_id).bind(&d.title).bind(&d.description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("UPDATE todos SET project_id=$3,title=$4,description=$5,status=$6,priority=$7,due_at=$8,is_urgent=$9,is_important=$10,agent_repo_id=$11,agent_repo_name=$12,agent_auto=$13,started_at=CASE WHEN $6='in_progress' THEN COALESCE(started_at,now()) ELSE started_at END,closed_at=CASE WHEN $6 IN ('done','rejected') THEN COALESCE(closed_at,now()) ELSE NULL END,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(d.project_id).bind(&d.title).bind(&description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).fetch_one(&mut **tx).await?
     } else {
-        sqlx::query_scalar("INSERT INTO todos(user_id,project_id,title,description,status,priority,due_at,is_urgent,is_important,agent_repo_id,agent_repo_name,agent_auto,started_at,closed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $5='in_progress' THEN now() END,CASE WHEN $5 IN ('done','rejected') THEN now() END) RETURNING id").bind(owner).bind(d.project_id).bind(&d.title).bind(&d.description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).fetch_one(&mut **tx).await?
+        let (prefix, seq) = next_identifier(tx, owner, d.project_id).await?;
+        sqlx::query_scalar("INSERT INTO todos(user_id,project_id,title,description,status,priority,due_at,is_urgent,is_important,agent_repo_id,agent_repo_name,agent_auto,started_at,closed_at,identifier_prefix,identifier_seq) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $5='in_progress' THEN now() END,CASE WHEN $5 IN ('done','rejected') THEN now() END,$13,$14) RETURNING id").bind(owner).bind(d.project_id).bind(&d.title).bind(&description).bind(&d.status).bind(&d.priority).bind(due).bind(d.is_urgent).bind(d.is_important).bind(&d.agent_repo_id).bind(&d.agent_repo_name).bind(d.agent_auto).bind(&prefix).bind(seq).fetch_one(&mut **tx).await?
     };
     if !["todo", "in_progress"].contains(&d.status.as_str()) {
         sqlx::query("UPDATE todo_pomodoro_states SET active_todo_id=NULL,client_updated_at=GREATEST(client_updated_at+1,$3) WHERE user_id=$1 AND active_todo_id=$2").bind(owner).bind(result).bind(chrono::Utc::now().timestamp_millis()).execute(&mut **tx).await?;
@@ -97,6 +126,33 @@ pub async fn save_task(
     }
     bump(tx, owner).await?;
     Ok(result)
+}
+/// Prefix and next number for a new task: the project's prefix (DEF without a project), and one
+/// more than the highest number already used with that prefix. Caller holds the per-user lock.
+pub async fn next_identifier(
+    tx: &mut Tx<'_>,
+    owner: Uuid,
+    project: Option<i64>,
+) -> Result<(String, i32)> {
+    let prefix: String = match project {
+        Some(id) => sqlx::query_scalar(
+            "SELECT identifier_prefix FROM todo_projects WHERE user_id=$1 AND id=$2 AND deleted_at IS NULL",
+        )
+        .bind(owner)
+        .bind(id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| Error::field("project_id", "Project không tồn tại."))?,
+        None => crate::domain::DEFAULT_PREFIX.into(),
+    };
+    let seq: i32 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(identifier_seq),0)+1 FROM todos WHERE user_id=$1 AND identifier_prefix=$2",
+    )
+    .bind(owner)
+    .bind(&prefix)
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok((prefix, seq))
 }
 /// Drop dependency edges whose two tasks no longer share a project (project changed/deleted).
 pub async fn prune_dependencies(tx: &mut Tx<'_>, owner: Uuid) -> Result<()> {
@@ -156,6 +212,10 @@ pub async fn save_project(
 ) -> Result<i64> {
     let repo = d.git_repo_url.as_deref().filter(|s| !s.is_empty());
     let domain = d.domain.as_deref().filter(|s| !s.is_empty());
+    let prefix = d
+        .identifier_prefix
+        .as_deref()
+        .unwrap_or(crate::domain::DEFAULT_PREFIX);
     let result = if let Some(id) = id {
         ensure_project(tx, owner, id).await?;
         let old: Option<String> = sqlx::query_scalar(
@@ -169,9 +229,10 @@ pub async fn save_project(
             // Repos belong to one Agent workspace: switching or clearing it unpicks the tasks' repos.
             sqlx::query("UPDATE todos SET agent_repo_id=NULL,agent_repo_name=NULL,agent_auto=false,updated_at=now() WHERE user_id=$1 AND project_id=$2 AND (agent_repo_id IS NOT NULL OR agent_auto)").bind(owner).bind(id).execute(&mut **tx).await?;
         }
-        sqlx::query_scalar("UPDATE todo_projects SET name=$3,git_repo_url=$4,domain=$5,agent_workspace_id=$6,agent_workspace_name=$7,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).fetch_one(&mut **tx).await?
+        // Changing the prefix only affects tasks created afterwards; existing identifiers stay put.
+        sqlx::query_scalar("UPDATE todo_projects SET name=$3,git_repo_url=$4,domain=$5,agent_workspace_id=$6,agent_workspace_name=$7,identifier_prefix=$8,updated_at=now() WHERE user_id=$1 AND id=$2 RETURNING id").bind(owner).bind(id).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).fetch_one(&mut **tx).await?
     } else {
-        sqlx::query_scalar("INSERT INTO todo_projects(user_id,name,git_repo_url,domain,agent_workspace_id,agent_workspace_name) VALUES($1,$2,$3,$4,$5,$6) RETURNING id").bind(owner).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).fetch_one(&mut **tx).await?
+        sqlx::query_scalar("INSERT INTO todo_projects(user_id,name,git_repo_url,domain,agent_workspace_id,agent_workspace_name,identifier_prefix) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id").bind(owner).bind(&d.name).bind(repo).bind(domain).bind(&d.agent_workspace_id).bind(&d.agent_workspace_name).bind(prefix).fetch_one(&mut **tx).await?
     };
     bump(tx, owner).await?;
     Ok(result)
@@ -232,7 +293,11 @@ pub async fn snapshot(pool: &sqlx::PgPool, owner: Uuid) -> Result<Value> {
     )
 }
 pub async fn task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> Result<Value> {
-    sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.id=$2 AND t.deleted_at IS NULL")).bind(owner).bind(id).fetch_optional(&mut **tx).await?.ok_or(Error::NotFound)
+    let mut v: Value = sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.id=$2 AND t.deleted_at IS NULL")).bind(owner).bind(id).fetch_optional(&mut **tx).await?.ok_or(Error::NotFound)?;
+    present(&mut v);
+    // Timeline of Agent events, newest first.
+    v["agent_events"] = sqlx::query_scalar("SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY x.id DESC),'[]'::jsonb) FROM (SELECT id,kind,message,created_at FROM todo_agent_events WHERE user_id=$1 AND todo_id=$2 ORDER BY id DESC LIMIT 30) x").bind(owner).bind(id).fetch_one(&mut **tx).await?;
+    Ok(v)
 }
 pub async fn paginate(
     tx: &mut Tx<'_>,
@@ -242,10 +307,10 @@ pub async fn paginate(
     search: &str,
     page: i64,
 ) -> Result<Value> {
-    let total:i64=sqlx::query_scalar("SELECT count(*) FROM todos t WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0)").bind(owner).bind(project).bind(status).bind(search).fetch_one(&mut **tx).await?;
+    let total:i64=sqlx::query_scalar("SELECT count(*) FROM todos t WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0 OR t.identifier=upper($4))").bind(owner).bind(project).bind(status).bind(search).fetch_one(&mut **tx).await?;
     let last = ((total + 19) / 20).max(1);
     let page = page.clamp(1, last);
-    let data:Vec<Value>=sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0) ORDER BY t.updated_at DESC,t.id DESC LIMIT 20 OFFSET $5")).bind(owner).bind(project).bind(status).bind(search).bind((page-1)*20).fetch_all(&mut **tx).await?;
+    let data:Vec<Value>=presented(sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.deleted_at IS NULL AND ($2::bigint IS NULL OR t.project_id=$2) AND ($3::text='' OR t.status=$3) AND ($4::text='' OR strpos(lower(t.title),lower($4))>0 OR strpos(lower(COALESCE(t.description,'')),lower($4))>0 OR t.identifier=upper($4)) ORDER BY t.updated_at DESC,t.id DESC LIMIT 20 OFFSET $5")).bind(owner).bind(project).bind(status).bind(search).bind((page-1)*20).fetch_all(&mut **tx).await?);
     Ok(json!({"data":data,"current_page":page,"last_page":last,"total":total}))
 }
 

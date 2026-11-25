@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from "vue";
+import {
+  agentBadgeState,
+  needsMergeBeforeDone,
+  safeHttpUrl,
+} from "../../domain/todo";
 import type {
   DependencyCandidate,
   TodoItem,
@@ -9,7 +14,7 @@ import { submit } from "../../application/navigation";
 import { ValidationError } from "../../infrastructure/todos-api";
 import Modal from "./Modal.vue";
 import ProjectEditor from "./ProjectEditor.vue";
-import { t } from "../../application/locale";
+import { locale, t } from "../../application/locale";
 import {
   agentCatalog,
   catalogProblem,
@@ -51,6 +56,34 @@ const dependencyOptions = computed(() => {
       known.set(c.id, c);
   return [...known.values()];
 });
+// Agent run panel (Phase 4): state, branch, PR, chat, last result and timeline. Read-only.
+const agentState = computed(() =>
+  props.todo ? agentBadgeState(props.todo) : null,
+);
+const agentPanelVisible = computed(() => {
+  const todo = props.todo;
+  return Boolean(
+    todo &&
+    ((todo.agent_state && todo.agent_state !== "idle") ||
+      todo.agent_branch ||
+      todo.agent_pr_url ||
+      todo.agent_result_md ||
+      todo.agent_events?.length),
+  );
+});
+const prHref = computed(() => safeHttpUrl(props.todo?.agent_pr_url));
+const chatHref = computed(() => safeHttpUrl(props.todo?.agent_chat_url));
+const events = computed(() => props.todo?.agent_events ?? []);
+const warnDone = computed(() =>
+  props.todo ? needsMergeBeforeDone(props.todo, form.status) : false,
+);
+function eventTime(iso: string) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? ""
+    : date.toLocaleString(locale.value === "vi" ? "vi-VN" : "en-US");
+}
+
 // Agent repo: only repos of the project's Agent workspace. Loaded lazily, once.
 const catalog = ref<AgentCatalog | null>(null),
   catalogIssue = ref(""),
@@ -175,6 +208,12 @@ async function save() {
 </script>
 <template>
   <form class="editor" @submit.prevent="save">
+    <p v-if="todo?.identifier" class="task-identifier-line">
+      <span class="task-identifier-label">{{ t("identifier") }}</span>
+      <code class="task-identifier" :title="t('identifierHint')">{{
+        todo.identifier
+      }}</code>
+    </p>
     <label
       >{{ t("title")
       }}<input v-model="form.title" required maxlength="255" autofocus /><span
@@ -297,6 +336,47 @@ async function save() {
       />{{ t("agentAuto") }}</label
     >
     <p class="muted">{{ autoHint }}</p>
+    <section v-if="todo && agentPanelVisible" class="agent-panel">
+      <h3>{{ t("agentPanel") }}</h3>
+      <p>
+        <span v-if="agentState" class="badge" :class="`agent-${agentState}`">{{
+          t(`agent_${agentState}`)
+        }}</span>
+        <span v-if="todo.agent_pr_has_conflict" class="badge conflict">{{
+          t("agentConflict")
+        }}</span>
+      </p>
+      <p v-if="todo.agent_branch">
+        {{ t("agentBranch") }}: <code>{{ todo.agent_branch }}</code>
+      </p>
+      <p v-if="prHref">
+        {{ t("agentPr") }}:
+        <a :href="prHref" target="_blank" rel="noopener noreferrer">{{
+          todo.agent_pr_url
+        }}</a>
+      </p>
+      <p v-if="chatHref">
+        <a :href="chatHref" target="_blank" rel="noopener noreferrer">{{
+          t("agentChat")
+        }}</a>
+      </p>
+      <p v-if="warnDone" class="field-error" role="status">
+        {{ t("agentDoneWarning") }}
+      </p>
+      <details v-if="todo.agent_result_md">
+        <summary>{{ t("agentResult") }}</summary>
+        <pre class="agent-result">{{ todo.agent_result_md }}</pre>
+      </details>
+      <details v-if="events.length">
+        <summary>{{ t("agentTimeline") }}</summary>
+        <ol>
+          <li v-for="(event, index) in events" :key="event.id ?? index">
+            {{ eventTime(event.created_at) }} · {{ t(`ev_${event.kind}`) }}
+            <template v-if="event.message">— {{ event.message }}</template>
+          </li>
+        </ol>
+      </details>
+    </section>
     <p
       v-for="(message, key) in errors"
       :key="key"

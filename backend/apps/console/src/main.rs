@@ -1,4 +1,4 @@
-const USAGE: &str = "Usage: console <seed | master-data | queue:work | queue:retry-failed | wallets:auto-pay-due | wallets:process-reminders | wallets:process-periods | wallets:migrate-legacy --source <legacy-path> [--dry-run] [--replace]>\nReads DB_* from environment/.env; run migrations first.";
+const USAGE: &str = "Usage: console <seed | master-data | queue:work | queue:retry-failed | todo:sweep-agent-leases | wallets:auto-pay-due | wallets:process-reminders | wallets:process-periods | wallets:migrate-legacy --source <legacy-path> [--dry-run] [--replace]>\nReads DB_* from environment/.env; run migrations first.";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,6 +14,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         [command] if command == "queue:work" => console::commands::queue::run().await?,
         [command] if command == "queue:retry-failed" => {
             console::commands::retry_failed::run().await?
+        }
+        [command] if command == "todo:sweep-agent-leases" => {
+            console::commands::todo_agent_sweep::run().await?
         }
         [command]
             if [
