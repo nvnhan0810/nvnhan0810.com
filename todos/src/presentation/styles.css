@@ -767,6 +767,11 @@ h2 {
   background: #fff1f2;
   border-color: #fda4af;
 }
+.badge.agent-paused {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
 .badge.agent-cancelled {
   color: #334155;
   background: #f8fafc;

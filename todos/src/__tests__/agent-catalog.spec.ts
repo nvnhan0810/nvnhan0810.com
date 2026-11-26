@@ -177,6 +177,81 @@ it("unpicks the repo when the project moves to another workspace", async () => {
   wrapper.unmount();
 });
 
+it("pauses a running task and resumes a paused one from the agent panel", async () => {
+  const base = {
+    id: 9,
+    project_id: 5,
+    title: "T",
+    description: null,
+    status: "in_progress" as const,
+    priority: "medium" as const,
+    started_at: null,
+    due_at: null,
+    closed_at: null,
+    is_urgent: false,
+    is_important: false,
+    agent_repo_id: "r-api",
+    agent_repo_name: "api",
+    agent_auto: true,
+  };
+  const running = mount(TaskEditor, {
+    props: {
+      projects: [project(5, "ws-1")],
+      todo: { ...base, agent_state: "running" },
+    },
+  });
+  await flushPromises();
+  const pause = running
+    .findAll("button")
+    .find((b) => b.text() === "Tạm ngưng")!;
+  await pause.trigger("click");
+  await flushPromises();
+  expect(mocks.submit).toHaveBeenLastCalledWith(
+    "/todos/9/agent/pause",
+    "POST",
+    {
+      return_to: "todos",
+    },
+  );
+  expect(running.emitted("saved")).toHaveLength(1);
+  running.unmount();
+
+  const pausing = mount(TaskEditor, {
+    props: {
+      projects: [project(5, "ws-1")],
+      todo: { ...base, agent_state: "running", agent_pause_requested: true },
+    },
+  });
+  await flushPromises();
+  expect(pausing.text()).toContain("Đang chờ Agent tạm ngưng");
+  expect(pausing.findAll("button").some((b) => b.text() === "Tạm ngưng")).toBe(
+    false,
+  );
+  pausing.unmount();
+
+  const paused = mount(TaskEditor, {
+    props: {
+      projects: [project(5, "ws-1")],
+      todo: { ...base, agent_state: "paused", agent_branch: "agent/t-9" },
+    },
+  });
+  await flushPromises();
+  expect(paused.text()).toContain("Agent tạm ngưng");
+  await paused
+    .findAll("button")
+    .find((b) => b.text() === "Tiếp tục")!
+    .trigger("click");
+  await flushPromises();
+  expect(mocks.submit).toHaveBeenLastCalledWith(
+    "/todos/9/agent/resume",
+    "POST",
+    {
+      return_to: "todos",
+    },
+  );
+  paused.unmount();
+});
+
 it("explains a failed catalog call, and stays silent when the integration is off", () => {
   expect(catalogProblem(new ApiError(409, "not_linked"))).toContain(
     "Settings → Tích hợp",

@@ -352,6 +352,21 @@ async function clearActiveTask() {
                     <Check :size="14" />
                   </button>
                 </template>
+                <!-- The Agent handles this task: no Pomodoro button; animated while it works. -->
+                <template v-else-if="todo.agent_auto">
+                  <img
+                    v-if="
+                      todo.status === 'in_progress' &&
+                      todo.agent_state !== 'paused'
+                    "
+                    class="agent-working"
+                    src="/images/todos/agent-working.gif"
+                    :alt="t('agentWorking')"
+                    :title="t('agentWorking')"
+                    width="22"
+                    height="22"
+                  />
+                </template>
                 <button
                   v-else
                   class="icon-button task-tool focus-task"

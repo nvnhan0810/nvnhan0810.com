@@ -12,6 +12,7 @@ describe("agent run badges", () => {
     expect(agentBadgeState({ agent_state: "succeeded" })).toBe("succeeded");
     expect(agentBadgeState({ agent_state: "failed" })).toBe("failed");
     expect(agentBadgeState({ agent_state: "cancelled" })).toBe("cancelled");
+    expect(agentBadgeState({ agent_state: "paused" })).toBe("paused");
     expect(agentBadgeState({ agent_state: "idle" })).toBeNull();
     expect(agentBadgeState({})).toBeNull();
   });

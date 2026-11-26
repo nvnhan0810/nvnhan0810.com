@@ -229,6 +229,39 @@ async fn run_pr_updated(
         .map_err(run_error)
 }
 
+async fn run_resume(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    runs::agent_resume(&state.pool, user, id)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+async fn run_cleanups(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    runs::cleanups(&state.pool, user)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+async fn run_cleaned(
+    State(state): State<IntegrationState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<Json<Value>, HttpError> {
+    let user = agent_user(&state, &headers).await?;
+    runs::cleaned(&state.pool, user, id)
+        .await
+        .map(Json)
+        .map_err(run_error)
+}
+
 pub(super) fn integration_routes(pool: sqlx::PgPool, agent: AgentLinkConfig) -> Router {
     Router::new()
         .route("/link/complete", post(complete))
@@ -238,6 +271,9 @@ pub(super) fn integration_routes(pool: sqlx::PgPool, agent: AgentLinkConfig) -> 
         .route("/tasks/{id}/report", post(run_report))
         .route("/tasks/{id}/release", post(run_release))
         .route("/tasks/{id}/pr-updated", post(run_pr_updated))
+        .route("/tasks/{id}/resume", post(run_resume))
+        .route("/tasks/cleanups", post(run_cleanups))
+        .route("/tasks/{id}/cleaned", post(run_cleaned))
         .with_state(IntegrationState { pool, agent })
 }
 

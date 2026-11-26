@@ -152,6 +152,21 @@ const labels: Record<string, [string, string]> = {
   agent_succeeded: ["Agent ✅", "Agent ✅"],
   agent_failed: ["Agent ❌", "Agent ❌"],
   agent_cancelled: ["Agent đã hủy", "Agent cancelled"],
+  agent_paused: ["Agent tạm ngưng", "Agent paused"],
+  agentWorking: [
+    "Agent đang làm task này",
+    "The Agent is working on this task",
+  ],
+  agentPause: ["Tạm ngưng", "Pause"],
+  agentResume: ["Tiếp tục", "Resume"],
+  agentPausing: [
+    "Đang chờ Agent tạm ngưng (đẩy phần đã làm lên nhánh)…",
+    "Waiting for the Agent to pause (pushing the work so far)…",
+  ],
+  agentPausedHint: [
+    "Agent đã dừng và đẩy phần đang làm lên nhánh. Bấm Tiếp tục để đưa task về hàng chờ; chuyển Done/Rejected sẽ dọn bản sao trên Agent.",
+    "The Agent stopped and pushed the work so far. Resume puts the task back in the queue; Done/Rejected cleans up the Agent's copy.",
+  ],
   agentConflict: ["⚠️ Conflict", "⚠️ Conflict"],
   agentPanel: ["Agent", "Agent"],
   agentBranch: ["Nhánh", "Branch"],
@@ -171,6 +186,11 @@ const labels: Record<string, [string, string]> = {
   ev_cancelled: ["Đã hủy", "Cancelled"],
   ev_released: ["Trả về hàng chờ", "Released back to queue"],
   ev_pr_updated: ["PR đã cập nhật", "PR updated"],
+  ev_pause_requested: ["Yêu cầu tạm ngưng", "Pause requested"],
+  ev_paused: ["Đã tạm ngưng", "Paused"],
+  ev_resumed: ["Tiếp tục, về hàng chờ", "Resumed, back in queue"],
+  ev_cleanup: ["Chờ Agent dọn dẹp", "Waiting for Agent cleanup"],
+  ev_cleaned: ["Agent đã dọn dẹp", "Agent cleaned up"],
   ev_lease_expired: [
     "Mất kết nối (hết lease)",
     "Lost connection (lease expired)",

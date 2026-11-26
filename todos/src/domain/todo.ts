@@ -61,7 +61,13 @@ export function pendingDependencies(todo: Pick<TodoItem, "depends_on">) {
 
 /** Agent run state of a task (Phase 4). `idle` = never claimed, or released. */
 export type AgentState =
-  "idle" | "claimed" | "running" | "succeeded" | "failed" | "cancelled";
+  | "idle"
+  | "claimed"
+  | "running"
+  | "paused"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
 
 export type AgentEvent = {
   id?: number;
@@ -72,6 +78,8 @@ export type AgentEvent = {
 
 export type AgentRunFields = {
   agent_state?: AgentState;
+  /** The user asked to pause; the Agent stops the run within a few seconds. */
+  agent_pause_requested?: boolean;
   agent_attempts?: number;
   agent_chat_url?: string | null;
   agent_branch?: string | null;
@@ -89,6 +97,7 @@ export function agentBadgeState(
     case "claimed":
     case "running":
       return "running";
+    case "paused":
     case "succeeded":
     case "failed":
     case "cancelled":

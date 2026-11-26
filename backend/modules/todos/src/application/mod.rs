@@ -207,6 +207,25 @@ pub async fn action(
         };
         "/todos/projects"
     } else if parts.first() == Some(&"todos")
+        && parts.get(2) == Some(&"agent")
+        && parts.len() == 4
+        && method == "POST"
+    {
+        // Pause / resume buttons of the Agent panel.
+        let id = id(parts.get(1))?;
+        repo::ensure_task(&mut tx, owner, id).await?;
+        match parts[3] {
+            "pause" => agent_run::request_pause(&mut tx, owner, id).await?,
+            "resume" => agent_run::resume(&mut tx, owner, id).await?,
+            _ => return Err(Error::NotFound),
+        }
+        repo::bump(&mut tx, owner).await?;
+        if data["return_to"] == "matrix" {
+            "/matrix"
+        } else {
+            "/todos"
+        }
+    } else if parts.first() == Some(&"todos")
         && parts.get(2) == Some(&"dependencies")
         && parts.len() == 3
         && method == "PUT"

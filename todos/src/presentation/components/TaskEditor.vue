@@ -188,6 +188,37 @@ async function remove() {
 }
 const busy = ref(false),
   errors = ref<Record<string, string>>({});
+// Pause / resume of the Agent run (agent panel).
+const canPause = computed(
+  () =>
+    (props.todo?.agent_state === "claimed" ||
+      props.todo?.agent_state === "running") &&
+    !props.todo.agent_pause_requested,
+);
+const pausing = computed(
+  () =>
+    (props.todo?.agent_state === "claimed" ||
+      props.todo?.agent_state === "running") &&
+    Boolean(props.todo.agent_pause_requested),
+);
+async function agentAction(action: "pause" | "resume") {
+  if (!props.todo || busy.value) return;
+  busy.value = true;
+  errors.value = {};
+  try {
+    await submit(`/todos/${props.todo.id}/agent/${action}`, "POST", {
+      return_to: props.returnTo ?? "todos",
+    });
+    emit("saved");
+  } catch (e) {
+    errors.value =
+      e instanceof ValidationError
+        ? e.errors
+        : { request: e instanceof Error ? e.message : "Không thực hiện được." };
+  } finally {
+    busy.value = false;
+  }
+}
 async function save() {
   if (busy.value) return;
   busy.value = true;
@@ -363,6 +394,22 @@ async function save() {
           t("agentConflict")
         }}</span>
       </p>
+      <p v-if="canPause">
+        <button type="button" :disabled="busy" @click="agentAction('pause')">
+          {{ t("agentPause") }}
+        </button>
+      </p>
+      <p v-else-if="pausing" class="muted" role="status">
+        {{ t("agentPausing") }}
+      </p>
+      <template v-else-if="todo.agent_state === 'paused'">
+        <p class="muted">{{ t("agentPausedHint") }}</p>
+        <p>
+          <button type="button" :disabled="busy" @click="agentAction('resume')">
+            {{ t("agentResume") }}
+          </button>
+        </p>
+      </template>
       <p v-if="todo.agent_branch">
         {{ t("agentBranch") }}: <code>{{ todo.agent_branch }}</code>
       </p>

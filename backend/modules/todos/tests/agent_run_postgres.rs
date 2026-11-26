@@ -55,6 +55,7 @@ async fn database() -> PgPool {
         include_str!("../migrations/20261125000004_task_base_branch.up.sql"),
         include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
         include_str!("../migrations/20261126000002_agent_auto_needs_repo.up.sql"),
+        include_str!("../migrations/20261126000003_agent_pause.up.sql"),
     ] {
         pool.execute(sqlx::raw_sql(sql)).await.unwrap();
     }
@@ -669,7 +670,119 @@ async fn user_change_cancels_the_live_claim_and_the_agent_gets_410() {
         ("done".into(), "cancelled".into()),
         "status set by the user is kept"
     );
-    assert!(events(&pool, id).await.contains(&"cancelled".to_string()));
+    // Closing the task also queues the cleanup of the Agent's clone (done keeps branch and PR).
+    assert!(events(&pool, id).await.contains(&"cleanup".to_string()));
+    let queued = runs::cleanups(&pool, owner).await.unwrap();
+    assert_eq!(queued["tasks"][0]["id"], id);
+    assert_eq!(queued["tasks"][0]["mode"], "keep");
+}
+
+#[tokio::test]
+#[ignore = "requires TODO_TEST_DATABASE_URL pointing to disposable PostgreSQL"]
+async fn pause_resume_and_cleanup_of_a_paused_task() {
+    let pool = database().await;
+    let owner = user(&pool).await;
+    let p = project(&pool, owner, "ws-a").await;
+    let id = simple_task(&pool, owner, p).await;
+    let other = simple_task(&pool, owner, p).await;
+    let claim = claim_one(&pool, owner, id).await;
+    send(
+        &pool,
+        owner,
+        id,
+        claim,
+        json!({"state":"running","branch":"agent/todo-1-fix"}),
+    )
+    .await
+    .unwrap();
+
+    // Pause asked on Todo: the next heartbeat tells the Agent.
+    app::action(
+        &pool,
+        owner,
+        &format!("/todos/{id}/agent/pause"),
+        "POST",
+        &json!({}),
+    )
+    .await
+    .unwrap();
+    assert!(
+        app::action(
+            &pool,
+            owner,
+            &format!("/todos/{id}/agent/pause"),
+            "POST",
+            &json!({})
+        )
+        .await
+        .is_err(),
+        "asking twice is refused"
+    );
+    let beat = runs::heartbeat(&pool, owner, id, claim).await.unwrap();
+    assert_eq!(beat["pause_requested"], true);
+
+    // The Agent pushes the work and reports paused: the task stays in progress, claims skip it.
+    send(
+        &pool,
+        owner,
+        id,
+        claim,
+        json!({"state":"paused","branch":"agent/todo-1-fix","summary_md":"Đã làm một nửa."}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        state(&pool, id).await,
+        ("in_progress".into(), "paused".into())
+    );
+    assert!(description(&pool, id).await.contains("Tạm ngưng"));
+    let claimed: Vec<i64> = claim_all(&pool, owner, &["ws-a"], 10)
+        .await
+        .iter()
+        .map(|t| t["id"].as_i64().unwrap())
+        .collect();
+    assert_eq!(claimed, vec![other], "a paused task is not handed out");
+
+    // Resume (Agent button): back to the queue, then claimed again with the previous branch.
+    runs::agent_resume(&pool, owner, id).await.unwrap();
+    assert_eq!(state(&pool, id).await, ("todo".into(), "idle".into()));
+    let again = claim_all(&pool, owner, &["ws-a"], 10).await;
+    let task = again.iter().find(|t| t["id"] == id).unwrap();
+    assert_eq!(task["previous"]["branch"], "agent/todo-1-fix");
+    let claim: Uuid = task["claim_id"].as_str().unwrap().parse().unwrap();
+    send(&pool, owner, id, claim, json!({"state":"paused"}))
+        .await
+        .unwrap();
+
+    // Rejected while paused: cleanup with branch and PR discarded, acknowledged once.
+    let data = json!({"title":"T","description":"desc","status":"rejected","priority":"medium","project_id":p,
+        "is_urgent":true,"is_important":true,"agent_repo_id":"repo-1","agent_auto":true});
+    app::action(&pool, owner, &format!("/todos/{id}"), "PUT", &data)
+        .await
+        .unwrap();
+    assert_eq!(
+        state(&pool, id).await,
+        ("rejected".into(), "cancelled".into())
+    );
+    let queued = runs::cleanups(&pool, owner).await.unwrap();
+    assert_eq!(queued["tasks"][0]["id"], id);
+    assert_eq!(queued["tasks"][0]["mode"], "discard");
+    assert_eq!(queued["tasks"][0]["branch"], "agent/todo-1-fix");
+    assert_eq!(
+        runs::cleaned(&pool, owner, id).await.unwrap()["cleaned"],
+        true
+    );
+    assert_eq!(
+        runs::cleaned(&pool, owner, id).await.unwrap()["cleaned"],
+        false
+    );
+    assert!(
+        runs::cleanups(&pool, owner).await.unwrap()["tasks"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(runs::agent_resume(&pool, owner, id).await.is_err());
 }
 
 #[tokio::test]

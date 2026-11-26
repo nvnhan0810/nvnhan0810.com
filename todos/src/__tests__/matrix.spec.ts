@@ -67,3 +67,38 @@ it("moves a task with the keyboard-accessible quadrant selector and preserves cu
   wrapper.unmount();
   expect(mocks.stream.mock.calls.at(-1)?.[0].aborted).toBe(true);
 });
+it("hides the Pomodoro button on Agent tasks and animates the ones it is working on", async () => {
+  const agentTask = (id: number, extra: object) => ({
+    ...todo,
+    id,
+    title: `Agent ${id}`,
+    agent_auto: true,
+    ...extra,
+  });
+  const wrapper = mount(Matrix, {
+    props: {
+      ...props,
+      quadrants: {
+        do: [
+          todo,
+          agentTask(10, { status: "in_progress", agent_state: "running" }),
+          agentTask(11, { status: "in_progress", agent_state: "paused" }),
+          agentTask(12, { status: "todo" }),
+        ],
+        schedule: [],
+        delegate: [],
+        eliminate: [],
+      },
+    },
+    global: { stubs: { PomodoroBar: true, Modal: true } },
+  });
+  const card = (id: number) => wrapper.get(`[data-todo-id="${id}"]`);
+  expect(card(9).find(".focus-task").exists()).toBe(true);
+  for (const id of [10, 11, 12])
+    expect(card(id).find(".focus-task").exists()).toBe(false);
+  expect(card(10).find("img.agent-working").attributes("src")).toBe(
+    "/images/todos/agent-working.gif",
+  );
+  expect(card(11).find("img.agent-working").exists()).toBe(false);
+  expect(card(12).find("img.agent-working").exists()).toBe(false);
+});

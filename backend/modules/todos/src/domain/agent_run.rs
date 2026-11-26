@@ -23,6 +23,8 @@ pub enum AgentState {
     Idle,
     Claimed,
     Running,
+    /// Stopped on request with the work pushed; skipped by claims until resumed.
+    Paused,
     Succeeded,
     Failed,
     Cancelled,
@@ -34,6 +36,7 @@ impl AgentState {
             "idle" => Self::Idle,
             "claimed" => Self::Claimed,
             "running" => Self::Running,
+            "paused" => Self::Paused,
             "succeeded" => Self::Succeeded,
             "failed" => Self::Failed,
             "cancelled" => Self::Cancelled,
@@ -45,6 +48,7 @@ impl AgentState {
             Self::Idle => "idle",
             Self::Claimed => "claimed",
             Self::Running => "running",
+            Self::Paused => "paused",
             Self::Succeeded => "succeeded",
             Self::Failed => "failed",
             Self::Cancelled => "cancelled",
@@ -61,6 +65,8 @@ impl AgentState {
 pub enum Report {
     Running,
     Progress,
+    /// The run stopped because the user asked to pause it (work committed and pushed).
+    Paused,
     Succeeded,
     Failed,
     Cancelled,
@@ -71,6 +77,7 @@ impl Report {
         Some(match s {
             "running" => Self::Running,
             "progress" => Self::Progress,
+            "paused" => Self::Paused,
             "succeeded" => Self::Succeeded,
             "failed" => Self::Failed,
             "cancelled" => Self::Cancelled,
@@ -78,7 +85,10 @@ impl Report {
         })
     }
     pub fn is_terminal(self) -> bool {
-        matches!(self, Self::Succeeded | Self::Failed | Self::Cancelled)
+        matches!(
+            self,
+            Self::Paused | Self::Succeeded | Self::Failed | Self::Cancelled
+        )
     }
 }
 
@@ -99,8 +109,9 @@ pub fn step(current: AgentState, report: Report) -> Option<Step> {
     match report {
         Report::Progress => current.is_live().then_some(Step::Move(current)),
         Report::Running => current.is_live().then_some(Step::Move(AgentState::Running)),
-        Report::Succeeded | Report::Failed | Report::Cancelled => {
+        Report::Paused | Report::Succeeded | Report::Failed | Report::Cancelled => {
             let target = match report {
+                Report::Paused => AgentState::Paused,
                 Report::Succeeded => AgentState::Succeeded,
                 Report::Failed => AgentState::Failed,
                 _ => AgentState::Cancelled,
@@ -497,6 +508,10 @@ mod tests {
         assert_eq!(step(Running, R::Succeeded), Some(Step::Move(Succeeded)));
         assert_eq!(step(Claimed, R::Failed), Some(Step::Move(Failed)));
         assert_eq!(step(Running, R::Cancelled), Some(Step::Move(Cancelled)));
+        assert_eq!(step(Running, R::Paused), Some(Step::Move(Paused)));
+        assert_eq!(step(Paused, R::Paused), Some(Step::Repeat));
+        assert_eq!(step(Paused, R::Running), None);
+        assert_eq!(step(Paused, R::Succeeded), None);
         // Repeats of the same terminal state are no-ops.
         assert_eq!(step(Succeeded, R::Succeeded), Some(Step::Repeat));
         assert_eq!(step(Failed, R::Failed), Some(Step::Repeat));
@@ -571,7 +586,8 @@ mod tests {
             check_report(base("failed", None)).is_ok(),
             "failed may have no PR"
         );
-        assert!(check_report(base("paused", None)).is_err());
+        assert!(check_report(base("paused", None)).is_ok());
+        assert!(check_report(base("sleeping", None)).is_err());
         assert!(check_report(base("running", None)).is_ok());
         let mut bad_branch = base("running", None);
         bad_branch.branch = Some("agent/../x".into());
