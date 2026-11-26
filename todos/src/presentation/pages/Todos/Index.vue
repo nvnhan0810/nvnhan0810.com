@@ -129,7 +129,7 @@ async function remove(todo: TodoItem) {
               >🔒 {{ t("waitingOn") }}:
               {{
                 pendingDependencies(todo)
-                  .map((d) => `#${d.id}`)
+                  .map((d) => d.identifier)
                   .join(", ")
               }}</span
             >

@@ -157,11 +157,12 @@ pub async fn guard_live_claims(tx: &mut Tx<'_>, owner: Uuid) -> crate::applicati
     Ok(())
 }
 
-fn todo_url(config: &AgentLinkConfig, id: i64) -> Value {
+/// Link to the task on Todo, by its identifier (`/tasks/DEF-12`).
+fn todo_url(config: &AgentLinkConfig, identifier: &str) -> Value {
     if config.todo_web_url.is_empty() {
         Value::Null
     } else {
-        json!(format!("{}/tasks/{id}", config.todo_web_url))
+        json!(format!("{}/tasks/{identifier}", config.todo_web_url))
     }
 }
 
@@ -233,7 +234,7 @@ pub async fn claim(
             .bind(c.id)
             .fetch_one(&mut *tx)
             .await?;
-        let deps: Vec<Value> = sqlx::query_scalar("SELECT jsonb_build_object('id',b.id,'title',b.title,'pr_url',b.agent_pr_url) FROM todo_dependencies x JOIN todos b ON b.user_id=x.user_id AND b.id=x.depends_on_id WHERE x.user_id=$1 AND x.todo_id=$2 ORDER BY b.id")
+        let deps: Vec<Value> = sqlx::query_scalar("SELECT jsonb_build_object('id',b.id,'identifier',b.identifier,'title',b.title,'pr_url',b.agent_pr_url) FROM todo_dependencies x JOIN todos b ON b.user_id=x.user_id AND b.id=x.depends_on_id WHERE x.user_id=$1 AND x.todo_id=$2 ORDER BY b.id")
             .bind(owner)
             .bind(c.id)
             .fetch_all(&mut *tx)
@@ -266,7 +267,7 @@ pub async fn claim(
             // `null` = the repo's default base on Agent.
             "base_branch": d.agent_base_branch,
             "depends_on": deps,
-            "todo_url": todo_url(config, c.id),
+            "todo_url": todo_url(config, &d.identifier),
             "attempt": c.attempts + 1,
             "previous": previous,
         }));

@@ -69,6 +69,7 @@ const candidates = computed<DependencyCandidate[]>(() =>
     .filter((task) => task.project_id !== null)
     .map((task) => ({
       id: task.id,
+      identifier: task.identifier ?? "",
       title: task.title,
       status: task.status,
       project_id: task.project_id!,
@@ -402,13 +403,13 @@ async function clearActiveTask() {
                 class="task-blocked"
                 :title="
                   pendingDependencies(todo)
-                    .map((d) => `#${d.id} ${d.title}`)
+                    .map((d) => `${d.identifier} ${d.title}`)
                     .join(', ')
                 "
                 >🔒 {{ t("waitingOn") }}:
                 {{
                   pendingDependencies(todo)
-                    .map((d) => `#${d.id}`)
+                    .map((d) => d.identifier)
                     .join(", ")
                 }}</span
               >

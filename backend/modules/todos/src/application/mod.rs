@@ -66,8 +66,10 @@ pub async fn page(pool: &sqlx::PgPool, owner: Uuid, path: &str) -> Result<Value>
             json!({"component":"Projects/Form","props":{"project":project}})
         }
     } else if parts[0] == "tasks" && parts.len() == 2 {
-        // Deep link to one task (used by Agent PRs / notifications).
-        let todo = repo::task(&mut tx, owner, id(parts.get(1))?).await?;
+        // Deep link to one task (Agent PRs / notifications): `/tasks/DEF-12`.
+        let key = parts.get(1).copied().unwrap_or_default();
+        let task_id = repo::task_id_by_key(&mut tx, owner, key).await?;
+        let todo = repo::task(&mut tx, owner, task_id).await?;
         let candidates = repo::dependency_candidates(&mut tx, owner).await?;
         json!({"component":"Todos/Form","props":{"todo":todo,"projects":projects,"candidates":candidates,"statuses":domain::STATUSES,"priorities":domain::PRIORITIES}})
     } else if parts[0] == "todos" {

@@ -305,7 +305,11 @@ async fn claim_order_matches_the_domain_order_and_respects_limit_and_workspace()
     assert_eq!(first[0]["quadrant"], "do");
     assert_eq!(
         first[0]["todo_url"],
-        json!(format!("https://todo.example/tasks/{}", got[0]))
+        json!(format!(
+            "https://todo.example/tasks/{}",
+            first[0]["identifier"].as_str().unwrap()
+        )),
+        "links use the identifier, not the numeric id"
     );
     assert_eq!(first[0]["attempt"], 1);
     assert!(first[0]["previous"].is_null());

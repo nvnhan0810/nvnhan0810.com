@@ -322,7 +322,7 @@ async function save() {
           v-model="form.depends_on"
           type="checkbox"
           :value="candidate.id"
-        />#{{ candidate.id }}
+        />{{ candidate.identifier }}
         {{ candidate.title }}
         <span class="badge" :class="candidate.status">{{
           t(candidate.status)

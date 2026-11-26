@@ -13,8 +13,8 @@
       "project": {"id": 7, "name": "Web", "agent_workspace_id": "ws-1"},
       "repo": {"agent_repo_id": "repo-1", "name": "api"},
       "base_branch": "release/1.2",
-      "depends_on": [{"id": 120, "title": "Thiết kế", "pr_url": "https://github.com/o/r/pull/9"}],
-      "todo_url": "https://todo.example/tasks/123",
+      "depends_on": [{"id": 120, "identifier": "API-40", "title": "Thiết kế", "pr_url": "https://github.com/o/r/pull/9"}],
+      "todo_url": "https://todo.example/tasks/API-42",
       "attempt": 2,
       "previous": {
         "branch": "agent/todo-123-fix-login",

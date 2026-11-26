@@ -53,10 +53,34 @@ it("submits project changes to the existing project URL", async () => {
   wrapper.unmount();
 });
 const candidates = [
-  { id: 1, title: "Same A", status: "todo" as const, project_id: 5 },
-  { id: 2, title: "Same B", status: "done" as const, project_id: 5 },
-  { id: 3, title: "Other", status: "todo" as const, project_id: 6 },
-  { id: 9, title: "Self", status: "todo" as const, project_id: 5 },
+  {
+    id: 1,
+    identifier: "DEF-1",
+    title: "Same A",
+    status: "todo" as const,
+    project_id: 5,
+  },
+  {
+    id: 2,
+    identifier: "DEF-2",
+    title: "Same B",
+    status: "done" as const,
+    project_id: 5,
+  },
+  {
+    id: 3,
+    identifier: "DEF-3",
+    title: "Other",
+    status: "todo" as const,
+    project_id: 6,
+  },
+  {
+    id: 9,
+    identifier: "DEF-9",
+    title: "Self",
+    status: "todo" as const,
+    project_id: 5,
+  },
 ];
 const project = (id: number) => ({
   id,
@@ -82,7 +106,9 @@ it("offers only same-project tasks, never itself, and submits depends_on", async
         closed_at: null,
         is_urgent: false,
         is_important: false,
-        depends_on: [{ id: 2, title: "Same B", status: "done" }],
+        depends_on: [
+          { id: 2, identifier: "DEF-2", title: "Same B", status: "done" },
+        ],
       },
     },
   });
@@ -90,6 +116,9 @@ it("offers only same-project tasks, never itself, and submits depends_on", async
   expect(boxes).toHaveLength(2);
   expect(wrapper.find(".dependencies").text()).not.toContain("Other");
   expect(wrapper.find(".dependencies").text()).not.toContain("Self");
+  // Tasks are named by identifier, never by numeric id.
+  expect(wrapper.find(".dependencies").text()).toContain("DEF-1");
+  expect(wrapper.find(".dependencies").text()).not.toContain("#1");
   await boxes[0].setValue(true);
   await wrapper.get("form").trigger("submit");
   await flushPromises();

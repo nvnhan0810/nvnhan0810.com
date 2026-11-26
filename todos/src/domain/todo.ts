@@ -17,6 +17,8 @@ export type TodoStatus =
   "backlog" | "todo" | "in_progress" | "in_review" | "done" | "rejected";
 export type TodoDependency = {
   id: number;
+  /** What users see and type (DEF-12); `id` is only the internal key. */
+  identifier: string;
   title: string;
   status: TodoStatus;
 };

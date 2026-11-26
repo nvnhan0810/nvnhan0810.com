@@ -478,6 +478,21 @@ async fn in_review_status_and_task_dependencies() {
         .await
         .unwrap();
     assert_eq!(task["component"], "Todos/Form");
+    // Deep links use the identifier (`/tasks/DEF-3`, case-insensitive); old numeric links still open.
+    let key = task["props"]["todo"]["identifier"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let by_key = app::page(&pool, owner, &format!("/tasks/{}", key.to_lowercase()))
+        .await
+        .unwrap();
+    assert_eq!(by_key["props"]["todo"]["id"], c);
+    assert!(
+        app::page(&pool, other, &format!("/tasks/{key}"))
+            .await
+            .is_err()
+    );
+    assert!(task["props"]["todo"]["depends_on"][0]["identifier"].is_string());
     assert_eq!(
         task["props"]["todo"]["depends_on"]
             .as_array()

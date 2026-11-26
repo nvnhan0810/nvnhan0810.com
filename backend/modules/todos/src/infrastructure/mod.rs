@@ -8,7 +8,7 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 macro_rules! deps_json {
     () => {
-        "jsonb_build_object('depends_on',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',d.id,'title',d.title,'status',d.status) ORDER BY d.id),'[]'::jsonb) FROM todo_dependencies x JOIN todos d ON d.id=x.depends_on_id AND d.user_id=x.user_id AND d.deleted_at IS NULL WHERE x.todo_id=t.id))"
+        "jsonb_build_object('depends_on',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',d.id,'identifier',d.identifier,'title',d.title,'status',d.status) ORDER BY d.id),'[]'::jsonb) FROM todo_dependencies x JOIN todos d ON d.id=x.depends_on_id AND d.user_id=x.user_id AND d.deleted_at IS NULL WHERE x.todo_id=t.id))"
     };
 }
 pub type Tx<'a> = Transaction<'a, Postgres>;
@@ -292,6 +292,20 @@ pub async fn snapshot(pool: &sqlx::PgPool, owner: Uuid) -> Result<Value> {
         json!({"quadrants":quadrants,"backlog":backlog,"projects":projects,"pomodoro":p.payload(),"version":version,"statuses":crate::domain::STATUSES,"priorities":crate::domain::PRIORITIES}),
     )
 }
+/// Task id from a deep-link key: the identifier (`DEF-12`, what links use), or an old numeric id.
+pub async fn task_id_by_key(tx: &mut Tx<'_>, owner: Uuid, key: &str) -> Result<i64> {
+    if let Ok(id) = key.parse::<i64>() {
+        return Ok(id);
+    }
+    sqlx::query_scalar(
+        "SELECT id FROM todos WHERE user_id=$1 AND identifier=upper($2) AND deleted_at IS NULL",
+    )
+    .bind(owner)
+    .bind(key)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or(Error::NotFound)
+}
 pub async fn task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> Result<Value> {
     let mut v: Value = sqlx::query_scalar(concat!("SELECT (to_jsonb(t)-'user_id')||jsonb_build_object('project',CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'name',p.name) END)||",deps_json!()," FROM todos t LEFT JOIN todo_projects p ON p.id=t.project_id AND p.user_id=t.user_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND t.id=$2 AND t.deleted_at IS NULL")).bind(owner).bind(id).fetch_optional(&mut **tx).await?.ok_or(Error::NotFound)?;
     present(&mut v);
@@ -316,5 +330,5 @@ pub async fn paginate(
 
 /// Live tasks with a project, offered by the "waits for" picker (the FE filters by project).
 pub async fn dependency_candidates(tx: &mut Tx<'_>, owner: Uuid) -> Result<Vec<Value>> {
-    Ok(sqlx::query_scalar("SELECT jsonb_build_object('id',id,'title',title,'status',status,'project_id',project_id) FROM todos WHERE user_id=$1 AND deleted_at IS NULL AND project_id IS NOT NULL AND status<>'rejected' ORDER BY id DESC LIMIT 1000").bind(owner).fetch_all(&mut **tx).await?)
+    Ok(sqlx::query_scalar("SELECT jsonb_build_object('id',id,'identifier',identifier,'title',title,'status',status,'project_id',project_id) FROM todos WHERE user_id=$1 AND deleted_at IS NULL AND project_id IS NOT NULL AND status<>'rejected' ORDER BY id DESC LIMIT 1000").bind(owner).fetch_all(&mut **tx).await?)
 }
