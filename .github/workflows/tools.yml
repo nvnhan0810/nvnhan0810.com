@@ -1,10 +1,6 @@
 name: Deploy Tools
 
 on:
-  pull_request:
-    paths:
-      - 'tools/**'
-      - '.github/workflows/tools.yml'
   push:
     branches:
       - main
