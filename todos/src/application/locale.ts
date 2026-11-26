@@ -140,9 +140,9 @@ const labels: Record<string, [string, string]> = {
     "Không lấy được danh sách từ Agent. Hãy thử lại sau.",
     "Could not load the list from Agent. Try again later.",
   ],
-  agentAutoNeedsRepo: [
-    "Chọn repository trước khi bật tự động xử lý.",
-    "Pick a repository before turning on automatic handling.",
+  agentAutoRootHint: [
+    "Không chọn repository: Agent làm việc trong thư mục gốc của workspace và không tạo PR.",
+    "No repository: the Agent works in the workspace root and opens no PR.",
   ],
   agentRepoNeedsMain: [
     "Repository chưa có nhánh gốc mặc định nên Agent không thể xử lý. Đổi nhánh gốc của repo trên Agent hoặc nhập nhánh gốc cho task.",

@@ -403,35 +403,12 @@ async fn enrich_task(
         .get("agent_auto")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let Some(repo) = repo else {
-        data["agent_repo_id"] = Value::Null;
-        data["agent_repo_name"] = Value::Null;
-        // `TodoInput::validate` rejects auto without a repo.
-        return Ok(());
-    };
-    if !crate::domain::valid_agent_id(&repo) {
-        return Err(invalid("agent_repo_id", "Repository Agent không hợp lệ."));
-    }
     let project = data.get("project_id").and_then(Value::as_i64);
-    let Some(project) = project else {
-        return Err(invalid(
-            "agent_repo_id",
-            "Cần chọn project trước khi chọn repository.",
-        ));
-    };
-    let workspace: Option<Option<String>> = sqlx::query_scalar("SELECT agent_workspace_id FROM todo_projects WHERE user_id=$1 AND id=$2 AND deleted_at IS NULL")
-        .bind(user).bind(project).fetch_optional(&state.pool).await.map_err(db)?;
-    let workspace = workspace
-        .ok_or_else(|| invalid("project_id", "Project không tồn tại."))?
-        .ok_or_else(|| invalid("agent_repo_id", "Project chưa gắn workspace Agent."))?;
     let stored: Option<(Option<String>, Option<String>, bool)> = match (method, path_id(path, 1)) {
         ("PUT", Some(id)) => sqlx::query_as("SELECT agent_repo_id,agent_repo_name,agent_auto FROM todos WHERE user_id=$1 AND id=$2 AND deleted_at IS NULL")
             .bind(user).bind(id).fetch_optional(&state.pool).await.map_err(db)?,
         _ => None,
     };
-    let unchanged = stored
-        .as_ref()
-        .is_some_and(|(id, _, _)| id.as_deref() == Some(repo.as_str()));
     let was_auto = stored.as_ref().is_some_and(|(_, _, a)| *a);
     if auto && !was_auto && !link::is_linked(&state.pool, user).await.map_err(error)? {
         return Err(invalid(
@@ -439,6 +416,31 @@ async fn enrich_task(
             "Cần kết nối Agent trước khi bật tự động xử lý.",
         ));
     }
+    let Some(repo) = repo else {
+        data["agent_repo_id"] = Value::Null;
+        data["agent_repo_name"] = Value::Null;
+        // No repo: the task runs in the project's workspace root, so the project must be linked.
+        if auto {
+            let project = project.ok_or_else(|| {
+                invalid("agent_auto", "Cần chọn project để Agent tự động xử lý.")
+            })?;
+            project_workspace(state, user, project, "agent_auto").await?;
+        }
+        return Ok(());
+    };
+    if !crate::domain::valid_agent_id(&repo) {
+        return Err(invalid("agent_repo_id", "Repository Agent không hợp lệ."));
+    }
+    let project = project.ok_or_else(|| {
+        invalid(
+            "agent_repo_id",
+            "Cần chọn project trước khi chọn repository.",
+        )
+    })?;
+    let workspace = project_workspace(state, user, project, "agent_repo_id").await?;
+    let unchanged = stored
+        .as_ref()
+        .is_some_and(|(id, _, _)| id.as_deref() == Some(repo.as_str()));
     let name = match catalog_for(state, user, false).await {
         Ok(catalog) => {
             let found = catalog
@@ -472,4 +474,18 @@ async fn enrich_task(
     data["agent_repo_id"] = Value::String(repo);
     data["agent_repo_name"] = Value::String(name);
     Ok(())
+}
+
+/// The Agent workspace of a user's project. `field` names the input that needs it.
+async fn project_workspace(
+    state: &TodoState,
+    user: Uuid,
+    project: i64,
+    field: &str,
+) -> Result<String, HttpError> {
+    let workspace: Option<Option<String>> = sqlx::query_scalar("SELECT agent_workspace_id FROM todo_projects WHERE user_id=$1 AND id=$2 AND deleted_at IS NULL")
+        .bind(user).bind(project).fetch_optional(&state.pool).await.map_err(db)?;
+    workspace
+        .ok_or_else(|| invalid("project_id", "Project không tồn tại."))?
+        .ok_or_else(|| invalid(field, "Project chưa gắn workspace Agent."))
 }

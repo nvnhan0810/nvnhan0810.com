@@ -93,10 +93,10 @@ impl TodoInput {
                 "agent_repo_id".into(),
                 "Cần chọn project trước khi chọn repository.".into(),
             );
-        } else if self.agent_auto && self.agent_repo_id.is_none() {
+        } else if self.agent_auto && self.project_id.is_none() {
             e.insert(
                 "agent_auto".into(),
-                "Cần chọn repository để Agent tự động xử lý.".into(),
+                "Cần chọn project để Agent tự động xử lý.".into(),
             );
         }
         self.agent_base_branch = clean_id(self.agent_base_branch.take());

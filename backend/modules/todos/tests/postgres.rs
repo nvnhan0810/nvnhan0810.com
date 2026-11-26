@@ -63,6 +63,13 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     )))
     .await
     .unwrap();
+    for sql in [
+        include_str!("../migrations/20261125000003_project_base_branch.up.sql"),
+        include_str!("../migrations/20261125000004_task_base_branch.up.sql"),
+        include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
+    ] {
+        tx.execute(sqlx::raw_sql(sql)).await.unwrap();
+    }
     tx.commit().await.unwrap();
     let owner = Uuid::new_v4();
     let other = Uuid::new_v4();
@@ -276,6 +283,13 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
     )))
     .await
     .unwrap();
+    for sql in [
+        include_str!("../migrations/20261125000003_project_base_branch.up.sql"),
+        include_str!("../migrations/20261125000004_task_base_branch.up.sql"),
+        include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
+    ] {
+        tx.execute(sqlx::raw_sql(sql)).await.unwrap();
+    }
     tx.commit().await.unwrap();
     pool.close().await;
     admin
@@ -346,6 +360,13 @@ async fn in_review_status_and_task_dependencies() {
     )))
     .await
     .unwrap();
+    for sql in [
+        include_str!("../migrations/20261125000003_project_base_branch.up.sql"),
+        include_str!("../migrations/20261125000004_task_base_branch.up.sql"),
+        include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
+    ] {
+        tx.execute(sqlx::raw_sql(sql)).await.unwrap();
+    }
     tx.commit().await.unwrap();
     let owner = Uuid::new_v4();
     let other = Uuid::new_v4();

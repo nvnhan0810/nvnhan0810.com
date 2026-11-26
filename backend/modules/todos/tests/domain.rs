@@ -233,10 +233,15 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
             .unwrap_err()
             .contains_key("agent_repo_id")
     );
+    // Auto without a repo runs in the workspace root: valid while the project is set.
     let mut auto_without_repo = base();
     auto_without_repo.agent_repo_id = Some("   ".into());
+    assert!(auto_without_repo.validate().is_ok());
+    let mut auto_without_project = base();
+    auto_without_project.agent_repo_id = None;
+    auto_without_project.project_id = None;
     assert!(
-        auto_without_repo
+        auto_without_project
             .validate()
             .unwrap_err()
             .contains_key("agent_auto")
