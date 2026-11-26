@@ -71,11 +71,9 @@ struct Row {
     agent_pr_url: Option<String>,
     description: Option<String>,
     eligible: bool,
-    /// `false` for a task that runs in the workspace root (no repo, so no PR).
-    has_repo: bool,
 }
 
-const LOCK_TASK: &str = "SELECT t.status,t.agent_state,t.agent_claim_id,t.agent_branch,t.agent_chat_url,t.agent_pr_url,t.description,(t.deleted_at IS NULL AND t.agent_auto AND t.status IN ('todo','in_progress')) AS eligible,(t.agent_repo_id IS NOT NULL) AS has_repo FROM todos t WHERE t.user_id=$1 AND t.id=$2 FOR UPDATE OF t";
+const LOCK_TASK: &str = "SELECT t.status,t.agent_state,t.agent_claim_id,t.agent_branch,t.agent_chat_url,t.agent_pr_url,t.description,(t.deleted_at IS NULL AND t.agent_auto AND t.agent_repo_id IS NOT NULL AND t.status IN ('todo','in_progress')) AS eligible FROM todos t WHERE t.user_id=$1 AND t.id=$2 FOR UPDATE OF t";
 
 async fn lock_task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> RunResult<Row> {
     sqlx::query_as::<_, Row>(LOCK_TASK)
@@ -142,7 +140,7 @@ async fn cancel_live(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> RunResult<()> {
 /// qualifies (status moved, automation off, deleted, repo removed) is cancelled in one statement.
 pub async fn guard_live_claims(tx: &mut Tx<'_>, owner: Uuid) -> crate::application::Result<()> {
     sqlx::query(
-        "WITH c AS (UPDATE todos SET agent_state='cancelled',agent_lease_until=NULL WHERE user_id=$1 AND agent_state IN ('claimed','running') AND NOT (deleted_at IS NULL AND agent_auto AND status IN ('todo','in_progress')) RETURNING id) INSERT INTO todo_agent_events(user_id,todo_id,kind,message) SELECT $1,id,'cancelled','Công việc đã đổi trạng thái hoặc tắt tự động xử lý trên Todo.' FROM c",
+        "WITH c AS (UPDATE todos SET agent_state='cancelled',agent_lease_until=NULL WHERE user_id=$1 AND agent_state IN ('claimed','running') AND NOT (deleted_at IS NULL AND agent_auto AND agent_repo_id IS NOT NULL AND status IN ('todo','in_progress')) RETURNING id) INSERT INTO todo_agent_events(user_id,todo_id,kind,message) SELECT $1,id,'cancelled','Công việc đã đổi trạng thái hoặc tắt tự động xử lý trên Todo.' FROM c",
     )
     .bind(owner)
     .execute(&mut **tx)
@@ -173,7 +171,7 @@ struct Candidate {
 
 /// Same eligibility and order as `run::claim_key`. `FOR UPDATE SKIP LOCKED` keeps two pollers
 /// from taking the same row.
-const CANDIDATES: &str = "SELECT t.id,t.agent_attempts AS attempts,t.agent_state AS state,t.agent_branch AS branch,t.agent_pr_url AS pr_url,t.agent_pr_has_conflict AS pr_has_conflict,t.agent_result_md AS result_md FROM todos t JOIN todo_projects p ON p.user_id=t.user_id AND p.id=t.project_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND p.agent_workspace_id=ANY($2::text[]) AND t.agent_auto AND t.status='todo' AND t.deleted_at IS NULL AND t.agent_state NOT IN ('claimed','running') AND NOT EXISTS (SELECT 1 FROM todo_dependencies d JOIN todos b ON b.user_id=d.user_id AND b.id=d.depends_on_id WHERE d.user_id=t.user_id AND d.todo_id=t.id AND (b.status<>'done' OR b.deleted_at IS NOT NULL)) ORDER BY CASE WHEN t.is_urgent AND t.is_important THEN 0 WHEN t.is_important THEN 1 WHEN t.is_urgent THEN 2 ELSE 3 END, CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.due_at NULLS LAST, t.created_at, t.id LIMIT $3 FOR UPDATE OF t SKIP LOCKED";
+const CANDIDATES: &str = "SELECT t.id,t.agent_attempts AS attempts,t.agent_state AS state,t.agent_branch AS branch,t.agent_pr_url AS pr_url,t.agent_pr_has_conflict AS pr_has_conflict,t.agent_result_md AS result_md FROM todos t JOIN todo_projects p ON p.user_id=t.user_id AND p.id=t.project_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND p.agent_workspace_id=ANY($2::text[]) AND t.agent_auto AND t.status='todo' AND t.deleted_at IS NULL AND t.agent_repo_id IS NOT NULL AND t.agent_state NOT IN ('claimed','running') AND NOT EXISTS (SELECT 1 FROM todo_dependencies d JOIN todos b ON b.user_id=d.user_id AND b.id=d.depends_on_id WHERE d.user_id=t.user_id AND d.todo_id=t.id AND (b.status<>'done' OR b.deleted_at IS NOT NULL)) ORDER BY CASE WHEN t.is_urgent AND t.is_important THEN 0 WHEN t.is_important THEN 1 WHEN t.is_urgent THEN 2 ELSE 3 END, CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.due_at NULLS LAST, t.created_at, t.id LIMIT $3 FOR UPDATE OF t SKIP LOCKED";
 
 #[derive(Debug, sqlx::FromRow)]
 struct Detail {
@@ -353,12 +351,6 @@ pub async fn report(pool: &PgPool, owner: Uuid, id: i64, r: Checked) -> RunResul
     repo::lock(&mut tx, owner).await?;
     let row = lock_task(&mut tx, owner, id).await?;
     check_claim(&row, r.claim_id)?;
-    // A repo task finishes with a PR; a workspace-root task has none to report.
-    if r.report == Report::Succeeded && r.pr_url.is_none() && row.has_repo {
-        let mut e = Errors::new();
-        e.insert("pr_url".into(), "Cần PR khi báo thành công.".into());
-        return Err(RunError::Validation(e));
-    }
     let current = state_of(&row);
     let target = match run::step(current, r.report) {
         // Same terminal state again: nothing to do, the first answer stands.

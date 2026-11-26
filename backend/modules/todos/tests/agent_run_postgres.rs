@@ -54,6 +54,7 @@ async fn database() -> PgPool {
         include_str!("../migrations/20261125000003_project_base_branch.up.sql"),
         include_str!("../migrations/20261125000004_task_base_branch.up.sql"),
         include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
+        include_str!("../migrations/20261126000002_agent_auto_needs_repo.up.sql"),
     ] {
         pool.execute(sqlx::raw_sql(sql)).await.unwrap();
     }
@@ -471,15 +472,8 @@ async fn report_lifecycle_and_idempotency() {
     .await
     .unwrap();
 
-    // A task with a repo needs a PR to succeed; the report is refused before the row changes.
-    assert!(matches!(
-        send(&pool, owner, id, claim, json!({"state":"succeeded"})).await,
-        Err(RunError::Validation(_))
-    ));
-    assert_eq!(
-        state(&pool, id).await,
-        ("in_progress".into(), "running".into())
-    );
+    // A PR is required for success; the validator refuses it before it reaches the database.
+    assert!(check_report(report_input(claim, json!({"state":"succeeded"}))).is_err());
 
     send(&pool, owner, id, claim, json!({"state":"succeeded","chat_url":"https://agent.example/chats/9","branch":"agent/todo-1-fix","pr_url":"https://github.com/o/r/pull/10","has_conflict":true,"conflict_files":["src/x.rs"],"summary_md":"Đã sửa."}))
         .await

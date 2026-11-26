@@ -121,8 +121,7 @@ it("offers only the project workspace's repos, disables repos without main, and 
       .findAll("label.checkbox")
       .find((l) => l.text().includes("Agent"))!
       .get("input");
-  // Without a repo the task runs in the workspace root, so auto is allowed.
-  expect(autoBox().attributes("disabled")).toBeUndefined();
+  expect(autoBox().attributes("disabled")).toBeDefined();
 
   await wrapper.get("input").setValue("Ship it");
   await repoSelect.setValue("r-api");
@@ -137,33 +136,6 @@ it("offers only the project workspace's repos, disables repos without main, and 
     expect.objectContaining({
       project_id: 5,
       agent_repo_id: "r-api",
-      agent_auto: true,
-    }),
-  );
-  wrapper.unmount();
-});
-
-it("turns auto on for a task without a repo: it runs in the workspace root", async () => {
-  const wrapper = mount(TaskEditor, {
-    props: { projects: [project(5, "ws-1")] },
-  });
-  await flushPromises();
-  await wrapper.findAll("select")[0].setValue(5);
-  await flushPromises();
-  await wrapper.get("input").setValue("Root task");
-  await wrapper
-    .findAll("label.checkbox")
-    .find((l) => l.text().includes("Agent"))!
-    .get("input")
-    .setValue(true);
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-  expect(mocks.submit).toHaveBeenLastCalledWith(
-    "/todos",
-    "POST",
-    expect.objectContaining({
-      project_id: 5,
-      agent_repo_id: null,
       agent_auto: true,
     }),
   );
