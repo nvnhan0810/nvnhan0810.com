@@ -6,6 +6,12 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 trap 'code=$?; printf "[deploy] Failed (exit %s).\n" "$code" >&2; exit "$code"' ERR
 
+# SSH, cron and Supervisor shells may skip the user's profile, so load user tools here.
+for dir in "$HOME/.local/bin" "${CARGO_HOME:-$HOME/.cargo}/bin"; do
+  if [[ -d "$dir" && ":$PATH:" != *":$dir:"* ]]; then PATH="$dir:$PATH"; fi
+done
+export PATH
+
 for command in git cargo sudo /usr/bin/supervisorctl; do
   command -v "$command" >/dev/null 2>&1 || {
     printf '[deploy] Missing command: %s\n' "$command" >&2

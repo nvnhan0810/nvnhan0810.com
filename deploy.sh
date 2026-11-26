@@ -24,6 +24,19 @@ die() { printf '[deploy] ERROR: %s\n' "$*" >&2; exit 1; }
 require_command() { command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"; }
 print_command() { printf '[deploy] '; printf '%q ' "$@"; printf '\n'; }
 
+# SSH, cron and Supervisor shells may skip the user's profile, so load user tools here.
+load_user_tools() {
+  local dir
+  for dir in "$HOME/.local/bin" "${CARGO_HOME:-$HOME/.cargo}/bin" "${FNM_DIR:-$HOME/.local/share/fnm}"; do
+    if [[ -d "$dir" && ":$PATH:" != *":$dir:"* ]]; then PATH="$dir:$PATH"; fi
+  done
+  export PATH
+  # fnm puts its default Node version on PATH.
+  if command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env --shell bash)"
+  fi
+}
+
 main() {
   local dry_run=false force_all=false use_sudo=false option
   for option in "$@"; do
@@ -39,6 +52,7 @@ main() {
   local repo_root
   repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
   cd -- "$repo_root"
+  load_user_tools
   require_command git
   require_command flock
   [[ "$(git rev-parse --show-toplevel)" == "$repo_root" ]] || die 'Place deploy.sh at the repository root.'
@@ -116,7 +130,7 @@ main() {
   log "Compare deployed ${baseline:0:12} -> ${after_head:0:12}"
   if [[ "$dry_run" == false ]]; then
     [[ "$backend_changed" == false ]] || require_command cargo
-    ((${#changed_frontends[@]} == 0)) || require_command npm
+    ((${#changed_frontends[@]} == 0)) || { require_command node; require_command npm; }
     if ((${#services[@]})); then
       require_command /usr/bin/supervisorctl
       [[ "$use_sudo" == false ]] || require_command sudo
