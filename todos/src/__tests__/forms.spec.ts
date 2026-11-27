@@ -129,6 +129,51 @@ it("offers only same-project tasks, never itself, and submits depends_on", async
   );
   wrapper.unmount();
 });
+it("keeps selected done/rejected dependencies in the picker so they can be removed", async () => {
+  mocks.submit.mockResolvedValue(undefined);
+  const wrapper = mount(TaskEditor, {
+    props: {
+      projects: [project(5), project(6)],
+      // The candidate list leaves closed tasks out; DEF-7 / DEF-8 are only known via depends_on.
+      candidates: candidates.filter((c) => c.status !== "done"),
+      todo: {
+        id: 9,
+        project_id: 5,
+        title: "Self",
+        description: null,
+        status: "todo",
+        priority: "medium",
+        started_at: null,
+        due_at: null,
+        closed_at: null,
+        is_urgent: false,
+        is_important: false,
+        depends_on: [
+          { id: 7, identifier: "DEF-7", title: "Finished", status: "done" },
+          { id: 8, identifier: "DEF-8", title: "Dropped", status: "rejected" },
+        ],
+      },
+    },
+  });
+  const picker = wrapper.find(".dependencies");
+  expect(picker.text()).toContain("DEF-7");
+  expect(picker.text()).toContain("DEF-8");
+  const boxes = wrapper.findAll(".dependencies input[type=checkbox]");
+  expect(boxes).toHaveLength(3);
+  const rejected = boxes.find(
+    (b) => (b.element as HTMLInputElement).value === "8",
+  )!;
+  expect((rejected.element as HTMLInputElement).checked).toBe(true);
+  await rejected.setValue(false);
+  await wrapper.get("form").trigger("submit");
+  await flushPromises();
+  expect(mocks.submit).toHaveBeenLastCalledWith(
+    "/todos/9",
+    "PUT",
+    expect.objectContaining({ depends_on: [7] }),
+  );
+  wrapper.unmount();
+});
 it("drops selected dependencies when the project changes", async () => {
   mocks.submit.mockResolvedValue(undefined);
   const wrapper = mount(TaskEditor, {

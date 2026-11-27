@@ -56,9 +56,12 @@ export type MatrixQuadrantKey = "do" | "schedule" | "delegate" | "eliminate";
 
 export type MatrixQuadrants = Record<MatrixQuadrantKey, TodoItem[]>;
 
-/** Tasks this one still waits for (everything that is not `done`). */
+/** Tasks this one still waits for. `done` and `rejected` are closed: a rejected task will never
+ * be done, so it no longer blocks (the server applies the same rule when handing out work). */
 export function pendingDependencies(todo: Pick<TodoItem, "depends_on">) {
-  return (todo.depends_on ?? []).filter((d) => d.status !== "done");
+  return (todo.depends_on ?? []).filter(
+    (d) => d.status !== "done" && d.status !== "rejected",
+  );
 }
 
 /** Agent run state of a task (Phase 4). `idle` = never claimed, or released. */
