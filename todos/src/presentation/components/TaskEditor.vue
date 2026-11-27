@@ -49,13 +49,18 @@ const form = reactive({
   agent_auto: props.todo?.agent_auto ?? false,
   agent_base_branch: props.todo?.agent_base_branch ?? "",
 });
-// Only tasks of the selected project can be waited for; keep ones already selected visible.
+// Only tasks of the selected project can be waited for. Ones already selected stay visible even
+// when the candidate list leaves them out (done / rejected tasks), so they can still be unpicked.
 const dependencyOptions = computed(() => {
   if (!form.project_id) return [];
   const known = new Map<number, DependencyCandidate>();
   for (const c of props.candidates ?? [])
     if (c.project_id === form.project_id && c.id !== props.todo?.id)
       known.set(c.id, c);
+  if (props.todo && form.project_id === props.todo.project_id)
+    for (const d of props.todo.depends_on ?? [])
+      if (d.id !== props.todo.id && !known.has(d.id))
+        known.set(d.id, { ...d, project_id: form.project_id });
   return [...known.values()];
 });
 // Agent run panel (Phase 4): state, branch, PR, chat, last result and timeline. Read-only.
