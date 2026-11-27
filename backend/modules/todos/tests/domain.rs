@@ -233,10 +233,16 @@ fn agent_fields_are_validated_before_they_reach_the_database() {
             .unwrap_err()
             .contains_key("agent_repo_id")
     );
+    // No repo: the task runs in the project's Agent workspace root.
     let mut auto_without_repo = base();
     auto_without_repo.agent_repo_id = Some("   ".into());
+    auto_without_repo.validate().unwrap();
+    assert_eq!(auto_without_repo.agent_repo_name, None);
+    let mut auto_without_project = base();
+    auto_without_project.agent_repo_id = None;
+    auto_without_project.project_id = None;
     assert!(
-        auto_without_repo
+        auto_without_project
             .validate()
             .unwrap_err()
             .contains_key("agent_auto")

@@ -107,13 +107,15 @@ const repoBase = computed(() => selectedRepo.value?.base_branch || "main");
 const ownBase = computed(() => form.agent_base_branch.trim() !== "");
 // With the catalog we know whether the repo can run. Without it (Agent offline) we only keep
 // what was already stored; the server re-checks on save.
+// Without a repo the Agent works in the project's workspace root, so only the workspace is needed.
 const autoDisabled = computed(() => {
-  if (!form.agent_repo_id) return true;
-  if (catalog.value) return !ownBase.value && !selectedRepo.value?.has_main;
+  if (!workspaceId.value) return true;
+  if (catalog.value && form.agent_repo_id)
+    return !ownBase.value && !selectedRepo.value?.has_main;
   return catalogCode.value === "not_linked";
 });
 const autoHint = computed(() => {
-  if (!form.agent_repo_id) return t("agentAutoNeedsRepo");
+  if (!workspaceId.value) return t("agentAutoNeedsWorkspace");
   if (
     catalog.value &&
     selectedRepo.value &&
@@ -122,6 +124,7 @@ const autoHint = computed(() => {
   )
     return t("agentRepoNeedsMain");
   if (catalogIssue.value) return catalogIssue.value;
+  if (!form.agent_repo_id) return t("agentAutoWorkspaceHint");
   return t("agentAutoHint");
 });
 async function ensureCatalog() {
@@ -151,12 +154,9 @@ watch(
     ensureCatalog();
   },
 );
-watch(
-  () => form.agent_repo_id,
-  (id) => {
-    if (!id) form.agent_auto = false;
-  },
-);
+watch(workspaceId, (id) => {
+  if (!id) form.agent_auto = false;
+});
 const showProject = ref(false),
   createdProjects = ref<TodoProject[]>([]);
 const availableProjects = computed(() => [

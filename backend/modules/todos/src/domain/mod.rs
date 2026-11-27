@@ -93,10 +93,11 @@ impl TodoInput {
                 "agent_repo_id".into(),
                 "Cần chọn project trước khi chọn repository.".into(),
             );
-        } else if self.agent_auto && self.agent_repo_id.is_none() {
+        } else if self.agent_auto && self.project_id.is_none() {
+            // Without a repo the task runs in the project's Agent workspace root.
             e.insert(
                 "agent_auto".into(),
-                "Cần chọn repository để Agent tự động xử lý.".into(),
+                "Cần chọn project (đã gắn workspace Agent) để Agent tự động xử lý.".into(),
             );
         }
         self.agent_base_branch = clean_id(self.agent_base_branch.take());

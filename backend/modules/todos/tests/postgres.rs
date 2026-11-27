@@ -69,6 +69,7 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
         include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
         include_str!("../migrations/20261126000002_agent_auto_needs_repo.up.sql"),
         include_str!("../migrations/20261126000003_agent_pause.up.sql"),
+        include_str!("../migrations/20261127000001_agent_auto_workspace.up.sql"),
     ] {
         tx.execute(sqlx::raw_sql(sql)).await.unwrap();
     }
@@ -291,6 +292,7 @@ async fn relational_crud_ownership_matrix_pomodoro_and_rollback() {
         include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
         include_str!("../migrations/20261126000002_agent_auto_needs_repo.up.sql"),
         include_str!("../migrations/20261126000003_agent_pause.up.sql"),
+        include_str!("../migrations/20261127000001_agent_auto_workspace.up.sql"),
     ] {
         tx.execute(sqlx::raw_sql(sql)).await.unwrap();
     }
@@ -370,6 +372,7 @@ async fn in_review_status_and_task_dependencies() {
         include_str!("../migrations/20261126000001_agent_root_auto.up.sql"),
         include_str!("../migrations/20261126000002_agent_auto_needs_repo.up.sql"),
         include_str!("../migrations/20261126000003_agent_pause.up.sql"),
+        include_str!("../migrations/20261127000001_agent_auto_workspace.up.sql"),
     ] {
         tx.execute(sqlx::raw_sql(sql)).await.unwrap();
     }

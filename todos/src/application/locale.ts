@@ -121,7 +121,10 @@ const labels: Record<string, [string, string]> = {
     "Changing the workspace clears the repositories of this project's tasks.",
   ],
   agentRepo: ["Repository Agent", "Agent repository"],
-  agentRepoNone: ["— Không chọn —", "— None —"],
+  agentRepoNone: [
+    "— Không chọn (chạy trong workspace) —",
+    "— None (run in the workspace) —",
+  ],
   agentNoMain: ["(chưa có nhánh gốc)", "(no base branch)"],
   agentAuto: ["Agent tự động xử lý", "Let Agent handle it automatically"],
   agentAutoHint: [
@@ -140,9 +143,13 @@ const labels: Record<string, [string, string]> = {
     "Không lấy được danh sách từ Agent. Hãy thử lại sau.",
     "Could not load the list from Agent. Try again later.",
   ],
-  agentAutoNeedsRepo: [
-    "Chọn repository trước khi bật tự động xử lý.",
-    "Pick a repository before turning on automatic handling.",
+  agentAutoNeedsWorkspace: [
+    "Chọn project đã gắn workspace Agent trước khi bật tự động xử lý.",
+    "Pick a project linked to an Agent workspace before turning on automatic handling.",
+  ],
+  agentAutoWorkspaceHint: [
+    "Không chọn repository: Agent làm trực tiếp trong thư mục workspace, tự xác định các repo liên quan; không tạo nhánh hay PR, bạn tự xem lại và commit.",
+    "No repository: the Agent works directly in the workspace folder and finds the related repos itself; no branch or PR, you review and commit.",
   ],
   agentRepoNeedsMain: [
     "Repository chưa có nhánh gốc mặc định nên Agent không thể xử lý. Đổi nhánh gốc của repo trên Agent hoặc nhập nhánh gốc cho task.",

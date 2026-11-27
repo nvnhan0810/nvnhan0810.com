@@ -309,9 +309,7 @@ pub fn check_report(input: ReportInput) -> Result<Checked, Errors> {
             "Danh sách file conflict quá dài.".into(),
         );
     }
-    if report == Some(Report::Succeeded) && pr_url.is_none() {
-        e.insert("pr_url".into(), "Cần PR khi báo thành công.".into());
-    }
+    // `pr_url` is required on success only for a task with a repo (checked against the task).
     if !e.is_empty() {
         return Err(e);
     }
@@ -577,10 +575,8 @@ mod tests {
             error: None,
             summary_md: None,
         };
-        assert!(
-            check_report(base("succeeded", None)).is_err(),
-            "succeeded needs a PR"
-        );
+        // A task without a repo succeeds without a PR; the PR rule is checked against the task.
+        assert!(check_report(base("succeeded", None)).is_ok());
         assert!(check_report(base("succeeded", Some("https://github.com/o/r/pull/1"))).is_ok());
         assert!(
             check_report(base("failed", None)).is_ok(),
