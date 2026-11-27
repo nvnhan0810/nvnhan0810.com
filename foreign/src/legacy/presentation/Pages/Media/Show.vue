@@ -4,7 +4,13 @@ import { RoutePath } from '../../../../app/router/paths'
 import { appPath } from '@/path'
 import { Head, Link, usePage, useForm, router } from '@/application/navigation'
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { LoaderCircle } from 'lucide-vue-next'
+import {
+  ChevronDown,
+  ChevronUp,
+  Columns2,
+  LoaderCircle,
+  RectangleHorizontal,
+} from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import YouTubeSyncedPlayer from '@/Components/media/YouTubeSyncedPlayer.vue'
 import TimedTranscriptList from '@/Components/media/TimedTranscriptList.vue'
@@ -122,6 +128,40 @@ const canEmbedYoutube = computed(
     !isFlcApp.value,
 )
 
+const VIDEO_WIDE_KEY = 'foreign.media.videoWide'
+const TRANSCRIPT_COLLAPSED_KEY = 'foreign.media.transcriptCollapsed'
+
+function readFlag(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeFlag(key: string, value: boolean): void {
+  try {
+    window.localStorage.setItem(key, value ? '1' : '0')
+  } catch {
+    /* Storage may be unavailable (private mode); keep in-memory state. */
+  }
+}
+
+const videoWide = ref(readFlag(VIDEO_WIDE_KEY))
+const transcriptCollapsed = ref(readFlag(TRANSCRIPT_COLLAPSED_KEY))
+watch(videoWide, (value) => writeFlag(VIDEO_WIDE_KEY, value))
+watch(transcriptCollapsed, (value) =>
+  writeFlag(TRANSCRIPT_COLLAPSED_KEY, value),
+)
+
+function toggleVideoWide(): void {
+  videoWide.value = !videoWide.value
+}
+
+function toggleTranscript(): void {
+  transcriptCollapsed.value = !transcriptCollapsed.value
+}
+
 function onPlayerTimeUpdate(seconds: number): void {
   currentTime.value = seconds
 }
@@ -150,7 +190,13 @@ function onTranscriptSeek(seconds: number): void {
     </template>
 
     <div class="media-show-page">
-      <div class="media-show-main">
+      <div
+        class="media-show-main"
+        :class="{
+          'is-video-wide': videoWide,
+          'is-transcript-collapsed': transcriptCollapsed,
+        }"
+      >
         <a
           v-if="
             item.type === 'youtube' &&
@@ -177,7 +223,25 @@ function onTranscriptSeek(seconds: number): void {
           :video-id="item.source_id"
           :title="item.title"
           @timeupdate="onPlayerTimeUpdate"
-        />
+        >
+          <template #toolbar-actions>
+            <button
+              type="button"
+              class="media-layout-toggle"
+              :aria-pressed="videoWide"
+              :aria-label="
+                videoWide ? 'Show transcript beside video' : 'Full width video'
+              "
+              :title="
+                videoWide ? 'Show transcript beside video' : 'Full width video'
+              "
+              @click="toggleVideoWide"
+            >
+              <Columns2 v-if="videoWide" :size="20" aria-hidden="true" />
+              <RectangleHorizontal v-else :size="20" aria-hidden="true" />
+            </button>
+          </template>
+        </YouTubeSyncedPlayer>
         <p v-else-if="item.url" class="media-show-open-link">
           <a :href="item.url" target="_blank" rel="noopener" class="btn"
             >Open media</a
@@ -214,10 +278,34 @@ function onTranscriptSeek(seconds: number): void {
               >
                 {{ item.transcript || hasTimedTranscript ? 'Edit' : 'Add' }}
               </Link>
+              <button
+                type="button"
+                class="transcript-collapse-toggle"
+                :aria-expanded="!transcriptCollapsed"
+                aria-controls="media-transcript-body"
+                :aria-label="
+                  transcriptCollapsed ? 'Show transcript' : 'Hide transcript'
+                "
+                :title="
+                  transcriptCollapsed ? 'Show transcript' : 'Hide transcript'
+                "
+                @click="toggleTranscript"
+              >
+                <ChevronDown
+                  v-if="transcriptCollapsed"
+                  :size="18"
+                  aria-hidden="true"
+                />
+                <ChevronUp v-else :size="18" aria-hidden="true" />
+              </button>
             </div>
           </div>
 
-          <div class="transcript-scroll-panel">
+          <div
+            v-show="!transcriptCollapsed"
+            id="media-transcript-body"
+            class="transcript-scroll-panel"
+          >
             <div class="transcript-view">
               <div
                 v-if="transcriptPending && !hasTimedTranscript"
@@ -270,6 +358,41 @@ function onTranscriptSeek(seconds: number): void {
 </template>
 
 <style scoped>
+.media-layout-toggle,
+.transcript-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+}
+.media-layout-toggle {
+  width: 40px;
+  height: 40px;
+}
+.transcript-collapse-toggle {
+  width: 32px;
+  height: 32px;
+}
+.media-layout-toggle:hover,
+.transcript-collapse-toggle:hover {
+  background: var(--primary-soft);
+}
+.media-layout-toggle:focus-visible,
+.transcript-collapse-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* Side-by-side layout only exists on wide screens. */
+@media (max-width: 1023px) {
+  .media-layout-toggle {
+    display: none;
+  }
+}
 .transcript-queue-loading {
   display: grid;
   place-items: center;

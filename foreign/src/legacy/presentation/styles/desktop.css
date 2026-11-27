@@ -93,6 +93,19 @@
   .media-show-main .transcript-panel {
     margin-top: 0;
   }
+  /* Full width video: stack transcript below and let the page scroll. */
+  .media-show-main.is-video-wide {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    overflow-y: auto;
+  }
+  .media-show-main.is-video-wide > .transcript-panel {
+    height: max(320px, 60dvh);
+    margin-top: 0;
+  }
+  .media-show-main.is-transcript-collapsed > .transcript-panel {
+    height: auto;
+  }
   .puzzle-mode-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }

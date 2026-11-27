@@ -3328,6 +3328,11 @@ body.media-add-modal-open {
   margin-bottom: 12px;
 }
 
+/* Transcript collapsed: keep only the panel header (and actions). */
+.media-show-main.is-transcript-collapsed > .transcript-panel {
+  flex: 0 0 auto;
+}
+
 .media-show-open-link {
   margin: 0 0 4px;
 }
