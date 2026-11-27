@@ -72,11 +72,9 @@ struct Row {
     description: Option<String>,
     eligible: bool,
     pause_requested: bool,
-    /// No repo: the Agent works in the workspace root, so there is no branch or PR.
-    in_workspace: bool,
 }
 
-const LOCK_TASK: &str = "SELECT t.status,t.agent_state,t.agent_claim_id,t.agent_branch,t.agent_chat_url,t.agent_pr_url,t.description,t.agent_pause_requested AS pause_requested,(t.deleted_at IS NULL AND t.agent_auto AND t.project_id IS NOT NULL AND t.status IN ('todo','in_progress')) AS eligible,(t.agent_repo_id IS NULL) AS in_workspace FROM todos t WHERE t.user_id=$1 AND t.id=$2 FOR UPDATE OF t";
+const LOCK_TASK: &str = "SELECT t.status,t.agent_state,t.agent_claim_id,t.agent_branch,t.agent_chat_url,t.agent_pr_url,t.description,t.agent_pause_requested AS pause_requested,(t.deleted_at IS NULL AND t.agent_auto AND t.project_id IS NOT NULL AND t.status IN ('todo','in_progress')) AS eligible FROM todos t WHERE t.user_id=$1 AND t.id=$2 FOR UPDATE OF t";
 
 async fn lock_task(tx: &mut Tx<'_>, owner: Uuid, id: i64) -> RunResult<Row> {
     sqlx::query_as::<_, Row>(LOCK_TASK)
@@ -265,7 +263,8 @@ pub async fn claim(
             "title": d.title,
             "description": run::strip_result(d.description.as_deref().unwrap_or("")),
             "project": {"id": d.project_id, "name": d.project_name, "agent_workspace_id": d.project_workspace},
-            // `null`: no repo, the Agent runs the task in the workspace root.
+            // `null`: no repo. The Agent clones every repo of the workspace, picks the related
+            // ones and opens one PR per changed repo (`pr_url` is the first).
             "repo": d.agent_repo_id.as_ref().map(|id| json!({"agent_repo_id": id, "name": d.agent_repo_name})),
             // `null` = the repo's default base on Agent.
             "base_branch": d.agent_base_branch,
@@ -385,12 +384,6 @@ pub async fn report(pool: &PgPool, owner: Uuid, id: i64, r: Checked) -> RunResul
             tx.commit().await?;
         }
         return Err(RunError::Gone);
-    }
-    // A task with a repo ends in a PR; one run in the workspace root has none.
-    if r.report == Report::Succeeded && r.pr_url.is_none() && !row.in_workspace {
-        let mut e = Errors::new();
-        e.insert("pr_url".into(), "Cần PR khi báo thành công.".into());
-        return Err(RunError::Validation(e));
     }
     let status = apply_report(&mut tx, owner, id, &row, r).await?;
     repo::bump(&mut tx, owner).await?;

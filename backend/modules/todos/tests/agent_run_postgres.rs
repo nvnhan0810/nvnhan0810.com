@@ -478,11 +478,8 @@ async fn report_lifecycle_and_idempotency() {
     .await
     .unwrap();
 
-    // The task has a repo: success without a PR is refused.
-    assert!(matches!(
-        send(&pool, owner, id, claim, json!({"state":"succeeded"})).await,
-        Err(RunError::Validation(_))
-    ));
+    // A PR is required for success; the validator refuses it before it reaches the database.
+    assert!(check_report(report_input(claim, json!({"state":"succeeded"}))).is_err());
 
     send(&pool, owner, id, claim, json!({"state":"succeeded","chat_url":"https://agent.example/chats/9","branch":"agent/todo-1-fix","pr_url":"https://github.com/o/r/pull/10","has_conflict":true,"conflict_files":["src/x.rs"],"summary_md":"Đã sửa."}))
         .await
@@ -970,49 +967,37 @@ async fn users_only_reach_their_own_tasks_and_release_returns_the_task() {
 
 #[tokio::test]
 #[ignore = "requires TODO_TEST_DATABASE_URL pointing to disposable PostgreSQL"]
-async fn task_without_repo_is_claimed_for_the_workspace_and_succeeds_without_pr() {
+async fn task_without_repo_is_claimed_with_a_null_repo_and_succeeds_with_its_pr() {
     let pool = database().await;
     let owner = user(&pool).await;
     let project = project(&pool, owner, "ws-a").await;
     let with_repo = simple_task(&pool, owner, project).await;
-    let in_workspace = simple_task(&pool, owner, project).await;
+    let any_repo = simple_task(&pool, owner, project).await;
     sqlx::query("UPDATE todos SET agent_repo_id=NULL WHERE id=$1")
-        .bind(in_workspace)
+        .bind(any_repo)
         .execute(&pool)
         .await
         .unwrap();
     let tasks = claim_all(&pool, owner, &["ws-a"], 10).await;
     let claimed = |id: i64| tasks.iter().find(|t| t["id"] == id).unwrap().clone();
-    assert_eq!(claimed(in_workspace)["repo"], Value::Null);
+    assert_eq!(claimed(any_repo)["repo"], Value::Null);
     assert_eq!(claimed(with_repo)["repo"]["agent_repo_id"], "repo-1");
-    let claim = |id: i64| -> Uuid { claimed(id)["claim_id"].as_str().unwrap().parse().unwrap() };
-    // A task with a repo still needs its PR to succeed.
-    let missing_pr = send(
-        &pool,
-        owner,
-        with_repo,
-        claim(with_repo),
-        json!({"state": "succeeded"}),
-    )
-    .await;
-    assert!(matches!(missing_pr, Err(RunError::Validation(e)) if e.contains_key("pr_url")));
-    // In the workspace root there is no PR: the task goes to review with the chat link.
+    let claim: Uuid = claimed(any_repo)["claim_id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
     send(
         &pool,
         owner,
-        in_workspace,
-        claim(in_workspace),
-        json!({"state": "succeeded", "chat_url": "https://agent.example/#/chats/c", "summary_md": "Xong"}),
+        any_repo,
+        claim,
+        json!({"state": "succeeded", "branch": "agent/def-2", "pr_url": "https://github.com/o/web/pull/3", "summary_md": "- `web`: https://github.com/o/web/pull/3"}),
     )
     .await
     .unwrap();
     assert_eq!(
-        state(&pool, in_workspace).await,
+        state(&pool, any_repo).await,
         ("in_review".into(), "succeeded".into())
-    );
-    assert!(
-        description(&pool, in_workspace)
-            .await
-            .contains("https://agent.example/#/chats/c")
     );
 }

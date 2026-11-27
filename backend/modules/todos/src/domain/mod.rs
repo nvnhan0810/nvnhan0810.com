@@ -94,7 +94,7 @@ impl TodoInput {
                 "Cần chọn project trước khi chọn repository.".into(),
             );
         } else if self.agent_auto && self.project_id.is_none() {
-            // Without a repo the task runs in the project's Agent workspace root.
+            // Without a repo the Agent works across the repos of the project's workspace.
             e.insert(
                 "agent_auto".into(),
                 "Cần chọn project (đã gắn workspace Agent) để Agent tự động xử lý.".into(),
