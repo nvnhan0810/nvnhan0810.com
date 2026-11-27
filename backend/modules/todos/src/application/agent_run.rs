@@ -181,7 +181,7 @@ struct Candidate {
 
 /// Same eligibility and order as `run::claim_key`. `FOR UPDATE SKIP LOCKED` keeps two pollers
 /// from taking the same row.
-const CANDIDATES: &str = "SELECT t.id,t.agent_attempts AS attempts,t.agent_state AS state,t.agent_branch AS branch,t.agent_pr_url AS pr_url,t.agent_pr_has_conflict AS pr_has_conflict,t.agent_result_md AS result_md FROM todos t JOIN todo_projects p ON p.user_id=t.user_id AND p.id=t.project_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND p.agent_workspace_id=ANY($2::text[]) AND t.agent_auto AND t.status='todo' AND t.deleted_at IS NULL AND t.agent_state NOT IN ('claimed','running','paused') AND NOT EXISTS (SELECT 1 FROM todo_dependencies d JOIN todos b ON b.user_id=d.user_id AND b.id=d.depends_on_id WHERE d.user_id=t.user_id AND d.todo_id=t.id AND (b.status<>'done' OR b.deleted_at IS NOT NULL)) ORDER BY CASE WHEN t.is_urgent AND t.is_important THEN 0 WHEN t.is_important THEN 1 WHEN t.is_urgent THEN 2 ELSE 3 END, CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.due_at NULLS LAST, t.created_at, t.id LIMIT $3 FOR UPDATE OF t SKIP LOCKED";
+const CANDIDATES: &str = "SELECT t.id,t.agent_attempts AS attempts,t.agent_state AS state,t.agent_branch AS branch,t.agent_pr_url AS pr_url,t.agent_pr_has_conflict AS pr_has_conflict,t.agent_result_md AS result_md FROM todos t JOIN todo_projects p ON p.user_id=t.user_id AND p.id=t.project_id AND p.deleted_at IS NULL WHERE t.user_id=$1 AND p.agent_workspace_id=ANY($2::text[]) AND t.agent_auto AND t.status='todo' AND t.deleted_at IS NULL AND t.agent_state NOT IN ('claimed','running','paused') AND NOT EXISTS (SELECT 1 FROM todo_dependencies d JOIN todos b ON b.user_id=d.user_id AND b.id=d.depends_on_id WHERE d.user_id=t.user_id AND d.todo_id=t.id AND b.deleted_at IS NULL AND b.status NOT IN ('done','rejected')) ORDER BY CASE WHEN t.is_urgent AND t.is_important THEN 0 WHEN t.is_important THEN 1 WHEN t.is_urgent THEN 2 ELSE 3 END, CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.due_at NULLS LAST, t.created_at, t.id LIMIT $3 FOR UPDATE OF t SKIP LOCKED";
 
 #[derive(Debug, sqlx::FromRow)]
 struct Detail {
@@ -234,7 +234,7 @@ pub async fn claim(
             .bind(c.id)
             .fetch_one(&mut *tx)
             .await?;
-        let deps: Vec<Value> = sqlx::query_scalar("SELECT jsonb_build_object('id',b.id,'identifier',b.identifier,'title',b.title,'pr_url',b.agent_pr_url) FROM todo_dependencies x JOIN todos b ON b.user_id=x.user_id AND b.id=x.depends_on_id WHERE x.user_id=$1 AND x.todo_id=$2 ORDER BY b.id")
+        let deps: Vec<Value> = sqlx::query_scalar("SELECT jsonb_build_object('id',b.id,'identifier',b.identifier,'title',b.title,'pr_url',b.agent_pr_url) FROM todo_dependencies x JOIN todos b ON b.user_id=x.user_id AND b.id=x.depends_on_id WHERE x.user_id=$1 AND x.todo_id=$2 AND b.deleted_at IS NULL AND b.status='done' ORDER BY b.id")
             .bind(owner)
             .bind(c.id)
             .fetch_all(&mut *tx)

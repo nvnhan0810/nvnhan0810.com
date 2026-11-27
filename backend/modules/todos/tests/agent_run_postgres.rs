@@ -381,16 +381,28 @@ async fn eligibility_and_dependencies_gate_the_claim() {
         .execute(&pool)
         .await
         .unwrap();
-
-    let first: Vec<i64> = claim_all(&pool, owner, &["ws-a"], 10)
+    let blocked_by_deleted = simple_task(&pool, owner, p).await;
+    sqlx::query("INSERT INTO todo_dependencies(user_id,todo_id,depends_on_id) VALUES($1,$2,$3)")
+        .bind(owner)
+        .bind(blocked_by_deleted)
+        .bind(deleted)
+        .execute(&pool)
         .await
-        .iter()
-        .map(|t| t["id"].as_i64().unwrap())
-        .collect();
+        .unwrap();
+
+    let claimed = claim_all(&pool, owner, &["ws-a"], 10).await;
+    let first: Vec<i64> = claimed.iter().map(|t| t["id"].as_i64().unwrap()).collect();
+    // A rejected or deleted dependency will never be done: it must not keep its task stuck, and
+    // it is not handed to the Agent as code to build on.
+    for t in &claimed {
+        if t["id"] != json!(a) {
+            assert_eq!(t["depends_on"], json!([]), "task {}", t["id"]);
+        }
+    }
     assert_eq!(
         first,
-        vec![a],
-        "only A: B waits, the rest are not todo, not auto, deleted or blocked"
+        vec![a, blocked_by_rejected, blocked_by_deleted],
+        "A and the tasks waiting on a rejected/deleted one: B waits, the rest are not todo, not auto or deleted"
     );
 
     sqlx::query("UPDATE todos SET status='done' WHERE id=$1")
@@ -403,11 +415,7 @@ async fn eligibility_and_dependencies_gate_the_claim() {
         .iter()
         .map(|t| t["id"].as_i64().unwrap())
         .collect();
-    assert_eq!(
-        second,
-        vec![b],
-        "B is handed out once A is done; a rejected dependency keeps its task blocked"
-    );
+    assert_eq!(second, vec![b], "B is handed out once A is done");
 }
 
 #[tokio::test]
