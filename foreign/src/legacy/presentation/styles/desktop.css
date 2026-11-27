@@ -93,17 +93,49 @@
   .media-show-main .transcript-panel {
     margin-top: 0;
   }
-  /* Full width video: stack transcript below and let the page scroll. */
+  /*
+   * Full width video: stack the transcript below without page scroll.
+   * The main area is a size container, so the video is capped to the
+   * height left after the player controls and a transcript reserve. This
+   * keeps the whole player (video + controls) inside the viewport.
+   */
   .media-show-main.is-video-wide {
-    grid-template-columns: minmax(0, 1fr);
+    --media-player-controls: 84px;
+    --media-transcript-reserve: max(200px, 30cqh);
+    display: flex;
+    flex-direction: column;
     gap: 0;
-    overflow-y: auto;
+    overflow: hidden;
+    container-type: size;
+  }
+  .media-show-main.is-video-wide.is-transcript-collapsed {
+    /* Collapsed transcript only needs room for its header. */
+    --media-transcript-reserve: 76px;
+  }
+  .media-show-main.is-video-wide > .video-embed {
+    flex-shrink: 0;
+    align-self: center;
+    width: 100%;
+    max-width: max(
+      320px,
+      calc(
+        (
+            100cqh - var(--media-player-controls) -
+              var(--media-transcript-reserve)
+          ) *
+          16 / 9
+      )
+    );
+    margin: 0 0 12px;
   }
   .media-show-main.is-video-wide > .transcript-panel {
-    height: max(320px, 60dvh);
-    margin-top: 0;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    margin: 0;
   }
   .media-show-main.is-transcript-collapsed > .transcript-panel {
+    flex: 0 0 auto;
     height: auto;
   }
   .puzzle-mode-grid {
