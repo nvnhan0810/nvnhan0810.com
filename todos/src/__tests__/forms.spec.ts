@@ -134,9 +134,9 @@ it("drops selected dependencies when the project changes", async () => {
   const wrapper = mount(TaskEditor, {
     props: { projects: [project(5), project(6)], candidates },
   });
-  await wrapper.get("select").setValue(5);
+  await wrapper.get("select[name=project_id]").setValue(5);
   await wrapper.findAll(".dependencies input[type=checkbox]")[0].setValue(true);
-  await wrapper.get("select").setValue(6);
+  await wrapper.get("select[name=project_id]").setValue(6);
   await flushPromises();
   await wrapper.get("form").trigger("submit");
   await flushPromises();
@@ -145,5 +145,72 @@ it("drops selected dependencies when the project changes", async () => {
     "POST",
     expect.objectContaining({ project_id: 6, depends_on: [] }),
   );
+  wrapper.unmount();
+});
+it("opens the new-project view from the last project option and keeps the selection", async () => {
+  const wrapper = mount(TaskEditor, {
+    props: { projects: [project(5)] },
+    global: { stubs: { ProjectEditor: true } },
+  });
+  await wrapper.get("select[name=project_id]").setValue(5);
+  const options = wrapper.findAll("select[name=project_id] option");
+  const last = options[options.length - 1];
+  expect(last.text()).toContain("Thêm dự án");
+  await wrapper.get("select[name=project_id]").setValue("__new__");
+  expect(wrapper.find("project-editor-stub").exists()).toBe(true);
+  expect(wrapper.get("form").isVisible()).toBe(false);
+  await wrapper.get(".subview-back").trigger("click");
+  expect(wrapper.find("project-editor-stub").exists()).toBe(false);
+  expect(
+    (wrapper.get("select[name=project_id]").element as HTMLSelectElement).value,
+  ).not.toBe("__new__");
+  mocks.submit.mockResolvedValue(undefined);
+  await wrapper.get("input").setValue("Task");
+  await wrapper.get("form").trigger("submit");
+  await flushPromises();
+  expect(mocks.submit).toHaveBeenLastCalledWith(
+    "/todos",
+    "POST",
+    expect.objectContaining({ project_id: 5 }),
+  );
+  wrapper.unmount();
+});
+it("moves between the main view and the dependency view", async () => {
+  const wrapper = mount(TaskEditor, {
+    props: { projects: [project(5)], candidates },
+  });
+  await wrapper.get("select[name=project_id]").setValue(5);
+  await wrapper.get("[data-view=deps]").trigger("click");
+  expect(wrapper.get(".dependencies").isVisible()).toBe(true);
+  await wrapper.findAll(".dependencies input[type=checkbox]")[0].setValue(true);
+  await wrapper.get(".subview-back").trigger("click");
+  expect(wrapper.get("[data-view=deps]").text()).toContain("DEF-1");
+  wrapper.unmount();
+});
+it("locks the form and shows a spinner while saving", async () => {
+  let resolve!: () => void;
+  mocks.submit.mockReturnValueOnce(
+    new Promise<void>((r) => {
+      resolve = r;
+    }),
+  );
+  const wrapper = mount(TaskEditor, { props: { projects: [] } });
+  await wrapper.get("input").setValue("Task");
+  await wrapper.get("form").trigger("submit");
+  const button = wrapper.get("button.submit-button");
+  expect(button.attributes("disabled")).toBeDefined();
+  expect(button.attributes("aria-busy")).toBe("true");
+  expect(button.find(".submit-spinner").exists()).toBe(true);
+  // The label stays rendered (hidden by CSS) so the width does not change.
+  expect(button.get(".submit-label").text()).toBe("Lưu");
+  expect(
+    wrapper.get("fieldset.editor-body").attributes("disabled"),
+  ).toBeDefined();
+  resolve();
+  await flushPromises();
+  expect(button.find(".submit-spinner").exists()).toBe(false);
+  expect(
+    wrapper.get("fieldset.editor-body").attributes("disabled"),
+  ).toBeUndefined();
   wrapper.unmount();
 });

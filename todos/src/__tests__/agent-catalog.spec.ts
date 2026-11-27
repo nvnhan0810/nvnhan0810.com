@@ -106,10 +106,9 @@ it("offers only the project workspace's repos, disables repos without main, and 
     props: { projects: [project(5, "ws-1")] },
   });
   await flushPromises();
-  // The project select comes first; the repo select is the second one.
-  await wrapper.findAll("select")[0].setValue(5);
+  await wrapper.get("select[name=project_id]").setValue(5);
   await flushPromises();
-  const repoSelect = wrapper.findAll("select")[1];
+  const repoSelect = wrapper.get("select[name=agent_repo_id]");
   const options = repoSelect.findAll("option");
   const values = options.map((o) => o.element.getAttribute("value"));
   expect(values).not.toContain("r-blog");
@@ -165,7 +164,7 @@ it("unpicks the repo when the project moves to another workspace", async () => {
     },
   });
   await flushPromises();
-  await wrapper.findAll("select")[0].setValue(6);
+  await wrapper.get("select[name=project_id]").setValue(6);
   await flushPromises();
   await wrapper.get("form").trigger("submit");
   await flushPromises();

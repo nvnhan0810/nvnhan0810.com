@@ -4,6 +4,7 @@ import type { TodoProject } from "../../domain/todo";
 import { submit } from "../../application/navigation";
 import { action, ValidationError } from "../../infrastructure/todos-api";
 import { t } from "../../application/locale";
+import SubmitButton from "./SubmitButton.vue";
 import {
   agentCatalog,
   catalogProblem,
@@ -83,56 +84,66 @@ async function save() {
 }
 </script>
 <template>
-  <form class="editor" @submit.prevent="save">
-    <label
-      >{{ t("name")
-      }}<input v-model="form.name" required maxlength="255" autofocus /></label
-    ><label
-      >{{ t("identifierPrefix")
-      }}<input
-        v-model="form.identifier_prefix"
-        maxlength="10"
-        placeholder="DEF" /></label
-    ><label
-      >{{ t("domain")
-      }}<input v-model="form.domain" type="url" placeholder="https://…"
-    /></label>
-    <label
-      >{{ t("repo")
-      }}<input
-        v-model="form.git_repo_url"
-        type="url"
-        placeholder="https://github.com/…"
-    /></label>
-    <label
-      >{{ t("agentWorkspace")
-      }}<select
-        v-model="form.agent_workspace_id"
-        :disabled="!catalog && !storedWorkspace"
+  <form
+    class="editor"
+    :aria-busy="busy ? 'true' : undefined"
+    @submit.prevent="save"
+  >
+    <fieldset class="editor-body" :disabled="busy">
+      <label
+        >{{ t("name")
+        }}<input
+          v-model="form.name"
+          required
+          maxlength="255"
+          autofocus /></label
+      ><label
+        >{{ t("identifierPrefix")
+        }}<input
+          v-model="form.identifier_prefix"
+          maxlength="10"
+          placeholder="DEF" /></label
+      ><label
+        >{{ t("domain")
+        }}<input v-model="form.domain" type="url" placeholder="https://…"
+      /></label>
+      <label
+        >{{ t("repo")
+        }}<input
+          v-model="form.git_repo_url"
+          type="url"
+          placeholder="https://github.com/…"
+      /></label>
+      <label
+        >{{ t("agentWorkspace")
+        }}<select
+          v-model="form.agent_workspace_id"
+          :disabled="!catalog && !storedWorkspace"
+        >
+          <option value="">{{ t("agentWorkspaceNone") }}</option>
+          <option
+            v-for="workspace in catalog?.workspaces ?? []"
+            :key="workspace.id"
+            :value="workspace.id"
+          >
+            {{ workspace.name }}
+          </option>
+          <option
+            v-if="
+              storedWorkspace &&
+              !catalog?.workspaces.some((w) => w.id === storedWorkspace?.id)
+            "
+            :value="storedWorkspace.id"
+          >
+            {{ storedWorkspace.name }}
+          </option>
+        </select></label
       >
-        <option value="">{{ t("agentWorkspaceNone") }}</option>
-        <option
-          v-for="workspace in catalog?.workspaces ?? []"
-          :key="workspace.id"
-          :value="workspace.id"
-        >
-          {{ workspace.name }}
-        </option>
-        <option
-          v-if="
-            storedWorkspace &&
-            !catalog?.workspaces.some((w) => w.id === storedWorkspace?.id)
-          "
-          :value="storedWorkspace.id"
-        >
-          {{ storedWorkspace.name }}
-        </option>
-      </select></label
-    >
-    <p v-if="catalogIssue" class="muted">{{ catalogIssue }}</p>
-    <p v-if="workspaceChanged && originalWorkspace" class="muted">
-      {{ t("agentWorkspaceChanged") }}
-    </p>
+      <p v-if="catalogIssue" class="muted">{{ catalogIssue }}</p>
+      <p v-if="workspaceChanged && originalWorkspace" class="muted">
+        {{ t("agentWorkspaceChanged") }}
+      </p>
+    </fieldset>
     <p
       v-for="(message, key) in errors"
       :key="key"
@@ -142,10 +153,9 @@ async function save() {
       {{ message }}
     </p>
     <div class="form-actions">
-      <button type="button" @click="emit('cancel')">{{ t("cancel") }}</button
-      ><button class="primary" :disabled="busy">
-        {{ busy ? "…" : t("save") }}
-      </button>
+      <button type="button" :disabled="busy" @click="emit('cancel')">
+        {{ t("cancel") }}</button
+      ><SubmitButton :busy="busy">{{ t("save") }}</SubmitButton>
     </div>
   </form>
 </template>

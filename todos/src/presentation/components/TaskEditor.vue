@@ -12,8 +12,9 @@ import type {
 } from "../../domain/todo";
 import { submit } from "../../application/navigation";
 import { ValidationError } from "../../infrastructure/todos-api";
-import Modal from "./Modal.vue";
+import { ChevronLeft, ChevronRight } from "lucide-vue-next";
 import ProjectEditor from "./ProjectEditor.vue";
+import SubmitButton from "./SubmitButton.vue";
 import { locale, t } from "../../application/locale";
 import {
   agentCatalog,
@@ -157,19 +158,58 @@ watch(
 watch(workspaceId, (id) => {
   if (!id) form.agent_auto = false;
 });
-const showProject = ref(false),
-  createdProjects = ref<TodoProject[]>([]);
+// The editor is split into a short main view plus sub views (dependencies, Agent, new
+// project) so that on mobile each screen stays small; sub views are only hidden (v-show) so
+// their state is part of the same form.
+type View = "main" | "deps" | "agent" | "project";
+const view = ref<View>("main");
+const NEW_PROJECT = "__new__";
+const createdProjects = ref<TodoProject[]>([]),
+  projectSelectKey = ref(0);
 const availableProjects = computed(() => [
   ...props.projects,
   ...createdProjects.value.filter(
     (p) => !props.projects.some((old) => old.id === p.id),
   ),
 ]);
+// The last option of the project select opens the new-project view instead of selecting.
+const projectChoice = computed<number | null | typeof NEW_PROJECT>({
+  get: () => form.project_id,
+  set: (value) => {
+    if (value === NEW_PROJECT) {
+      view.value = "project";
+      // Re-mount the select so it shows the current project again, not the action option.
+      projectSelectKey.value++;
+      return;
+    }
+    form.project_id = value;
+  },
+});
 function projectCreated(project: TodoProject) {
   createdProjects.value.push(project);
   form.project_id = project.id;
-  showProject.value = false;
+  view.value = "main";
 }
+const dependencySummary = computed(() => {
+  if (!form.depends_on.length) return t("noneSelected");
+  const names = form.depends_on.map(
+    (id) =>
+      props.candidates?.find((c) => c.id === id)?.identifier ||
+      props.todo?.depends_on?.find((d) => d.id === id)?.identifier ||
+      `${id}`,
+  );
+  return names.length > 2
+    ? `${names.length} ${t("selectedCount")}`
+    : names.join(", ");
+});
+const agentSummary = computed(() => {
+  if (!form.project_id) return t("agentNeedsProject");
+  const repo =
+    selectedRepo.value?.name ||
+    (form.agent_repo_id ? props.todo?.agent_repo_name || "" : "");
+  const mode = form.agent_auto ? t("agentAuto") : t("agentManual");
+  return repo ? `${repo} · ${mode}` : mode;
+});
 async function remove() {
   if (!props.todo || !confirm(t("confirmDelete")) || busy.value) return;
   busy.value = true;
@@ -248,230 +288,365 @@ async function save() {
 }
 </script>
 <template>
-  <form class="editor" @submit.prevent="save">
-    <p v-if="todo?.identifier" class="task-identifier-line">
-      <span class="task-identifier-label">{{ t("identifier") }}</span>
-      <code class="task-identifier" :title="t('identifierHint')">{{
-        todo.identifier
-      }}</code>
-    </p>
-    <label
-      >{{ t("title")
-      }}<input v-model="form.title" required maxlength="255" autofocus /><span
-        v-if="errors.title"
+  <div class="task-editor">
+    <form
+      v-show="view !== 'project'"
+      class="editor"
+      :aria-busy="busy ? 'true' : undefined"
+      @submit.prevent="save"
+    >
+      <fieldset class="editor-body" :disabled="busy">
+        <!-- Main view: three short groups; long lists live in sub views. -->
+        <div v-show="view === 'main'" class="editor-view">
+          <section class="form-section">
+            <h3 class="form-section-title">
+              {{ t("groupTask") }}
+              <code
+                v-if="todo?.identifier"
+                class="task-identifier"
+                :title="t('identifierHint')"
+                >{{ todo.identifier }}</code
+              >
+            </h3>
+            <label
+              >{{ t("title")
+              }}<input
+                v-model="form.title"
+                required
+                maxlength="255"
+                autofocus
+              /><span v-if="errors.title" class="field-error">{{
+                errors.title
+              }}</span></label
+            >
+            <label
+              >{{ t("description")
+              }}<textarea v-model="form.description" rows="3" />
+            </label>
+          </section>
+          <section class="form-section">
+            <h3 class="form-section-title">{{ t("groupPlanning") }}</h3>
+            <div class="form-grid compact">
+              <label
+                >{{ t("status")
+                }}<select v-model="form.status" name="status">
+                  <option
+                    v-for="status in [
+                      'backlog',
+                      'todo',
+                      'in_progress',
+                      'in_review',
+                      'done',
+                      'rejected',
+                    ]"
+                    :key="status"
+                    :value="status"
+                  >
+                    {{ t(status) }}
+                  </option>
+                </select></label
+              ><label
+                >{{ t("priority")
+                }}<select v-model="form.priority" name="priority">
+                  <option
+                    v-for="priority in ['low', 'medium', 'high', 'urgent']"
+                    :key="priority"
+                    :value="priority"
+                  >
+                    {{ t(priority) }}
+                  </option>
+                </select></label
+              >
+            </div>
+            <p v-if="warnDone" class="field-error" role="status">
+              {{ t("agentDoneWarning") }}
+            </p>
+            <label
+              >{{ t("due") }}<input v-model="form.due_at" type="date"
+            /></label>
+            <div class="chip-row">
+              <label class="checkbox chip"
+                ><input v-model="form.is_urgent" type="checkbox" />{{
+                  t("urgent")
+                }}</label
+              ><label class="checkbox chip"
+                ><input v-model="form.is_important" type="checkbox" />{{
+                  t("important")
+                }}</label
+              >
+            </div>
+          </section>
+          <section class="form-section">
+            <h3 class="form-section-title">{{ t("groupLinks") }}</h3>
+            <label
+              >{{ t("projects")
+              }}<select
+                :key="projectSelectKey"
+                v-model="projectChoice"
+                name="project_id"
+              >
+                <option :value="null">—</option>
+                <option
+                  v-for="project in availableProjects"
+                  :key="project.id"
+                  :value="project.id"
+                >
+                  {{ project.name }}
+                </option>
+                <option :value="NEW_PROJECT" class="new-project-option">
+                  {{ t("newProjectOption") }}
+                </option>
+              </select></label
+            >
+            <div class="nav-rows">
+              <button
+                type="button"
+                class="nav-row"
+                data-view="deps"
+                @click="view = 'deps'"
+              >
+                <span class="nav-row-label">{{ t("waitsFor") }}</span>
+                <span class="nav-row-value">{{ dependencySummary }}</span>
+                <ChevronRight :size="16" />
+              </button>
+              <button
+                type="button"
+                class="nav-row"
+                data-view="agent"
+                @click="view = 'agent'"
+              >
+                <span class="nav-row-label">{{ t("agentPanel") }}</span>
+                <span class="nav-row-value">
+                  <span
+                    v-if="agentState"
+                    class="badge"
+                    :class="`agent-${agentState}`"
+                    >{{ t(`agent_${agentState}`) }}</span
+                  >
+                  {{ agentSummary }}</span
+                >
+                <ChevronRight :size="16" />
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <!-- Sub view: dependencies. -->
+        <div v-show="view === 'deps'" class="editor-view">
+          <div class="subview-heading">
+            <button
+              type="button"
+              class="icon-button subview-back"
+              :aria-label="t('back')"
+              @click="view = 'main'"
+            >
+              <ChevronLeft :size="18" />
+            </button>
+            <h3>{{ t("waitsFor") }}</h3>
+          </div>
+          <fieldset class="dependencies">
+            <legend class="sr-only">{{ t("waitsFor") }}</legend>
+            <p v-if="!dependencyOptions.length" class="muted">
+              {{ t("noDependencyCandidates") }}
+            </p>
+            <label
+              v-for="candidate in dependencyOptions"
+              :key="candidate.id"
+              class="checkbox"
+              ><input
+                v-model="form.depends_on"
+                type="checkbox"
+                :value="candidate.id"
+              /><span class="dependency-name"
+                ><small class="task-identifier">{{
+                  candidate.identifier
+                }}</small>
+                {{ candidate.title }}</span
+              >
+              <span class="badge" :class="candidate.status">{{
+                t(candidate.status)
+              }}</span></label
+            >
+          </fieldset>
+        </div>
+
+        <!-- Sub view: Agent settings and run panel. -->
+        <div v-show="view === 'agent'" class="editor-view">
+          <div class="subview-heading">
+            <button
+              type="button"
+              class="icon-button subview-back"
+              :aria-label="t('back')"
+              @click="view = 'main'"
+            >
+              <ChevronLeft :size="18" />
+            </button>
+            <h3>{{ t("agentPanel") }}</h3>
+          </div>
+          <label
+            >{{ t("agentRepo")
+            }}<select
+              v-model="form.agent_repo_id"
+              name="agent_repo_id"
+              :disabled="!workspaceId"
+            >
+              <option :value="null">{{ t("agentRepoNone") }}</option>
+              <option
+                v-for="repo in repos"
+                :key="repo.id"
+                :value="repo.id"
+                :disabled="!repo.has_main && !ownBase"
+              >
+                {{ repo.name }}{{ repo.has_main ? "" : ` ${t("agentNoMain")}` }}
+              </option>
+              <option
+                v-if="form.agent_repo_id && !selectedRepo"
+                :value="form.agent_repo_id"
+              >
+                {{ todo?.agent_repo_name || form.agent_repo_id }}
+              </option>
+            </select></label
+          >
+          <label v-if="form.agent_repo_id"
+            >{{ t("agentBaseBranch")
+            }}<input
+              v-model="form.agent_base_branch"
+              maxlength="120"
+              :placeholder="repoBase"
+              @keydown.enter.prevent="view = 'main'"
+          /></label>
+          <p v-if="form.project_id && !workspaceId" class="muted">
+            {{ t("agentPickWorkspaceFirst") }}
+          </p>
+          <p v-if="catalogIssue && workspaceId" class="muted">
+            {{ catalogIssue }}
+          </p>
+          <label class="checkbox"
+            ><input
+              v-model="form.agent_auto"
+              type="checkbox"
+              :disabled="autoDisabled && !form.agent_auto"
+            />{{ t("agentAuto") }}</label
+          >
+          <p class="muted">{{ autoHint }}</p>
+          <section v-if="todo && agentPanelVisible" class="agent-panel">
+            <h3>{{ t("agentPanel") }}</h3>
+            <p>
+              <span
+                v-if="agentState"
+                class="badge"
+                :class="`agent-${agentState}`"
+                >{{ t(`agent_${agentState}`) }}</span
+              >
+              <span v-if="todo.agent_pr_has_conflict" class="badge conflict">{{
+                t("agentConflict")
+              }}</span>
+            </p>
+            <p v-if="canPause">
+              <button
+                type="button"
+                :disabled="busy"
+                @click="agentAction('pause')"
+              >
+                {{ t("agentPause") }}
+              </button>
+            </p>
+            <p v-else-if="pausing" class="muted" role="status">
+              {{ t("agentPausing") }}
+            </p>
+            <template v-else-if="todo.agent_state === 'paused'">
+              <p class="muted">{{ t("agentPausedHint") }}</p>
+              <p>
+                <button
+                  type="button"
+                  :disabled="busy"
+                  @click="agentAction('resume')"
+                >
+                  {{ t("agentResume") }}
+                </button>
+              </p>
+            </template>
+            <p v-if="todo.agent_branch">
+              {{ t("agentBranch") }}: <code>{{ todo.agent_branch }}</code>
+            </p>
+            <p v-if="prHref">
+              {{ t("agentPr") }}:
+              <a :href="prHref" target="_blank" rel="noopener noreferrer">{{
+                todo.agent_pr_url
+              }}</a>
+            </p>
+            <p v-if="chatHref">
+              <a :href="chatHref" target="_blank" rel="noopener noreferrer">{{
+                t("agentChat")
+              }}</a>
+            </p>
+            <details v-if="todo.agent_result_md">
+              <summary>{{ t("agentResult") }}</summary>
+              <pre class="agent-result">{{ todo.agent_result_md }}</pre>
+            </details>
+            <details v-if="events.length">
+              <summary>{{ t("agentTimeline") }}</summary>
+              <ol>
+                <li v-for="(event, index) in events" :key="event.id ?? index">
+                  {{ eventTime(event.created_at) }} ·
+                  {{ t(`ev_${event.kind}`) }}
+                  <template v-if="event.message"
+                    >— {{ event.message }}</template
+                  >
+                </li>
+              </ol>
+            </details>
+          </section>
+        </div>
+      </fieldset>
+      <p
+        v-for="(message, key) in errors"
+        :key="key"
         class="field-error"
-        >{{ errors.title }}</span
-      ></label
-    ><label
-      >{{ t("projects")
-      }}<select v-model="form.project_id">
-        <option :value="null">—</option>
-        <option
-          v-for="project in availableProjects"
-          :key="project.id"
-          :value="project.id"
-        >
-          {{ project.name }}
-        </option>
-      </select></label
-    >
-    <button type="button" class="small text-button" @click="showProject = true">
-      + {{ t("newProject") }}
-    </button>
-    <label
-      >{{ t("agentRepo")
-      }}<select v-model="form.agent_repo_id" :disabled="!workspaceId">
-        <option :value="null">{{ t("agentRepoNone") }}</option>
-        <option
-          v-for="repo in repos"
-          :key="repo.id"
-          :value="repo.id"
-          :disabled="!repo.has_main && !ownBase"
-        >
-          {{ repo.name }}{{ repo.has_main ? "" : ` ${t("agentNoMain")}` }}
-        </option>
-        <option
-          v-if="form.agent_repo_id && !selectedRepo"
-          :value="form.agent_repo_id"
-        >
-          {{ todo?.agent_repo_name || form.agent_repo_id }}
-        </option>
-      </select></label
-    >
-    <label v-if="form.agent_repo_id"
-      >{{ t("agentBaseBranch")
-      }}<input
-        v-model="form.agent_base_branch"
-        maxlength="120"
-        :placeholder="repoBase"
-    /></label>
-    <p v-if="form.project_id && !workspaceId" class="muted">
-      {{ t("agentPickWorkspaceFirst") }}
-    </p>
-    <p v-if="catalogIssue && workspaceId" class="muted">{{ catalogIssue }}</p>
-    <fieldset class="dependencies">
-      <legend>{{ t("waitsFor") }}</legend>
-      <p v-if="!dependencyOptions.length" class="muted">
-        {{ t("noDependencyCandidates") }}
-      </p>
-      <label
-        v-for="candidate in dependencyOptions"
-        :key="candidate.id"
-        class="checkbox"
-        ><input
-          v-model="form.depends_on"
-          type="checkbox"
-          :value="candidate.id"
-        />{{ candidate.identifier }}
-        {{ candidate.title }}
-        <span class="badge" :class="candidate.status">{{
-          t(candidate.status)
-        }}</span></label
+        role="alert"
       >
-    </fieldset>
-    <label
-      >{{ t("description") }}<textarea v-model="form.description" rows="4" />
-    </label>
-    <div class="form-grid">
-      <label
-        >{{ t("status")
-        }}<select v-model="form.status">
-          <option
-            v-for="status in [
-              'backlog',
-              'todo',
-              'in_progress',
-              'in_review',
-              'done',
-              'rejected',
-            ]"
-            :key="status"
-            :value="status"
+        {{ message }}
+      </p>
+      <div class="form-actions">
+        <template v-if="view === 'main'">
+          <button
+            v-if="todo"
+            type="button"
+            class="danger"
+            :disabled="busy"
+            @click="remove"
           >
-            {{ t(status) }}
-          </option>
-        </select></label
-      ><label
-        >{{ t("priority")
-        }}<select v-model="form.priority">
-          <option
-            v-for="priority in ['low', 'medium', 'high', 'urgent']"
-            :key="priority"
-            :value="priority"
-          >
-            {{ t(priority) }}
-          </option>
-        </select></label
-      >
-    </div>
-    <label>{{ t("due") }}<input v-model="form.due_at" type="date" /></label>
-    <div class="row">
-      <label class="checkbox"
-        ><input v-model="form.is_urgent" type="checkbox" />{{
-          t("urgent")
-        }}</label
-      ><label class="checkbox"
-        ><input v-model="form.is_important" type="checkbox" />{{
-          t("important")
-        }}</label
-      >
-    </div>
-    <label class="checkbox"
-      ><input
-        v-model="form.agent_auto"
-        type="checkbox"
-        :disabled="autoDisabled && !form.agent_auto"
-      />{{ t("agentAuto") }}</label
-    >
-    <p class="muted">{{ autoHint }}</p>
-    <section v-if="todo && agentPanelVisible" class="agent-panel">
-      <h3>{{ t("agentPanel") }}</h3>
-      <p>
-        <span v-if="agentState" class="badge" :class="`agent-${agentState}`">{{
-          t(`agent_${agentState}`)
-        }}</span>
-        <span v-if="todo.agent_pr_has_conflict" class="badge conflict">{{
-          t("agentConflict")
-        }}</span>
-      </p>
-      <p v-if="canPause">
-        <button type="button" :disabled="busy" @click="agentAction('pause')">
-          {{ t("agentPause") }}
-        </button>
-      </p>
-      <p v-else-if="pausing" class="muted" role="status">
-        {{ t("agentPausing") }}
-      </p>
-      <template v-else-if="todo.agent_state === 'paused'">
-        <p class="muted">{{ t("agentPausedHint") }}</p>
-        <p>
-          <button type="button" :disabled="busy" @click="agentAction('resume')">
-            {{ t("agentResume") }}
+            {{ t("delete") }}
           </button>
-        </p>
-      </template>
-      <p v-if="todo.agent_branch">
-        {{ t("agentBranch") }}: <code>{{ todo.agent_branch }}</code>
-      </p>
-      <p v-if="prHref">
-        {{ t("agentPr") }}:
-        <a :href="prHref" target="_blank" rel="noopener noreferrer">{{
-          todo.agent_pr_url
-        }}</a>
-      </p>
-      <p v-if="chatHref">
-        <a :href="chatHref" target="_blank" rel="noopener noreferrer">{{
-          t("agentChat")
-        }}</a>
-      </p>
-      <p v-if="warnDone" class="field-error" role="status">
-        {{ t("agentDoneWarning") }}
-      </p>
-      <details v-if="todo.agent_result_md">
-        <summary>{{ t("agentResult") }}</summary>
-        <pre class="agent-result">{{ todo.agent_result_md }}</pre>
-      </details>
-      <details v-if="events.length">
-        <summary>{{ t("agentTimeline") }}</summary>
-        <ol>
-          <li v-for="(event, index) in events" :key="event.id ?? index">
-            {{ eventTime(event.created_at) }} · {{ t(`ev_${event.kind}`) }}
-            <template v-if="event.message">— {{ event.message }}</template>
-          </li>
-        </ol>
-      </details>
-    </section>
-    <p
-      v-for="(message, key) in errors"
-      :key="key"
-      class="field-error"
-      role="alert"
-    >
-      {{ message }}
-    </p>
-    <div class="form-actions">
-      <button
-        v-if="todo"
-        type="button"
-        class="danger"
-        :disabled="busy"
-        @click="remove"
-      >
-        {{ t("delete") }}
-      </button>
-      <button type="button" @click="emit('cancel')">{{ t("cancel") }}</button
-      ><button class="primary" :disabled="busy">
-        {{ busy ? "…" : t("save") }}
-      </button>
+          <button type="button" :disabled="busy" @click="emit('cancel')">
+            {{ t("cancel") }}</button
+          ><SubmitButton :busy="busy">{{ t("save") }}</SubmitButton>
+        </template>
+        <button
+          v-else
+          type="button"
+          class="primary"
+          :disabled="busy"
+          @click="view = 'main'"
+        >
+          {{ t("apply") }}
+        </button>
+      </div>
+    </form>
+    <!-- Sub view: new project. Outside the task form, a form cannot be nested. -->
+    <div v-if="view === 'project'" class="editor-view">
+      <div class="subview-heading">
+        <button
+          type="button"
+          class="icon-button subview-back"
+          :aria-label="t('back')"
+          @click="view = 'main'"
+        >
+          <ChevronLeft :size="18" />
+        </button>
+        <h3>{{ t("newProject") }}</h3>
+      </div>
+      <ProjectEditor inline @created="projectCreated" @cancel="view = 'main'" />
     </div>
-  </form>
-  <Modal
-    v-if="showProject"
-    :title="t('newProject')"
-    @close="showProject = false"
-    ><ProjectEditor
-      inline
-      @created="projectCreated"
-      @cancel="showProject = false"
-  /></Modal>
+  </div>
 </template>
