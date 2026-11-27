@@ -94,42 +94,38 @@
     margin-top: 0;
   }
   /*
-   * Full width video: stack the transcript below without page scroll.
-   * The main area is a size container, so the video is capped to the
-   * height left after the player controls and a transcript reserve. This
-   * keeps the whole player (video + controls) inside the viewport.
+   * Full width video: the player spans the whole row and the transcript
+   * sits below it, without page scroll. The page is a fixed-height flex
+   * column, so when the 16:9 video would be taller than the space left,
+   * only the video area shrinks (YouTube letterboxes it). The player box,
+   * its controls and the transcript keep the full width.
    */
   .media-show-main.is-video-wide {
-    --media-player-controls: 84px;
-    --media-transcript-reserve: max(200px, 30cqh);
     display: flex;
     flex-direction: column;
     gap: 0;
     overflow: hidden;
-    container-type: size;
-  }
-  .media-show-main.is-video-wide.is-transcript-collapsed {
-    /* Collapsed transcript only needs room for its header. */
-    --media-transcript-reserve: 76px;
   }
   .media-show-main.is-video-wide > .video-embed {
-    flex-shrink: 0;
-    align-self: center;
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 auto;
     width: 100%;
-    max-width: max(
-      320px,
-      calc(
-        (
-            100cqh - var(--media-player-controls) -
-              var(--media-transcript-reserve)
-          ) *
-          16 / 9
-      )
-    );
+    min-height: 0;
     margin: 0 0 12px;
   }
+  .media-show-main.is-video-wide .simple-youtube-video {
+    flex: 0 1 auto;
+    width: 100%;
+    min-height: 120px;
+  }
+  .media-show-main.is-video-wide .simple-player-controls,
+  .media-show-main.is-video-wide .simple-youtube-player > p {
+    flex-shrink: 0;
+  }
   .media-show-main.is-video-wide > .transcript-panel {
-    flex: 1 1 auto;
+    flex: 1 0 min(240px, 35%);
+    width: 100%;
     height: auto;
     min-height: 0;
     margin: 0;
