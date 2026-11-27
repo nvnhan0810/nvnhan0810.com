@@ -324,6 +324,7 @@ defineExpose({
           title="Open in YouTube"
           ><ExternalLink :size="20"
         /></a>
+        <slot name="toolbar-actions" />
       </div>
     </div>
     <p v-if="playerError" role="alert">
