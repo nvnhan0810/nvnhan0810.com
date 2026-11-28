@@ -393,7 +393,7 @@ onMounted(() => {
                   <input
                     v-model="paymentForm.note"
                     type="text"
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                    class="form-input"
                   />
                 </div>
               </div>
@@ -478,7 +478,7 @@ onMounted(() => {
                 <input
                   v-model="settleForm.note"
                   type="text"
-                  class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+                  class="form-input"
                 />
               </div>
             </div>

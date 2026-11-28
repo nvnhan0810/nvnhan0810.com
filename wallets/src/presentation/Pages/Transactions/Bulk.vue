@@ -308,10 +308,7 @@ function fieldError(index: number, field: string) {
               <label class="block text-xs font-medium text-content-muted mb-1"
                 >Số tiền</label
               >
-              <MoneyInput
-                v-model="row.amount"
-                class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
-              />
+              <MoneyInput v-model="row.amount" class="form-input mt-0" />
               <p
                 v-if="fieldError(index, 'amount')"
                 class="mt-1 text-xs text-red-600"
@@ -326,7 +323,7 @@ function fieldError(index: number, field: string) {
               <input
                 v-model="row.description"
                 type="text"
-                class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                class="form-input mt-0"
                 placeholder="VD: Ăn trưa, xăng xe…"
               />
               <p
@@ -368,7 +365,7 @@ function fieldError(index: number, field: string) {
               <input
                 v-model="row.category"
                 type="text"
-                class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                class="form-input mt-0"
                 placeholder="Tùy chọn"
               />
             </div>
@@ -379,7 +376,7 @@ function fieldError(index: number, field: string) {
               <input
                 v-model="row.note"
                 type="text"
-                class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                class="form-input mt-0"
                 placeholder="Tùy chọn"
               />
             </div>
@@ -431,10 +428,7 @@ function fieldError(index: number, field: string) {
               <label class="block text-xs font-medium text-content-muted mb-1"
                 >Phí</label
               >
-              <MoneyInput
-                v-model="row.fee"
-                class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
-              />
+              <MoneyInput v-model="row.fee" class="form-input mt-0" />
             </div>
             <div>
               <label class="block text-xs font-medium text-content-muted mb-1"
@@ -443,7 +437,7 @@ function fieldError(index: number, field: string) {
               <input
                 v-model="row.note"
                 type="text"
-                class="w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                class="form-input mt-0"
                 placeholder="Tùy chọn"
               />
             </div>

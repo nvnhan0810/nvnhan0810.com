@@ -179,7 +179,7 @@ function formatNextDue(d: string | null): string {
             v-model="createForm.name"
             type="text"
             required
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+            class="form-input"
           />
         </div>
         <div>
@@ -212,7 +212,7 @@ function formatNextDue(d: string | null): string {
             min="1"
             max="31"
             required
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+            class="form-input"
           />
         </div>
         <div>
@@ -222,28 +222,20 @@ function formatNextDue(d: string | null): string {
           <input
             v-model="createForm.effective_from"
             type="date"
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+            class="form-input"
           />
         </div>
         <div>
           <label class="block text-sm font-medium text-content-secondary"
             >Kết thúc <span class="text-gray-400">(tùy chọn)</span></label
           >
-          <input
-            v-model="createForm.ends_at"
-            type="date"
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
+          <input v-model="createForm.ends_at" type="date" class="form-input" />
         </div>
         <div>
           <label class="block text-sm font-medium text-content-secondary"
             >Ghi chú</label
           >
-          <input
-            v-model="createForm.note"
-            type="text"
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
+          <input v-model="createForm.note" type="text" class="form-input" />
         </div>
         <div class="sm:col-span-2 lg:col-span-3">
           <button
@@ -269,11 +261,7 @@ function formatNextDue(d: string | null): string {
         >
           <div class="lg:col-span-2">
             <label class="text-xs text-content-muted">Tên</label>
-            <input
-              v-model="row.form.name"
-              type="text"
-              class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
-            />
+            <input v-model="row.form.name" type="text" class="form-input" />
           </div>
           <div>
             <label class="text-xs text-content-muted">Loại</label>
@@ -298,7 +286,7 @@ function formatNextDue(d: string | null): string {
               type="number"
               min="1"
               max="31"
-              class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+              class="form-input"
             />
           </div>
           <div>
@@ -306,16 +294,12 @@ function formatNextDue(d: string | null): string {
             <input
               v-model="row.form.effective_from"
               type="date"
-              class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+              class="form-input"
             />
           </div>
           <div>
             <label class="text-xs text-content-muted">Kết thúc</label>
-            <input
-              v-model="row.form.ends_at"
-              type="date"
-              class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
-            />
+            <input v-model="row.form.ends_at" type="date" class="form-input" />
           </div>
           <div class="flex flex-wrap gap-2 items-center">
             <label

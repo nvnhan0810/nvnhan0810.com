@@ -90,12 +90,7 @@ function deleteTemplate(t: Template) {
           <label class="block text-sm font-medium text-content-secondary"
             >Tên mẫu</label
           >
-          <input
-            v-model="form.name"
-            type="text"
-            required
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
+          <input v-model="form.name" type="text" required class="form-input" />
         </div>
         <div>
           <label class="block text-sm font-medium text-content-secondary"
@@ -122,11 +117,7 @@ function deleteTemplate(t: Template) {
           <label class="block text-sm font-medium text-content-secondary"
             >Mô tả mặc định</label
           >
-          <input
-            v-model="form.description"
-            type="text"
-            class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
+          <input v-model="form.description" type="text" class="form-input" />
         </div>
 
         <template v-if="formType === 'income' || formType === 'expense'">
@@ -134,11 +125,7 @@ function deleteTemplate(t: Template) {
             <label class="block text-sm font-medium text-content-secondary"
               >Danh mục</label
             >
-            <input
-              v-model="form.category"
-              type="text"
-              class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
-            />
+            <input v-model="form.category" type="text" class="form-input" />
           </div>
           <div>
             <label class="block text-sm font-medium text-content-secondary"

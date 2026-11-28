@@ -171,7 +171,7 @@ function itemLink(item: PeriodItem): string | null {
           v-model="start"
           :type="startType"
           :min="minStartValue"
-          class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+          class="form-input"
         />
       </div>
       <div>
@@ -183,7 +183,7 @@ function itemLink(item: PeriodItem): string | null {
           type="number"
           min="1"
           max="24"
-          class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+          class="form-input"
         />
       </div>
       <div v-if="showCustomDays">
@@ -195,7 +195,7 @@ function itemLink(item: PeriodItem): string | null {
           type="number"
           min="1"
           max="366"
-          class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+          class="form-input"
         />
       </div>
       <div>

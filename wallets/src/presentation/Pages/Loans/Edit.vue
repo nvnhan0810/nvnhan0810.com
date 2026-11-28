@@ -113,7 +113,7 @@ function submit(): void {
             type="text"
             required
             maxlength="255"
-            class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+            class="form-input"
           />
           <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">
             {{ form.errors.name }}

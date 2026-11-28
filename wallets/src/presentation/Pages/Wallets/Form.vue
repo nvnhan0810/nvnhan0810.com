@@ -5,8 +5,6 @@ import { computed } from 'vue'
 import { Head, Link, useForm } from '@/application/navigation'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import MoneyInput from '@/Components/MoneyInput.vue'
-import AppSelect from '@/Components/AppSelect.vue'
-import type { AppSelectOption } from '@/Components/AppSelect.vue'
 import { formatMoney, WALLET_TYPES } from '@/domain'
 
 const props = defineProps({
@@ -30,7 +28,7 @@ const form = useForm({
 
 const isCreditCard = computed(() => form.type === 'credit_card')
 
-const walletTypeOptions = computed((): AppSelectOption[] =>
+const walletTypeOptions = computed(() =>
   Object.entries(props.walletTypes).map(([key, label]) => ({
     value: key,
     label: String(label),
@@ -57,40 +55,52 @@ function submit() {
   <Head :title="isEdit ? 'Sửa ví' : 'Tạo ví'" />
   <AppLayout :title="isEdit ? 'Sửa ví' : 'Tạo ví'">
     <div class="max-w-xl mx-auto">
-      <h2 class="text-2xl font-bold text-content mb-6">
+      <Link
+        :href="route('wallets.index')"
+        class="hidden lg:inline-flex items-center gap-1 mb-2 text-sm text-content-muted hover:text-content"
+        >← Ví của bạn</Link
+      >
+      <h2 class="page-title mb-6">
         {{ isEdit ? 'Sửa ví' : 'Tạo ví mới' }}
       </h2>
 
-      <form
-        class="bg-surface shadow rounded-lg p-6 space-y-4"
-        @submit.prevent="submit"
-      >
+      <form class="card p-5 sm:p-6 space-y-5" @submit.prevent="submit">
         <div>
-          <label class="block text-sm font-medium text-content-secondary"
-            >Tên ví</label
-          >
-          <input
-            v-model="form.name"
-            type="text"
-            required
-            class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
-          <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">
+          <label class="form-label">Tên ví</label>
+          <input v-model="form.name" type="text" required class="form-input" />
+          <p v-if="form.errors.name" class="form-error">
             {{ form.errors.name }}
           </p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-content-secondary"
-            >Loại ví</label
+          <span id="wallet-type-label" class="form-label">Loại ví</span>
+          <div
+            class="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2"
+            role="radiogroup"
+            aria-labelledby="wallet-type-label"
           >
-          <AppSelect
-            v-model="form.type"
-            class="mt-1"
-            :options="walletTypeOptions"
-            :searchable="false"
-            required
-          />
+            <label
+              v-for="opt in walletTypeOptions"
+              :key="opt.value"
+              class="type-option"
+              :class="{ 'type-option-active': form.type === opt.value }"
+            >
+              <input
+                v-model="form.type"
+                type="radio"
+                name="type"
+                :value="opt.value"
+                class="sr-only"
+              />
+              <span class="text-sm font-medium leading-tight">{{
+                opt.label
+              }}</span>
+            </label>
+          </div>
+          <p v-if="form.errors.type" class="form-error">
+            {{ form.errors.type }}
+          </p>
         </div>
 
         <div
@@ -134,9 +144,7 @@ function submit() {
 
         <!-- Create: non credit card balance -->
         <div v-if="!isEdit && !isCreditCard">
-          <label class="block text-sm font-medium text-content-secondary"
-            >Số dư ban đầu (₫)</label
-          >
+          <label class="form-label">Số dư ban đầu (₫)</label>
           <div class="field-money">
             <MoneyInput v-model="form.balance" />
           </div>
@@ -155,45 +163,37 @@ function submit() {
             }}
           </p>
           <div>
-            <label class="block text-sm font-medium text-content-secondary"
-              >Hạn mức (₫)</label
-            >
+            <label class="form-label">Hạn mức (₫)</label>
             <div class="field-money">
               <MoneyInput v-model="form.credit_limit" required />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-content-secondary"
-                >Ngày sao kê</label
-              >
+              <label class="form-label">Ngày sao kê</label>
               <input
                 v-model.number="form.statement_day"
                 type="number"
                 min="1"
                 max="31"
                 required
-                class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
+                class="form-input"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-content-secondary"
-                >Ngày thanh toán</label
-              >
+              <label class="form-label">Ngày thanh toán</label>
               <input
                 v-model.number="form.payment_day"
                 type="number"
                 min="1"
                 max="31"
                 required
-                class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
+                class="form-input"
               />
             </div>
           </div>
           <div v-if="!isEdit">
-            <label class="block text-sm font-medium text-content-secondary"
-              >Dư nợ ban đầu (₫)</label
-            >
+            <label class="form-label">Dư nợ ban đầu (₫)</label>
             <div class="field-money">
               <MoneyInput v-model="form.outstanding_balance" />
             </div>
@@ -212,14 +212,8 @@ function submit() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-content-secondary"
-            >Ghi chú</label
-          >
-          <textarea
-            v-model="form.notes"
-            rows="2"
-            class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
+          <label class="form-label">Ghi chú</label>
+          <textarea v-model="form.notes" rows="2" class="form-input" />
         </div>
 
         <div v-if="isEdit" class="flex items-center gap-2">
@@ -227,28 +221,41 @@ function submit() {
             id="is_active"
             v-model="form.is_active"
             type="checkbox"
-            class="rounded border-strong bg-surface text-primary-600 dark:text-primary-400"
+            class="w-5 h-5 rounded border-strong accent-primary-600"
           />
           <label for="is_active" class="text-sm text-content-secondary"
             >Ví đang hoạt động</label
           >
         </div>
 
-        <div class="flex gap-3 pt-2">
+        <div
+          class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2"
+        >
+          <Link :href="route('wallets.index')" class="btn btn-secondary"
+            >Hủy</Link
+          >
           <button
             type="submit"
-            class="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-md text-sm font-medium hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50"
+            class="btn btn-primary"
             :disabled="form.processing"
           >
             {{ isEdit ? 'Cập nhật' : 'Tạo ví' }}
           </button>
-          <Link
-            :href="route('wallets.index')"
-            class="px-4 py-2 border border-strong bg-surface text-content rounded-md text-sm text-content-secondary hover:bg-surface-hover"
-            >Hủy</Link
-          >
         </div>
       </form>
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+@reference '../../../styles.css';
+.type-option {
+  @apply flex items-center justify-center text-center min-h-12 px-3 py-2 rounded-xl border border-default bg-surface text-content-secondary cursor-pointer transition-colors hover:bg-surface-hover;
+}
+.type-option:has(input:focus-visible) {
+  @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-surface;
+}
+.type-option-active {
+  @apply border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/40;
+}
+</style>

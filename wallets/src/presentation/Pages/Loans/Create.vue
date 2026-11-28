@@ -343,7 +343,7 @@ syncMonthsPaid(!draft.months_paid)
                     v-model="form.name"
                     type="text"
                     required
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm"
+                    class="form-input"
                   />
                 </div>
                 <div class="col-span-6 sm:col-span-3">
@@ -458,7 +458,7 @@ syncMonthsPaid(!draft.months_paid)
                     v-model.number="form.interest_rate"
                     type="number"
                     step="0.01"
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm"
+                    class="form-input"
                   />
                 </div>
                 <div class="col-span-6 sm:col-span-4">
@@ -482,7 +482,7 @@ syncMonthsPaid(!draft.months_paid)
                   <input
                     v-model.number="form.term_months"
                     type="number"
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm"
+                    class="form-input"
                   />
                 </div>
                 <div
@@ -498,7 +498,7 @@ syncMonthsPaid(!draft.months_paid)
                     type="number"
                     min="0"
                     :max="form.term_months || undefined"
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm"
+                    class="form-input"
                     @input="monthsPaidManual = true"
                   />
                 </div>
@@ -537,7 +537,7 @@ syncMonthsPaid(!draft.months_paid)
                     type="number"
                     min="1"
                     max="31"
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                    class="form-input"
                   />
                 </div>
 
