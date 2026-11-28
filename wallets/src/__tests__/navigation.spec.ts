@@ -56,6 +56,24 @@ describe('JSON forms', () => {
     expect(form.processing).toBe(false)
     expect(success).not.toHaveBeenCalled()
   })
+  it('runs onSaved as soon as the server accepts, before redirecting', async () => {
+    const order: string[] = []
+    mocks.action.mockResolvedValue({ redirect: '/transactions' })
+    mocks.push.mockImplementation(() => order.push('redirect'))
+    mocks.request.mockRejectedValue(new Error('offline'))
+    const form = useForm({ amount: 10 })
+    await form.post('/transactions', {
+      onSaved: () => order.push('saved'),
+      onSuccess: () => order.push('success'),
+    })
+    expect(order).toEqual(['saved', 'redirect', 'success'])
+  })
+  it('does not run onSaved when saving fails', async () => {
+    mocks.action.mockRejectedValue(new WalletsError('Invalid', {}))
+    const saved = vi.fn()
+    await useForm({ amount: 0 }).post('/transactions', { onSaved: saved })
+    expect(saved).not.toHaveBeenCalled()
+  })
   it('blocks double submission while request is pending', async () => {
     let resolve!: (value: unknown) => void
     mocks.action.mockReturnValue(

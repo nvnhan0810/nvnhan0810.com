@@ -16,7 +16,7 @@ import { crc16, parseTlv } from '../domain/banking/vietqr'
 import { BANK_APPS, toBanks } from '../domain/banking/bank-list'
 import master from '../domain/banking/vietqr-banks.json'
 import { planBankHandoff } from '../application/bank-handoff'
-import { currentPlatform } from '../infrastructure/device'
+import { currentPlatform, hasUserActivation } from '../infrastructure/device'
 
 const vcb = findBankByCode('VCB')!
 const mb = findBankByBin('970422')!
@@ -180,5 +180,13 @@ describe('bank app deeplinks', () => {
     )
     expect(currentPlatform(nav('Mozilla/5.0 (Macintosh)', 5))).toBe('ios')
     expect(currentPlatform(nav('Mozilla/5.0 (Macintosh)'))).toBe('other')
+  })
+
+  it('reads the user activation state, assuming active when unknown', () => {
+    expect(hasUserActivation({ userActivation: { isActive: false } })).toBe(
+      false,
+    )
+    expect(hasUserActivation({ userActivation: { isActive: true } })).toBe(true)
+    expect(hasUserActivation({})).toBe(true)
   })
 })

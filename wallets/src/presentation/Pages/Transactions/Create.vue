@@ -263,10 +263,14 @@ function submit() {
   const plan = openBankApp.value ? handoff.value : undefined
   // Apps without autofill need the account number pasted: copy it now,
   // while we're still inside the tap (clipboard needs a user gesture).
-  if (plan && qr.value && !plan.autofill) void copyText(qr.value.accountNumber)
+  const copiedAccount =
+    plan && qr.value && !plan.autofill ? qr.value.accountNumber : ''
+  if (copiedAccount) void copyText(copiedAccount)
   form.post(route('transactions.store'), {
-    onSuccess: () => {
-      if (plan) startBankHandoff(plan)
+    // Open the app as soon as the server saved it, not after the redirect
+    // and reload: the browser only allows it shortly after the tap.
+    onSaved: () => {
+      if (plan) startBankHandoff(plan, copiedAccount)
     },
   })
 }
