@@ -91,7 +91,7 @@ const sortedPayments = computed(() =>
   <Head :title="`Chi tiết: ${loan.name}`" />
   <AppLayout :title="loan.name">
     <div class="bg-surface shadow overflow-hidden sm:rounded-lg mb-6">
-      <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+      <div class="px-4 py-5 sm:px-6 flex justify-between items-start gap-3">
         <div>
           <h3 class="text-lg leading-6 font-medium text-content">
             Chi tiết khoản vay: {{ loan.name }}
@@ -100,7 +100,7 @@ const sortedPayments = computed(() =>
             Thông tin chi tiết và lịch trả nợ.
           </p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-3">
           <Link
             :href="route('loans.edit', loan.id)"
             class="text-primary-600 dark:text-primary-400 hover:text-primary-900 text-sm font-medium"
@@ -114,13 +114,13 @@ const sortedPayments = computed(() =>
         </div>
       </div>
       <dl class="border-t border-default sm:divide-y sm:divide-default">
-        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <div class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-content-muted">Loại khoản nợ</dt>
           <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
             {{ loanTypeName() }}
           </dd>
         </div>
-        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <div class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-content-muted">
             Tổng số tiền gốc
           </dt>
@@ -128,13 +128,13 @@ const sortedPayments = computed(() =>
             {{ formatMoney(loan.principal_amount) }}
           </dd>
         </div>
-        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <div class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-content-muted">Ngày bắt đầu</dt>
           <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
             {{ loan.started_at }}
           </dd>
         </div>
-        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <div class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-content-muted">Ví liên kết</dt>
           <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
             <template v-if="loan.wallet"
@@ -155,13 +155,17 @@ const sortedPayments = computed(() =>
           </dd>
         </div>
         <template v-if="loan.type === 'bank'">
-          <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <div
+            class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
+          >
             <dt class="text-sm font-medium text-content-muted">Lãi suất</dt>
             <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
               {{ loan.interest_rate }}% / năm
             </dd>
           </div>
-          <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <div
+            class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
+          >
             <dt class="text-sm font-medium text-content-muted">
               Phương pháp tính lãi
             </dt>
@@ -173,13 +177,17 @@ const sortedPayments = computed(() =>
               >
             </dd>
           </div>
-          <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <div
+            class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
+          >
             <dt class="text-sm font-medium text-content-muted">Thời hạn vay</dt>
             <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
               {{ loan.term_months }} tháng
             </dd>
           </div>
-          <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <div
+            class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
+          >
             <dt class="text-sm font-medium text-content-muted">
               Ngày thanh toán cố định
             </dt>
@@ -187,7 +195,9 @@ const sortedPayments = computed(() =>
               Ngày {{ paymentDay ?? '—' }} hàng tháng
             </dd>
           </div>
-          <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <div
+            class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
+          >
             <dt class="text-sm font-medium text-content-muted">Gốc còn lại</dt>
             <dd class="mt-1 text-sm text-content sm:mt-0 sm:col-span-2">
               {{ formatMoney(loan.remaining_principal ?? 0) }}
@@ -195,7 +205,7 @@ const sortedPayments = computed(() =>
           </div>
           <div
             v-if="method === 'custom'"
-            class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
+            class="px-4 py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6"
           >
             <dt class="text-sm font-medium text-content-muted">
               Tổng trả hàng tháng
@@ -223,44 +233,44 @@ const sortedPayments = computed(() =>
           <thead class="bg-app">
             <tr>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Tháng
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Ngày trả
               </th>
               <th
                 v-if="method === 'daily' || method === 'homecredit'"
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Số ngày
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Tổng trả
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Tiền gốc
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Tiền lãi
               </th>
               <th
                 v-if="method === 'custom' || method === 'homecredit'"
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Phí
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase whitespace-nowrap"
               >
                 Dư nợ còn lại
               </th>
@@ -273,7 +283,7 @@ const sortedPayments = computed(() =>
                 class="bg-sky-50 dark:bg-sky-900/30"
               >
                 <td
-                  class="px-6 py-4 text-sm text-sky-800"
+                  class="px-6 py-4 whitespace-nowrap text-sm text-sky-800"
                   :colspan="
                     method === 'daily' || method === 'homecredit' ? 2 : 1
                   "
@@ -283,20 +293,24 @@ const sortedPayments = computed(() =>
                     >TT trước</span
                   >
                 </td>
-                <td class="px-6 py-4 text-sm font-medium text-sky-900">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm font-medium text-sky-900"
+                >
                   {{ fmtDate(row.payment?.paid_at) }}
                 </td>
                 <td
                   v-if="method === 'daily' || method === 'homecredit'"
-                  class="px-6 py-4 text-sm text-sky-600"
+                  class="px-6 py-4 whitespace-nowrap text-sm text-sky-600"
                 >
                   —
                 </td>
-                <td class="px-6 py-4 text-sm font-medium text-sky-900">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm font-medium text-sky-900"
+                >
                   {{ formatMoney(row.payment?.amount ?? 0) }}
                 </td>
                 <td
-                  class="px-6 py-4 text-sm text-sky-600"
+                  class="px-6 py-4 min-w-64 text-sm text-sky-600"
                   :colspan="
                     method === 'custom' || method === 'homecredit' ? 4 : 3
                   "
@@ -312,7 +326,9 @@ const sortedPayments = computed(() =>
                 v-else
                 :class="row.is_paid ? 'bg-green-50 dark:bg-green-900/30' : ''"
               >
-                <td class="px-6 py-4 text-sm text-content-muted">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm text-content-muted"
+                >
                   {{ row.period?.month_index }}
                   <span
                     v-if="row.is_paid"
@@ -325,7 +341,7 @@ const sortedPayments = computed(() =>
                     >Đã TT</span
                   >
                 </td>
-                <td class="px-6 py-4 text-sm text-content">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-content">
                   {{ fmtDate(row.period_due_date) }}
                   <span
                     v-if="scheduleDateLabel(row)"
@@ -335,26 +351,34 @@ const sortedPayments = computed(() =>
                 </td>
                 <td
                   v-if="method === 'daily' || method === 'homecredit'"
-                  class="px-6 py-4 text-sm text-content-muted"
+                  class="px-6 py-4 whitespace-nowrap text-sm text-content-muted"
                 >
                   {{ row.period?.days }} ngày
                 </td>
-                <td class="px-6 py-4 text-sm font-medium text-content">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm font-medium text-content"
+                >
                   {{ formatMoney(row.period?.payment ?? 0) }}
                 </td>
-                <td class="px-6 py-4 text-sm text-content-muted">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm text-content-muted"
+                >
                   {{ formatMoney(row.period?.principal ?? 0) }}
                 </td>
-                <td class="px-6 py-4 text-sm text-content-muted">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm text-content-muted"
+                >
                   {{ formatMoney(row.period?.interest ?? 0) }}
                 </td>
                 <td
                   v-if="method === 'custom' || method === 'homecredit'"
-                  class="px-6 py-4 text-sm text-content-muted"
+                  class="px-6 py-4 whitespace-nowrap text-sm text-content-muted"
                 >
                   {{ formatMoney(row.period?.fee ?? 0) }}
                 </td>
-                <td class="px-6 py-4 text-sm text-content-muted">
+                <td
+                  class="px-6 py-4 whitespace-nowrap text-sm text-content-muted"
+                >
                   {{ formatMoney(row.period?.remaining_principal ?? 0) }}
                 </td>
               </tr>
