@@ -49,6 +49,9 @@ pub fn save_wallet(a: &mut Account, id: Option<i64>, d: &Value) -> Result<()> {
         w["credit_limit"] = Value::Null;
         w["outstanding_balance"] = Value::Null;
     }
+    for (key, value) in bank_details(&kind, d)? {
+        w[key] = value;
+    }
     w["name"] = json!(name);
     w["type"] = json!(kind);
     w["notes"] = d["notes"].clone();
@@ -61,6 +64,55 @@ pub fn save_wallet(a: &mut Account, id: Option<i64>, d: &Value) -> Result<()> {
         a.wallets.push(w);
     }
     Ok(())
+}
+pub const BANK_FIELDS: [&str; 5] = [
+    "bank_bin",
+    "bank_code",
+    "account_number",
+    "account_holder",
+    "bank_branch",
+];
+/// Bank account details (VietQR BIN/code, account number, holder). Only `bank`
+/// wallets keep them; every other type clears them. All fields are optional, but
+/// an account number needs a bank and vice versa.
+fn bank_details(kind: &str, d: &Value) -> Result<Vec<(&'static str, Value)>> {
+    let clean = |key: &str| text(d, key).trim().to_string();
+    if kind != "bank" {
+        return Ok(BANK_FIELDS.iter().map(|&k| (k, Value::Null)).collect());
+    }
+    let bin = clean("bank_bin");
+    let code = clean("bank_code").to_uppercase();
+    let account: String = clean("account_number")
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    let holder = clean("account_holder").to_uppercase();
+    let branch = clean("bank_branch");
+    if !bin.is_empty() && (bin.len() != 6 || !bin.chars().all(|c| c.is_ascii_digit())) {
+        return Err("Ngân hàng không hợp lệ, hãy chọn lại trong danh sách".into());
+    }
+    if code.len() > 20 || !code.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("Ngân hàng không hợp lệ, hãy chọn lại trong danh sách".into());
+    }
+    if !account.is_empty()
+        && (account.len() > 19 || !account.chars().all(|c| c.is_ascii_alphanumeric()))
+    {
+        return Err("Số tài khoản chỉ gồm chữ/số, tối đa 19 ký tự".into());
+    }
+    if account.is_empty() != bin.is_empty() {
+        return Err("Chọn ngân hàng và nhập số tài khoản".into());
+    }
+    if holder.chars().count() > 100 || branch.chars().count() > 200 {
+        return Err("Tên chủ tài khoản/chi nhánh quá dài".into());
+    }
+    let opt = |s: String| if s.is_empty() { Value::Null } else { json!(s) };
+    Ok(vec![
+        ("bank_bin", opt(bin)),
+        ("bank_code", opt(code)),
+        ("account_number", opt(account)),
+        ("account_holder", opt(holder)),
+        ("bank_branch", opt(branch)),
+    ])
 }
 fn apply(a: &mut Account, wallet: i64, delta: i64) -> Result<()> {
     let w = a.wallet_mut(wallet)?;

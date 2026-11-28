@@ -330,6 +330,13 @@ onBeforeUnmount(() => {
               </Link>
             </div>
           </section>
+          <Link
+            :href="route('transactions.create', { scan: 1 })"
+            class="btn btn-primary w-full"
+          >
+            <NavIcon name="qr" size="w-4 h-4" />
+            Quét QR chuyển khoản
+          </Link>
           <div class="grid grid-cols-2 gap-2">
             <Link :href="route('loans.create')" class="btn btn-secondary">
               <NavIcon name="loan" size="w-4 h-4" />

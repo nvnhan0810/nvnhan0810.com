@@ -95,8 +95,25 @@ async fn migrates_documents_to_typed_tables_and_preserves_finance_operations() {
     assert!(doc.is_none());
     let column_type:String=sqlx::query_scalar("SELECT data_type FROM information_schema.columns WHERE table_schema='finance_test' AND table_name='wallets' AND column_name='balance'").fetch_one(&mut *tx).await.unwrap();
     assert_eq!(column_type, "numeric");
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261128000001_wallet_bank_details.up.sql"
+    )))
+    .await
+    .unwrap();
+    let mut banked = infrastructure::load(&mut tx, owner).await.unwrap();
+    let bank_id = number(&banked.wallets[0], "id");
+    finance::save_wallet(
+        &mut banked,
+        Some(bank_id),
+        &json!({"name":"Bank","type":"bank","is_active":true,"bank_bin":"970436","bank_code":"VCB","account_number":"0011001932418","account_holder":"Nguyen Van A"}),
+    )
+    .unwrap();
+    infrastructure::save(&mut tx, owner, &banked).await.unwrap();
     let mut loaded = infrastructure::load(&mut tx, owner).await.unwrap();
     assert_eq!(loaded.wallets[0]["balance"], a.wallets[0]["balance"]);
+    assert_eq!(loaded.wallets[0]["bank_bin"], "970436");
+    assert_eq!(loaded.wallets[0]["account_number"], "0011001932418");
+    assert_eq!(loaded.wallets[0]["account_holder"], "NGUYEN VAN A");
     assert_eq!(loaded.transactions.len(), a.transactions.len());
     assert_eq!(
         loaded.loans[0]["payments"][0]["paid_at"],
@@ -170,6 +187,11 @@ async fn migrates_documents_to_typed_tables_and_preserves_finance_operations() {
     assert!(imported.transactions.is_empty());
     assert_eq!(imported.loans[0]["payments"].as_array().unwrap().len(), 1);
     assert_eq!(imported.holidays.len(), 2);
+    tx.execute(sqlx::raw_sql(include_str!(
+        "../migrations/20261128000001_wallet_bank_details.down.sql"
+    )))
+    .await
+    .unwrap();
     tx.execute(sqlx::raw_sql(include_str!(
         "../migrations/20261103000001_relational_finance.down.sql"
     )))

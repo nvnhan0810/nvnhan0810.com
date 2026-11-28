@@ -10,7 +10,7 @@ fn main() {
     finance::save_wallet(
         &mut a,
         None,
-        &json!({"name":"Bank","type":"bank","balance":10000000}),
+        &json!({"name":"Bank","type":"bank","balance":10000000,"bank_bin":"970436","bank_code":"VCB","account_number":"0011001932418","account_holder":"Nguyen Van A"}),
     )
     .unwrap();
     let loan=lending::create(&mut a,&json!({"type":"bank","name":"Mortgage","principal_amount":1200000,"started_at":today().to_string(),"term_months":12,"interest_rate":12,"monthly_payment":110000,"interest_calculation_method":"monthly","wallet_id":1,"payment_day":15})).unwrap();

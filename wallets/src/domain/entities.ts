@@ -15,6 +15,12 @@ export interface Wallet {
   payment_day: number
   notes: string | null
   transactions_count: number
+  /** Bank wallets only: VietQR bank BIN/code, account number and holder. */
+  bank_bin?: string | null
+  bank_code?: string | null
+  account_number?: string | null
+  account_holder?: string | null
+  bank_branch?: string | null
 }
 export interface Transaction {
   id: number
@@ -177,6 +183,8 @@ export interface Prefill {
   transacted_at?: string
   recurring_item_id?: number
   recurring_occurrence_id?: number
+  /** `?scan=1` opens the VietQR scanner on the create screen. */
+  scan?: string | number
 }
 export interface BulkRow {
   key: number

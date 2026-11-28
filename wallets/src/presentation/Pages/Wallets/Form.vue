@@ -5,7 +5,17 @@ import { computed } from 'vue'
 import { Head, Link, useForm } from '@/application/navigation'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import MoneyInput from '@/Components/MoneyInput.vue'
-import { formatMoney, WALLET_TYPES } from '@/domain'
+import AppSelect from '@/Components/AppSelect.vue'
+import type { AppSelectOption } from '@/Components/AppSelect.vue'
+import {
+  BANKS,
+  bankLabel,
+  findBankByBin,
+  formatMoney,
+  normalizeAccountNumber,
+  walletBank,
+  WALLET_TYPES,
+} from '@/domain'
 
 const props = defineProps({
   wallet: { type: Object as PropType<Wallet | null>, default: null },
@@ -23,10 +33,28 @@ const form = useForm({
   payment_day: props.wallet?.payment_day ?? 1,
   outstanding_balance: props.wallet?.outstanding_balance ?? 0,
   notes: props.wallet?.notes ?? '',
+  bank_bin: (props.wallet ? walletBank(props.wallet)?.bin : undefined) ?? '',
+  account_number: props.wallet?.account_number ?? '',
+  account_holder: props.wallet?.account_holder ?? '',
+  bank_branch: props.wallet?.bank_branch ?? '',
   is_active: props.wallet?.is_active ?? true,
 })
 
 const isCreditCard = computed(() => form.type === 'credit_card')
+const isBank = computed(() => form.type === 'bank')
+
+const bankOptions: AppSelectOption[] = [
+  { value: '', label: '— Chưa chọn —' },
+  ...BANKS.map((b) => ({
+    value: b.bin,
+    label: bankLabel(b),
+  })),
+]
+const selectedBank = computed(() => findBankByBin(String(form.bank_bin)))
+
+function normalizeAccount() {
+  form.account_number = normalizeAccountNumber(form.account_number)
+}
 
 const walletTypeOptions = computed(() =>
   Object.entries(props.walletTypes).map(([key, label]) => ({
@@ -42,11 +70,19 @@ const availableCredit = computed(() =>
   ),
 )
 
+// BIN and code always come from the VietQR master list: the user only picks a bank.
 function submit() {
+  normalizeAccount()
+  const bank = selectedBank.value
+  const withBank = form.transform((data) => ({
+    ...data,
+    bank_bin: bank?.bin ?? '',
+    bank_code: bank?.code ?? '',
+  }))
   if (props.wallet) {
-    form.put(route('wallets.update', props.wallet.id))
+    withBank.put(route('wallets.update', props.wallet.id))
   } else {
-    form.post(route('wallets.store'))
+    withBank.post(route('wallets.store'))
   }
 }
 </script>
@@ -207,6 +243,101 @@ function submit() {
                   >{{ formatMoney(availableCredit) }}</span
                 >
               </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bank account fields -->
+        <div
+          v-if="isBank"
+          class="space-y-4 rounded-lg border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-900/30 p-4"
+        >
+          <div>
+            <p class="text-sm font-medium text-sky-900 dark:text-sky-200">
+              Thông tin tài khoản ngân hàng
+            </p>
+            <p class="mt-0.5 text-xs text-sky-800/80 dark:text-sky-300/80">
+              Dùng để mở app ngân hàng khi ghi giao dịch trên điện thoại.
+            </p>
+          </div>
+          <div>
+            <label class="form-label" for="bank_bin">Ngân hàng</label>
+            <AppSelect
+              id="bank_bin"
+              v-model="form.bank_bin"
+              class="mt-1"
+              :options="bankOptions"
+              :searchable="true"
+              search-placeholder="Tìm tên ngân hàng..."
+            />
+            <dl
+              v-if="selectedBank"
+              class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-content-muted"
+              data-testid="bank-master-info"
+            >
+              <dt>Tên đầy đủ</dt>
+              <dd class="text-content-secondary">{{ selectedBank.name }}</dd>
+              <dt>Mã BIN</dt>
+              <dd class="font-mono text-content-secondary">
+                {{ selectedBank.bin }}
+              </dd>
+              <dt>Mã ngân hàng</dt>
+              <dd class="font-mono text-content-secondary">
+                {{ selectedBank.code }}
+              </dd>
+              <dt>App</dt>
+              <dd class="text-content-secondary">
+                {{ selectedBank.appName ?? 'Chưa hỗ trợ mở app' }}
+              </dd>
+            </dl>
+            <p v-if="selectedBank" class="mt-1 text-[11px] text-content-muted">
+              BIN và mã ngân hàng tự lấy theo danh sách VietQR, không cần nhập.
+            </p>
+            <p v-if="form.errors.bank_bin" class="form-error">
+              {{ form.errors.bank_bin }}
+            </p>
+          </div>
+          <div>
+            <label class="form-label" for="account_number">Số tài khoản</label>
+            <input
+              id="account_number"
+              v-model="form.account_number"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              maxlength="24"
+              :required="!!form.bank_bin"
+              class="form-input font-mono tracking-wide"
+              @blur="normalizeAccount"
+            />
+            <p v-if="form.errors.account_number" class="form-error">
+              {{ form.errors.account_number }}
+            </p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="form-label" for="account_holder"
+                >Chủ tài khoản</label
+              >
+              <input
+                id="account_holder"
+                v-model="form.account_holder"
+                type="text"
+                autocomplete="off"
+                maxlength="100"
+                placeholder="NGUYEN VAN A"
+                class="form-input uppercase"
+              />
+            </div>
+            <div>
+              <label class="form-label" for="bank_branch">Chi nhánh</label>
+              <input
+                id="bank_branch"
+                v-model="form.bank_branch"
+                type="text"
+                maxlength="200"
+                class="form-input"
+              />
             </div>
           </div>
         </div>

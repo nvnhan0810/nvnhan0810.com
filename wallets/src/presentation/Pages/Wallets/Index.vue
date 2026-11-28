@@ -10,7 +10,9 @@ import NavIcon from '@/Components/NavIcon.vue'
 import {
   creditUsagePercent,
   formatMoney,
+  maskAccountNumber,
   summarizeWallets,
+  walletBank,
   WALLET_TYPES,
 } from '@/domain'
 
@@ -43,6 +45,11 @@ const TYPE_STYLE: Record<string, { tone: string; glyph: string }> = {
     glyph:
       'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2',
   },
+}
+function bankOf(wallet: Wallet) {
+  return wallet.type === 'bank' && wallet.account_number
+    ? walletBank(wallet)
+    : undefined
 }
 function typeStyle(type: string) {
   return TYPE_STYLE[type] ?? TYPE_STYLE.cash
@@ -312,8 +319,13 @@ onBeforeUnmount(() => {
               {{ wallet.name }}
             </h3>
             <p class="text-xs text-content-muted truncate">
-              {{ wallet.type_label
-              }}<template v-if="!wallet.is_active"> · đã tắt</template>
+              <template v-if="bankOf(wallet)"
+                >{{ bankOf(wallet)?.shortName }} ·
+                <span class="font-mono">{{
+                  maskAccountNumber(wallet.account_number)
+                }}</span></template
+              ><template v-else>{{ wallet.type_label }}</template
+              ><template v-if="!wallet.is_active"> · đã tắt</template>
             </p>
           </div>
           <button

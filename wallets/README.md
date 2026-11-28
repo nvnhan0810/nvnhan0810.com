@@ -45,6 +45,19 @@ The app is installable as a PWA: `public/manifest.webmanifest`, icons in `public
 
 Hosting requirements: serve over HTTPS, serve `/sw.js` and `/index.html` with `Cache-Control: no-cache`, serve `.webmanifest` as `application/manifest+json`, and keep hashed `/assets/*` immutable. The Identity client needs no change for the installed app; it uses the same origin and callback.
 
+## Bank wallets, bank app handoff and VietQR
+
+Bank wallets (`type = bank`) can store the bank, account number, holder and branch. The user only picks the bank; its BIN and code are filled in from the master data, never typed.
+
+Bank master data:
+
+- `src/domain/banking/vietqr-banks.json` is a verbatim copy of https://vietqr.app/banks.json. To update the bank list, download that file again and replace this one (it is excluded from Prettier so the download can be dropped in as is).
+- `BANK_APPS` in `src/domain/banking/bank-list.ts` maps a bank code to its VietQR deeplink app id. Banks without an entry can still be picked, they just cannot open an app.
+
+On a phone (Android/iOS), saving an expense or transfer from such a wallet then opens that bank's app through VietQR's `https://dl.vietqr.io/pay?app=<id>` router (app ids from `https://api.vietqr.io/v2/{android,ios}-app-deeplinks`); the user can untick this per transaction.
+
+_Giao dịch → Quét QR_ (also in the mobile menu and the PWA shortcut `/transactions/create?scan=1`) reads a VietQR transfer code with the camera (native `BarcodeDetector`, else the lazy-loaded `jsqr`) or from a picture. The EMVCo payload (tag 38 NAPAS beneficiary, 54 amount, 59 name, 62/08 message) is checked against its CRC, the expense is prefilled, a bank wallet is picked as the source, and after saving the source bank app opens with `ba=<account>@<bank>`, `am` and `tn` prefilled. Apps marked `autofill` in the VietQR list fill these in; for the others the recipient account number is copied to the clipboard on save. The camera needs HTTPS (or `localhost`).
+
 ## Backend operations
 
 The shared migration runner creates typed finance tables (`wallets`, `transactions`, `loans`, `loan_periods`, `loan_payments`, recurring tables and debt goals) and a shared `holidays` calendar. The previous `wallets_accounts` document table is migrated and removed. The gateway mounts `/wallets/pages` and `/wallets/actions`; the owner comes from Identity authentication. For the legacy Laravel import command and schema upgrade/rollback instructions, see [database migration](../docs/wallets-database-migration.md).

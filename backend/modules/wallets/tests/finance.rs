@@ -243,3 +243,46 @@ fn adjustment_can_be_saved_as_template_and_pagination_keeps_filters() {
     assert!(url.contains("type=expense"));
     assert!(url.contains("page=2"));
 }
+#[test]
+fn bank_wallets_store_normalized_account_details() {
+    let mut a = account();
+    finance::save_wallet(
+        &mut a,
+        Some(1),
+        &json!({"name":"VCB","type":"bank","is_active":true,"bank_bin":"970436","bank_code":"vcb","account_number":" 0011 0019 32418 ","account_holder":"Nguyen Van A","bank_branch":"HCM"}),
+    )
+    .unwrap();
+    let w = a.wallet(1).unwrap();
+    assert_eq!(w["bank_bin"], "970436");
+    assert_eq!(w["bank_code"], "VCB");
+    assert_eq!(w["account_number"], "0011001932418");
+    assert_eq!(w["account_holder"], "NGUYEN VAN A");
+    assert_eq!(w["bank_branch"], "HCM");
+    assert_eq!(cents(w, "balance").unwrap(), 100000);
+
+    for bad in [
+        json!({"bank_bin":"97043","account_number":"123"}),
+        json!({"bank_bin":"970436","account_number":"12-3"}),
+        json!({"bank_bin":"970436","account_number":"12345678901234567890"}),
+        json!({"bank_bin":"970436"}),
+        json!({"account_number":"123"}),
+    ] {
+        let mut d = json!({"name":"VCB","type":"bank","is_active":true});
+        for (k, v) in bad.as_object().unwrap() {
+            d[k] = v.clone();
+        }
+        assert!(finance::save_wallet(&mut a, Some(1), &d).is_err(), "{bad}");
+    }
+
+    // Switching to another type drops the bank details.
+    finance::save_wallet(
+        &mut a,
+        Some(1),
+        &json!({"name":"Cash","type":"cash","is_active":true,"bank_bin":"970436","account_number":"1"}),
+    )
+    .unwrap();
+    let w = a.wallet(1).unwrap();
+    for key in finance::BANK_FIELDS {
+        assert!(w[key].is_null(), "{key}");
+    }
+}

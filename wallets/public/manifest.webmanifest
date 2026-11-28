@@ -53,6 +53,12 @@
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
+      "name": "Quét QR chuyển khoản",
+      "short_name": "Quét QR",
+      "url": "/transactions/create?scan=1",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Quản lý ví",
       "short_name": "Ví",
       "url": "/wallets",

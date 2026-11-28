@@ -1,14 +1,30 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import type { Wallet, Template, Prefill } from '@/domain/entities'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Head, Link, useForm } from '@/application/navigation'
+import {
+  bankHandoffAvailable,
+  planBankHandoff,
+  startBankHandoff,
+} from '@/application/bank-handoff'
+import { copyText } from '@/infrastructure/device'
+import QrScanner from '@/Components/QrScanner.vue'
+import NavIcon from '@/Components/NavIcon.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import MoneyInput from '@/Components/MoneyInput.vue'
 import DatePicker from '@/Components/DatePicker.vue'
 import AppSelect from '@/Components/AppSelect.vue'
 import type { AppSelectOption } from '@/Components/AppSelect.vue'
-import { formatMoney, todayVi } from '@/domain'
+import {
+  formatMoney,
+  maskAccountNumber,
+  parseVietQr,
+  todayVi,
+  VietQrError,
+  walletBank,
+  type VietQrTransfer,
+} from '@/domain'
 
 const props = defineProps({
   wallets: { type: Array as PropType<Wallet[]>, default: () => [] },
@@ -145,8 +161,114 @@ watch(
   },
 )
 
+// ---- Bank app handoff + VietQR scan -------------------------------------
+const canHandoff = bankHandoffAvailable()
+const qr = ref<VietQrTransfer | null>(null)
+const scannerOpen = ref(String(props.prefill.scan ?? '') === '1')
+const openBankApp = ref(true)
+const copied = ref('')
+
+const bankWallets = computed(() =>
+  props.wallets.filter((w) => w.type === 'bank'),
+)
+const walletById = (id: unknown) =>
+  props.wallets.find((w) => String(w.id) === String(id))
+
+/** Wallet the money leaves from, when that can be a bank transfer. */
+const sourceWallet = computed(() =>
+  form.type === 'expense'
+    ? walletById(form.wallet_id)
+    : form.type === 'transfer'
+      ? walletById(form.from_wallet_id)
+      : undefined,
+)
+
+const qrTarget = computed(() =>
+  qr.value && form.type === 'expense'
+    ? {
+        bank: qr.value.bank,
+        accountNumber: qr.value.accountNumber,
+        amount: Number(form.amount) || null,
+        message: form.description,
+      }
+    : undefined,
+)
+
+const handoff = computed(() =>
+  canHandoff ? planBankHandoff(sourceWallet.value, qrTarget.value) : undefined,
+)
+
+/** Bank wallet without (supported) bank details: hint to complete it. */
+const missingBankInfo = computed(
+  () =>
+    canHandoff &&
+    sourceWallet.value?.type === 'bank' &&
+    !handoff.value &&
+    !walletBank(sourceWallet.value),
+)
+
+function walletHasApp(id: unknown) {
+  const w = walletById(id)
+  return !!w && !!walletBank(w)?.app
+}
+
+function acceptQr(raw: string): true | string {
+  let parsed: VietQrTransfer
+  try {
+    parsed = parseVietQr(raw)
+  } catch (e) {
+    return e instanceof VietQrError ? e.message : 'Không đọc được mã QR.'
+  }
+  qr.value = parsed
+  scannerOpen.value = false
+  form.transaction_template_id = ''
+  form.type = 'expense'
+  if (parsed.amount) form.amount = parsed.amount
+  const who =
+    parsed.merchantName ||
+    `${parsed.bank?.shortName ?? parsed.bin} ${maskAccountNumber(parsed.accountNumber)}`
+  form.description = parsed.message || `Chuyển khoản ${who}`
+  if (!form.category) form.category = 'Chuyển khoản'
+  if (!form.note)
+    form.note = [
+      'Người nhận:',
+      parsed.merchantName,
+      `${parsed.bank?.shortName ?? parsed.bin} ${parsed.accountNumber}`,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  // Prefer a bank wallet whose app we can open, like e-wallet "pay by QR".
+  const current = walletById(form.wallet_id)
+  if (current?.type !== 'bank' || !walletHasApp(current.id)) {
+    const pick =
+      bankWallets.value.find((w) => w.is_active && walletHasApp(w.id)) ??
+      bankWallets.value.find((w) => w.is_active)
+    if (pick) form.wallet_id = pick.id
+  }
+  return true
+}
+
+function clearQr() {
+  qr.value = null
+}
+
+async function copy(value: string, label: string) {
+  if (await copyText(value)) {
+    copied.value = label
+    setTimeout(() => (copied.value = ''), 1500)
+  }
+}
+
 function submit() {
-  form.post(route('transactions.store'))
+  const plan = openBankApp.value ? handoff.value : undefined
+  // Apps without autofill need the account number pasted: copy it now,
+  // while we're still inside the tap (clipboard needs a user gesture).
+  if (plan && qr.value && !plan.autofill) void copyText(qr.value.accountNumber)
+  form.post(route('transactions.store'), {
+    onSuccess: () => {
+      if (plan) startBankHandoff(plan)
+    },
+  })
 }
 </script>
 
@@ -156,18 +278,134 @@ function submit() {
     <div class="max-w-2xl mx-auto">
       <div class="mb-6 flex items-center justify-between gap-3">
         <h2 class="text-2xl font-bold text-content">Ghi giao dịch</h2>
-        <Link
-          :href="route('transactions.bulk')"
-          class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
-          >Ghi cả ngày →</Link
-        >
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="btn btn-secondary px-3"
+            @click="scannerOpen = true"
+          >
+            <NavIcon name="qr" size="w-4 h-4" />
+            Quét QR
+          </button>
+          <Link
+            :href="route('transactions.bulk')"
+            class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            >Ghi cả ngày →</Link
+          >
+        </div>
       </div>
 
       <form
         class="bg-surface shadow rounded-lg p-6 space-y-4"
         @submit.prevent="submit"
       >
-        <div>
+        <!-- Recipient from a scanned VietQR -->
+        <section
+          v-if="qr"
+          class="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/20 p-4"
+          aria-label="Người nhận"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-primary-700 dark:text-primary-300"
+              >
+                Chuyển khoản đến
+              </p>
+              <p
+                v-if="qr.merchantName"
+                class="mt-1 font-semibold text-content truncate"
+              >
+                {{ qr.merchantName }}
+              </p>
+              <p class="text-sm text-content-secondary">
+                {{ qr.bank?.shortName ?? `BIN ${qr.bin}` }}
+                <span v-if="qr.service === 'card'"> · Thẻ</span>
+              </p>
+              <button
+                type="button"
+                class="mt-1 font-mono text-lg font-semibold tracking-wide text-content hover:underline"
+                title="Sao chép số tài khoản"
+                @click="copy(qr.accountNumber, 'account')"
+              >
+                {{ qr.accountNumber }}
+              </button>
+              <span
+                v-if="copied === 'account'"
+                class="ml-2 text-xs text-primary-700 dark:text-primary-300"
+                >Đã sao chép</span
+              >
+              <p v-if="qr.amount" class="text-sm text-content-secondary">
+                Số tiền trong mã:
+                <strong>{{ formatMoney(qr.amount) }}</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              class="text-sm text-content-muted hover:text-content"
+              @click="clearQr"
+            >
+              Bỏ
+            </button>
+          </div>
+
+          <div class="mt-4">
+            <p class="text-sm font-medium text-content-secondary">
+              Chuyển từ tài khoản
+            </p>
+            <div
+              v-if="bankWallets.length"
+              class="mt-2 space-y-2"
+              role="radiogroup"
+              aria-label="Tài khoản nguồn"
+            >
+              <label
+                v-for="w in bankWallets"
+                :key="w.id"
+                class="source-option"
+                :class="{
+                  'source-option-active':
+                    String(form.wallet_id) === String(w.id),
+                  'opacity-60': !w.is_active,
+                }"
+              >
+                <input
+                  v-model="form.wallet_id"
+                  type="radio"
+                  name="source_wallet"
+                  :value="w.id"
+                  class="sr-only"
+                />
+                <span class="min-w-0 flex-1">
+                  <span class="block font-medium text-content truncate">{{
+                    w.name
+                  }}</span>
+                  <span class="block text-xs text-content-muted truncate">
+                    <template v-if="walletBank(w)"
+                      >{{ walletBank(w)?.shortName }}
+                      {{ maskAccountNumber(w.account_number) }}</template
+                    >
+                    <template v-else>Chưa có thông tin ngân hàng</template>
+                  </span>
+                </span>
+                <span class="text-sm font-semibold tabular-nums text-content">{{
+                  formatMoney(w.balance)
+                }}</span>
+              </label>
+            </div>
+            <p v-else class="mt-1 text-sm text-content-muted">
+              Chưa có ví tài khoản ngân hàng.
+              <Link
+                :href="route('wallets.create')"
+                class="text-primary-600 dark:text-primary-400 underline"
+                >Thêm ví</Link
+              >
+              hoặc chọn ví bên dưới.
+            </p>
+          </div>
+        </section>
+
+        <div v-if="!qr">
           <label class="block text-sm font-medium text-content-secondary"
             >Chọn mẫu (tùy chọn)</label
           >
@@ -180,7 +418,7 @@ function submit() {
           />
         </div>
 
-        <div>
+        <div v-if="!qr">
           <label class="block text-sm font-medium text-content-secondary"
             >Loại giao dịch</label
           >
@@ -199,7 +437,7 @@ function submit() {
           class="space-y-4"
         >
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            <div v-if="!qr || !bankWallets.length">
               <label class="block text-sm font-medium text-content-secondary"
                 >Ví</label
               >
@@ -420,13 +658,45 @@ function submit() {
           </div>
         </div>
 
+        <!-- Hand off to the bank app (phones only) -->
+        <div
+          v-if="handoff"
+          class="rounded-md border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-900/20 p-4"
+        >
+          <label class="flex items-start gap-2 text-sm text-content-secondary">
+            <input
+              v-model="openBankApp"
+              type="checkbox"
+              class="mt-0.5 rounded border-strong bg-surface text-primary-600"
+            />
+            <span>
+              Lưu xong mở app <strong>{{ handoff.appName }}</strong> để chuyển
+              khoản
+              <span v-if="qrTarget" class="block text-xs text-content-muted">{{
+                handoff.autofill
+                  ? 'App sẽ điền sẵn người nhận và số tiền.'
+                  : 'Số tài khoản người nhận sẽ được sao chép để dán vào app.'
+              }}</span>
+            </span>
+          </label>
+        </div>
+        <p v-else-if="missingBankInfo" class="text-xs text-content-muted">
+          Thêm ngân hàng và số tài khoản cho ví này để mở app ngân hàng sau khi
+          lưu.
+          <Link
+            :href="route('wallets.edit', sourceWallet?.id ?? 0)"
+            class="text-primary-600 dark:text-primary-400 underline"
+            >Cập nhật ví</Link
+          >
+        </p>
+
         <div class="flex gap-3 pt-2">
           <button
             type="submit"
             class="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-md text-sm font-medium hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50"
             :disabled="form.processing"
           >
-            Lưu
+            {{ handoff && openBankApp ? 'Lưu & mở app' : 'Lưu' }}
           </button>
           <Link
             :href="route('transactions.index')"
@@ -436,5 +706,24 @@ function submit() {
         </div>
       </form>
     </div>
+    <QrScanner
+      :open="scannerOpen"
+      title="Quét mã chuyển khoản"
+      :accept="acceptQr"
+      @close="scannerOpen = false"
+    />
   </AppLayout>
 </template>
+
+<style scoped>
+@reference '../../../styles.css';
+.source-option {
+  @apply flex items-center gap-3 rounded-xl border border-default bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:bg-surface-hover;
+}
+.source-option:has(input:focus-visible) {
+  @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-surface;
+}
+.source-option-active {
+  @apply border-primary-500 bg-primary-50 dark:bg-primary-900/40 hover:bg-primary-50 dark:hover:bg-primary-900/40;
+}
+</style>
