@@ -46,6 +46,12 @@ export const Link = defineComponent({
   },
 })
 export interface Options {
+  /**
+   * Runs as soon as the server accepted the request, before the redirect and
+   * page reload. Use it for work that must stay close to the user's tap
+   * (opening another app expires with the tap's user activation).
+   */
+  onSaved?: () => void
   onSuccess?: () => void
   onError?: (errors: Record<string, string>) => void
   onFinish?: () => void
@@ -114,6 +120,7 @@ async function submit(
         rows: await importHolidays((data as { file: File | null }).file),
       }
     const result = await action<PagePayload>(path, method, data)
+    options.onSaved?.()
     if (origin !== vueRouter.currentRoute.value.fullPath) return
     if (result.component) {
       await preparePageComponent(result.component)

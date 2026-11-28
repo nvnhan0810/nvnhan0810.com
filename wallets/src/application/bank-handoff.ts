@@ -7,9 +7,12 @@ import {
   type Platform,
   type TransferTarget,
 } from '@/domain/banking/bank-app'
+import { reactive } from 'vue'
 import {
   canOpenBankApp,
   currentPlatform,
+  hasUserActivation,
+  onPageHidden,
   openExternal,
 } from '@/infrastructure/device'
 
@@ -49,6 +52,39 @@ export function bankHandoffAvailable(): boolean {
   return canOpenBankApp()
 }
 
-export function startBankHandoff(handoff: BankHandoff): void {
-  openExternal(handoff.link)
+/**
+ * The handoff waiting for the user to open the bank app. Shown as a prompt
+ * with a real link: browsers block switching to another app once the tap
+ * that saved the transaction is too old (Chrome on Android silently drops
+ * the `intent://` redirect), so a fresh tap is the reliable path.
+ */
+export const pendingHandoff = reactive<{
+  handoff: BankHandoff | null
+  /** Recipient account copied to the clipboard for apps without autofill. */
+  copiedAccount: string
+}>({ handoff: null, copiedAccount: '' })
+
+let stopWatchingPage: (() => void) | undefined
+
+export function dismissBankHandoff(): void {
+  stopWatchingPage?.()
+  stopWatchingPage = undefined
+  pendingHandoff.handoff = null
+  pendingHandoff.copiedAccount = ''
+}
+
+/**
+ * Right after the transaction is saved: open the bank app if the browser
+ * still allows it, and keep a prompt to open it by tap otherwise. The prompt
+ * closes by itself once the page goes to the background (app opened).
+ */
+export function startBankHandoff(
+  handoff: BankHandoff,
+  copiedAccount = '',
+): void {
+  dismissBankHandoff()
+  pendingHandoff.handoff = handoff
+  pendingHandoff.copiedAccount = copiedAccount
+  stopWatchingPage = onPageHidden(dismissBankHandoff)
+  if (hasUserActivation()) openExternal(handoff.link)
 }

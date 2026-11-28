@@ -13,6 +13,7 @@ import {
 } from '@/application/app-navigation'
 import DebtGoalProgressCard from '@/Components/DebtGoalProgressCard.vue'
 import FlashMessages from '@/Components/FlashMessages.vue'
+import BankHandoffPrompt from '@/Components/BankHandoffPrompt.vue'
 import NavIcon from '@/Components/NavIcon.vue'
 import InstallAppPrompt from '@/Components/InstallAppPrompt.vue'
 import { greetingLabel, toggleTheme } from '@/domain'
@@ -227,6 +228,7 @@ onBeforeUnmount(() => {
     <main class="main-content pt-5 lg:pt-8 pb-8">
       <div class="max-w-7xl mx-auto px-safe lg:px-8">
         <InstallAppPrompt />
+        <BankHandoffPrompt />
         <FlashMessages />
         <DebtGoalProgressCard />
         <slot />

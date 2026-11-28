@@ -25,6 +25,30 @@ export function openExternal(url: string): void {
   window.location.assign(url)
 }
 
+/**
+ * Whether the page still holds the user's tap (transient activation).
+ * Browsers only let a page switch to another app while it does; without the
+ * User Activation API we cannot tell, so assume yes.
+ */
+export function hasUserActivation(
+  nav: { userActivation?: { isActive: boolean } } = navigator,
+): boolean {
+  return nav.userActivation?.isActive ?? true
+}
+
+/** Calls `onHidden` once when the page goes to the background. */
+export function onPageHidden(onHidden: () => void): () => void {
+  const listener = () => {
+    if (document.visibilityState === 'hidden') {
+      stop()
+      onHidden()
+    }
+  }
+  const stop = () => document.removeEventListener('visibilitychange', listener)
+  document.addEventListener('visibilitychange', listener)
+  return stop
+}
+
 /** Best-effort copy; must run inside a user gesture on iOS. */
 export async function copyText(value: string): Promise<boolean> {
   try {
