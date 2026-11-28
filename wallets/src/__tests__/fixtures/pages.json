@@ -110,8 +110,8 @@
           "recurring_item_id": null,
           "recurring_occurrence_id": 0,
           "signed_amount": "−25.0 ₫",
-          "transacted_at": "2026-11-02",
-          "transacted_at_label": "02/11/2026",
+          "transacted_at": "2026-11-28",
+          "transacted_at_label": "28/11/2026",
           "transaction_template_id": null,
           "type": "expense",
           "type_label": "Chi",
@@ -159,7 +159,12 @@
       },
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -225,7 +230,12 @@
         "wallet_name": "Bank"
       },
       "wallet": {
+        "account_holder": "NGUYEN VAN A",
+        "account_number": "0011001932418",
         "balance": 9999975.0,
+        "bank_bin": "970436",
+        "bank_branch": null,
+        "bank_code": "VCB",
         "id": 1,
         "is_active": true,
         "is_credit_card": false,
@@ -289,8 +299,8 @@
             "recurring_item_id": null,
             "recurring_occurrence_id": 0,
             "signed_amount": "−25.0 ₫",
-            "transacted_at": "2026-11-02",
-            "transacted_at_label": "02/11/2026",
+            "transacted_at": "2026-11-28",
+            "transacted_at_label": "28/11/2026",
             "transaction_template_id": null,
             "type": "expense",
             "type_label": "Chi",
@@ -318,7 +328,12 @@
       },
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -361,7 +376,12 @@
       },
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -396,12 +416,17 @@
         "wallet_id": 1,
         "wallet_name": "Bank"
       },
-      "defaultDate": "02/11/2026",
+      "defaultDate": "28/11/2026",
       "defaultWalletId": null,
       "templates": [],
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -439,7 +464,12 @@
       "templates": [],
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -493,7 +523,7 @@
           "remaining_principal": 1200000.0,
           "schedule": [
             {
-              "days": 43,
+              "days": 17,
               "due_date": "2026-12-15",
               "due_date_label": "15/12/2026",
               "fee": 0.0,
@@ -661,11 +691,16 @@
               "status": "pending"
             }
           ],
-          "started_at": "2026-11-02",
+          "started_at": "2026-11-28",
           "term_months": 12,
           "type": "bank",
           "wallet": {
+            "account_holder": "NGUYEN VAN A",
+            "account_number": "0011001932418",
             "balance": 9999975.0,
+            "bank_bin": "970436",
+            "bank_branch": null,
+            "bank_code": "VCB",
             "id": 1,
             "is_active": true,
             "is_pinned": false,
@@ -681,7 +716,12 @@
       "totalRemaining": 1200000.0,
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -719,7 +759,12 @@
       "draft": null,
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -772,7 +817,7 @@
         "remaining_principal": 1200000.0,
         "schedule": [
           {
-            "days": 43,
+            "days": 17,
             "due_date": "2026-12-15",
             "due_date_label": "15/12/2026",
             "fee": 0.0,
@@ -940,11 +985,16 @@
             "status": "pending"
           }
         ],
-        "started_at": "02/11/2026",
+        "started_at": "28/11/2026",
         "term_months": 12,
         "type": "bank",
         "wallet": {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_pinned": false,
@@ -959,7 +1009,7 @@
       "paymentDay": 15,
       "schedule": [
         {
-          "days": 43,
+          "days": 17,
           "due_date": "2026-12-15",
           "due_date_label": "15/12/2026",
           "fee": 0.0,
@@ -1133,7 +1183,7 @@
           "note": "",
           "payment": null,
           "period": {
-            "days": 43,
+            "days": 17,
             "due_date": "2026-12-15",
             "due_date_label": "15/12/2026",
             "fee": 0.0,
@@ -1395,7 +1445,12 @@
       ],
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -1448,7 +1503,7 @@
         "remaining_principal": 1200000.0,
         "schedule": [
           {
-            "days": 43,
+            "days": 17,
             "due_date": "2026-12-15",
             "due_date_label": "15/12/2026",
             "fee": 0.0,
@@ -1616,11 +1671,16 @@
             "status": "pending"
           }
         ],
-        "started_at": "2026-11-02",
+        "started_at": "2026-11-28",
         "term_months": 12,
         "type": "bank",
         "wallet": {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_pinned": false,
@@ -1633,7 +1693,12 @@
       },
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -1672,13 +1737,13 @@
         {
           "amount": 200,
           "day_of_month": 15,
-          "days_until": 13,
-          "effective_from": "2026-11-02",
+          "days_until": 17,
+          "effective_from": "2026-11-28",
           "id": 16,
           "insufficient_funds": false,
           "is_active": true,
           "name": "Rent",
-          "next_due": "2026-11-15",
+          "next_due": "2026-12-15",
           "type": "expense",
           "wallet_id": null
         }
@@ -1707,7 +1772,7 @@
         "wallet_name": "Bank"
       },
       "duration": 5,
-      "grand_total": 441000.0,
+      "grand_total": 440800.0,
       "granularity": "month",
       "granularity_options": [
         {
@@ -1732,20 +1797,11 @@
         {
           "end": "2026-11-30",
           "index": 0,
-          "items": [
-            {
-              "amount": 200.0,
-              "due_date": "2026-11-15",
-              "name": "Rent",
-              "source": "recurring",
-              "source_id": 16,
-              "type_label": "Chi cố định"
-            }
-          ],
+          "items": [],
           "key": "2026-11-01",
           "label": "01/11/2026 – 30/11/2026",
           "start": "2026-11-01",
-          "total": 200.0
+          "total": 0.0
         },
         {
           "end": "2026-12-31",
@@ -1978,7 +2034,7 @@
           "remaining_principal": 1200000.0,
           "schedule": [
             {
-              "days": 43,
+              "days": 17,
               "due_date": "2026-12-15",
               "due_date_label": "15/12/2026",
               "fee": 0.0,
@@ -2146,11 +2202,16 @@
               "status": "pending"
             }
           ],
-          "started_at": "2026-11-02",
+          "started_at": "2026-11-28",
           "term_months": 12,
           "type": "bank",
           "wallet": {
+            "account_holder": "NGUYEN VAN A",
+            "account_number": "0011001932418",
             "balance": 9999975.0,
+            "bank_bin": "970436",
+            "bank_branch": null,
+            "bank_code": "VCB",
             "id": 1,
             "is_active": true,
             "is_pinned": false,
@@ -2181,7 +2242,12 @@
       },
       "wallets": [
         {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_credit_card": false,
@@ -2202,7 +2268,7 @@
       "collected": 9999975.0,
       "current": {
         "can_settle": true,
-        "days": 43,
+        "days": 17,
         "due_date": "2026-12-15",
         "due_date_label": "15/12/2026",
         "fee": 0.0,
@@ -2263,7 +2329,7 @@
         "remaining_principal": 1200000.0,
         "schedule": [
           {
-            "days": 43,
+            "days": 17,
             "due_date": "2026-12-15",
             "due_date_label": "15/12/2026",
             "fee": 0.0,
@@ -2431,11 +2497,16 @@
             "status": "pending"
           }
         ],
-        "started_at": "2026-11-02",
+        "started_at": "2026-11-28",
         "term_months": 12,
         "type": "bank",
         "wallet": {
+          "account_holder": "NGUYEN VAN A",
+          "account_number": "0011001932418",
           "balance": 9999975.0,
+          "bank_bin": "970436",
+          "bank_branch": null,
+          "bank_code": "VCB",
           "id": 1,
           "is_active": true,
           "is_pinned": false,
@@ -2452,7 +2523,7 @@
       "rows": [
         {
           "can_settle": true,
-          "days": 43,
+          "days": 17,
           "due_date": "2026-12-15",
           "due_date_label": "15/12/2026",
           "fee": 0.0,
@@ -2692,7 +2763,12 @@
         }
       ],
       "wallet": {
+        "account_holder": "NGUYEN VAN A",
+        "account_number": "0011001932418",
         "balance": 9999975.0,
+        "bank_bin": "970436",
+        "bank_branch": null,
+        "bank_code": "VCB",
         "id": 1,
         "is_active": true,
         "is_pinned": false,
@@ -2713,16 +2789,16 @@
         "monthly_payment": 100,
         "name": "Preview",
         "principal_amount": 1000,
-        "started_at": "2026-11-02",
-        "started_at_label": "02/11/2026",
+        "started_at": "2026-11-28",
+        "started_at_label": "28/11/2026",
         "term_months": 12,
         "type": "bank"
       },
       "schedule": [
         {
           "days": 30,
-          "due_date": "2026-12-02",
-          "due_date_label": "02/12/2026",
+          "due_date": "2026-12-28",
+          "due_date_label": "28/12/2026",
           "fee": 0.0,
           "id": 0,
           "interest": 10.0,
@@ -2735,8 +2811,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-01-02",
-          "due_date_label": "02/01/2027",
+          "due_date": "2027-01-28",
+          "due_date_label": "28/01/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 9.0,
@@ -2749,8 +2825,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-02-02",
-          "due_date_label": "02/02/2027",
+          "due_date": "2027-02-28",
+          "due_date_label": "28/02/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 8.0,
@@ -2763,8 +2839,8 @@
         },
         {
           "days": 28,
-          "due_date": "2027-03-02",
-          "due_date_label": "02/03/2027",
+          "due_date": "2027-03-28",
+          "due_date_label": "28/03/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 7.0,
@@ -2777,8 +2853,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-04-02",
-          "due_date_label": "02/04/2027",
+          "due_date": "2027-04-28",
+          "due_date_label": "28/04/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 6.0,
@@ -2791,8 +2867,8 @@
         },
         {
           "days": 30,
-          "due_date": "2027-05-02",
-          "due_date_label": "02/05/2027",
+          "due_date": "2027-05-28",
+          "due_date_label": "28/05/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 5.0,
@@ -2805,8 +2881,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-06-02",
-          "due_date_label": "02/06/2027",
+          "due_date": "2027-06-28",
+          "due_date_label": "28/06/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 4.0,
@@ -2819,8 +2895,8 @@
         },
         {
           "days": 30,
-          "due_date": "2027-07-02",
-          "due_date_label": "02/07/2027",
+          "due_date": "2027-07-28",
+          "due_date_label": "28/07/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 3.0,
@@ -2833,8 +2909,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-08-02",
-          "due_date_label": "02/08/2027",
+          "due_date": "2027-08-28",
+          "due_date_label": "28/08/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 3.0,
@@ -2847,8 +2923,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-09-02",
-          "due_date_label": "02/09/2027",
+          "due_date": "2027-09-28",
+          "due_date_label": "28/09/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 2.0,
@@ -2861,8 +2937,8 @@
         },
         {
           "days": 30,
-          "due_date": "2027-10-02",
-          "due_date_label": "02/10/2027",
+          "due_date": "2027-10-28",
+          "due_date_label": "28/10/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 1.0,
@@ -2875,8 +2951,8 @@
         },
         {
           "days": 31,
-          "due_date": "2027-11-02",
-          "due_date_label": "02/11/2027",
+          "due_date": "2027-11-28",
+          "due_date_label": "28/11/2027",
           "fee": 0.0,
           "id": 0,
           "interest": 0.0,
