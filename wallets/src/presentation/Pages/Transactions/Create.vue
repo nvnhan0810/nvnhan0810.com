@@ -230,18 +230,14 @@ function submit() {
               v-model="form.description"
               type="text"
               required
-              class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
+              class="form-input"
             />
           </div>
           <div>
             <label class="block text-sm font-medium text-content-secondary"
               >Danh mục</label
             >
-            <input
-              v-model="form.category"
-              type="text"
-              class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
-            />
+            <input v-model="form.category" type="text" class="form-input" />
           </div>
         </div>
 
@@ -309,7 +305,7 @@ function submit() {
               type="text"
               required
               placeholder="VD: Đối chiếu sao kê tháng 5"
-              class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
+              class="form-input"
             />
           </div>
         </div>
@@ -381,7 +377,7 @@ function submit() {
               type="text"
               required
               placeholder="VD: Chuyển tiền mặt sang ngân hàng"
-              class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
+              class="form-input"
             />
           </div>
         </div>
@@ -398,11 +394,7 @@ function submit() {
           <label class="block text-sm font-medium text-content-secondary"
             >Ghi chú</label
           >
-          <textarea
-            v-model="form.note"
-            rows="2"
-            class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2"
-          />
+          <textarea v-model="form.note" rows="2" class="form-input" />
         </div>
 
         <div
@@ -423,7 +415,7 @@ function submit() {
               v-model="form.template_name"
               type="text"
               placeholder="Tên mẫu"
-              class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+              class="form-input"
             />
           </div>
         </div>

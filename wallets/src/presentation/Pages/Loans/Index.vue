@@ -393,7 +393,7 @@ onMounted(() => {
                   <input
                     v-model="paymentForm.note"
                     type="text"
-                    class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                    class="form-input"
                   />
                 </div>
               </div>
@@ -478,7 +478,7 @@ onMounted(() => {
                 <input
                   v-model="settleForm.note"
                   type="text"
-                  class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+                  class="form-input"
                 />
               </div>
             </div>
@@ -506,7 +506,7 @@ onMounted(() => {
     <Link
       v-if="!paymentModalOpen && !settleModalOpen"
       :href="route('loans.create')"
-      class="fixed z-40 right-4 md:right-8 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:bottom-8 inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary-600 dark:bg-primary-500 text-white shadow-lg hover:bg-primary-700 active:scale-95 transition"
+      class="fixed z-40 right-4 lg:right-8 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-8 inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary-600 dark:bg-primary-500 text-white shadow-lg hover:bg-primary-700 active:scale-95 transition"
       aria-label="Tạo khoản vay mới"
     >
       <svg class="w-7 h-7" viewBox="0 0 20 20" fill="currentColor">

@@ -202,7 +202,7 @@ function clearGoal(): void {
           type="text"
           maxlength="120"
           placeholder="Mục tiêu trả nợ"
-          class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2"
+          class="form-input"
         />
       </div>
 
@@ -297,7 +297,7 @@ function clearGoal(): void {
                 min="1"
                 max="40"
                 required
-                class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                class="form-input"
               />
             </div>
             <div>
@@ -325,7 +325,7 @@ function clearGoal(): void {
                 type="number"
                 min="0"
                 step="0.01"
-                class="mt-1 w-full rounded-md border border-strong bg-surface text-content p-2 text-sm"
+                class="form-input"
               />
             </div>
             <div>

@@ -6,6 +6,8 @@ import {
   applyTheme,
   readStoredTheme,
 } from './infrastructure/theme/theme-storage'
+import { registerServiceWorker } from './infrastructure/pwa'
+import { initPwaInstall } from './application/pwa-install'
 import './styles.css'
 Object.assign(globalThis, { route })
 applyTheme(
@@ -15,3 +17,5 @@ applyTheme(
 const app = createApp(App)
 app.config.globalProperties.route = route
 app.use(vueRouter).mount('#app')
+initPwaInstall()
+registerServiceWorker()

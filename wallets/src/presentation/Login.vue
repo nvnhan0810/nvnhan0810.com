@@ -13,22 +13,44 @@ async function login() {
 }
 </script>
 <template>
-  <main class="min-h-screen flex items-center justify-center p-4">
-    <div
-      class="max-w-md w-full bg-surface border border-default rounded-2xl p-8"
-    >
-      <h1 class="text-2xl font-bold text-primary-600">MyWallet</h1>
-      <p class="mt-2 text-content-secondary">
-        Quản lý ví, thu chi và khoản vay của bạn.
-      </p>
-      <p v-if="error" role="alert" class="mt-4 text-red-600">{{ error }}</p>
-      <button
-        class="mt-6 w-full bg-primary-600 text-white rounded-lg p-3 disabled:opacity-50"
-        :disabled="session.state.busy"
-        @click="login"
-      >
-        {{ session.state.busy ? 'Đang đăng nhập…' : 'Đăng nhập qua Identity' }}
-      </button>
+  <main
+    class="min-h-[100dvh] flex items-center justify-center px-safe py-10 bg-gradient-to-b from-primary-50 to-app dark:from-slate-900 dark:to-app"
+  >
+    <div class="w-full max-w-sm">
+      <div class="flex flex-col items-center text-center">
+        <img
+          src="/icons/icon-192.png"
+          alt=""
+          class="w-20 h-20 rounded-3xl shadow-xl shadow-primary-600/25"
+        />
+        <h1 class="mt-5 text-3xl font-bold tracking-tight text-content">
+          MyWallet
+        </h1>
+        <p class="mt-2 text-content-muted">
+          Quản lý ví, thu chi và khoản vay của bạn.
+        </p>
+      </div>
+      <div class="card mt-8 p-6">
+        <p
+          v-if="error"
+          role="alert"
+          class="mb-4 rounded-xl bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm text-red-700 dark:text-red-300"
+        >
+          {{ error }}
+        </p>
+        <button
+          class="btn btn-primary w-full min-h-12 text-base"
+          :disabled="session.state.busy"
+          @click="login"
+        >
+          {{
+            session.state.busy ? 'Đang đăng nhập…' : 'Đăng nhập qua Identity'
+          }}
+        </button>
+        <p class="mt-4 text-center text-xs text-content-muted">
+          Đăng nhập một lần cho mọi ứng dụng của bạn.
+        </p>
+      </div>
     </div>
   </main>
 </template>

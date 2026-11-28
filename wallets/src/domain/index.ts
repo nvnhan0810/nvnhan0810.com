@@ -7,6 +7,11 @@ export {
 } from '@/domain/catalog/wallet-type'
 export type { WalletTypeId } from '@/domain/catalog/wallet-type'
 export {
+  summarizeWallets,
+  creditUsagePercent,
+} from '@/domain/catalog/wallet-summary'
+export type { WalletSummary } from '@/domain/catalog/wallet-summary'
+export {
   TX_TYPES,
   TX_TYPE_LABELS,
   TxType,

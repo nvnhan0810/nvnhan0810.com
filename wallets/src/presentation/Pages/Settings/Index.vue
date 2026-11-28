@@ -2,6 +2,9 @@
 import { computed } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@/application/navigation'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import InstallAppPrompt from '@/Components/InstallAppPrompt.vue'
+import NavIcon from '@/Components/NavIcon.vue'
+import { toggleTheme } from '@/domain'
 
 const props = defineProps({
   recurringAlertDays: { type: Number, default: 7 },
@@ -189,6 +192,36 @@ function logout() {
         <h3
           class="text-sm font-semibold text-content-muted uppercase tracking-wider px-2"
         >
+          Ứng dụng
+        </h3>
+        <InstallAppPrompt variant="panel" />
+        <button
+          type="button"
+          class="card w-full flex items-center gap-4 p-4 text-left hover:bg-surface-hover transition-colors"
+          @click="toggleTheme"
+        >
+          <span
+            class="w-10 h-10 rounded-full bg-muted text-content-secondary flex items-center justify-center shrink-0"
+          >
+            <NavIcon name="sun" class="hidden dark:block" />
+            <NavIcon name="moon" class="dark:hidden" />
+          </span>
+          <span class="flex-1">
+            <span class="block font-semibold text-content">Giao diện</span>
+            <span class="block text-xs text-content-muted"
+              ><span class="dark:hidden">Sáng · bấm để chuyển sang tối</span
+              ><span class="hidden dark:inline"
+                >Tối · bấm để chuyển sang sáng</span
+              ></span
+            >
+          </span>
+        </button>
+      </div>
+
+      <div class="space-y-4 mb-8">
+        <h3
+          class="text-sm font-semibold text-content-muted uppercase tracking-wider px-2"
+        >
           Cấu hình hệ thống
         </h3>
         <form
@@ -240,7 +273,7 @@ function logout() {
                 v-model="form.telegram_chat_id"
                 type="text"
                 placeholder="VD: 123456789"
-                class="w-full rounded-lg border border-strong bg-surface text-content p-2.5 text-sm"
+                class="form-input mt-0"
               />
               <p class="text-[11px] text-content-muted mt-1.5">
                 Nhắn <code>/start</code> cho bot, rồi lấy chat id (VD qua

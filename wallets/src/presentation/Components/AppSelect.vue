@@ -61,10 +61,10 @@ const filtered = computed((): AppSelectOption[] => {
 
 const triggerClass = computed((): string => {
   const base =
-    'w-full inline-flex items-center justify-between gap-2 rounded-md border border-strong bg-surface text-content text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 disabled:opacity-50 disabled:cursor-not-allowed'
+    'w-full inline-flex items-center justify-between gap-2 rounded-xl border border-strong bg-surface text-content text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 disabled:opacity-50 disabled:cursor-not-allowed'
   return props.size === 'sm'
     ? `${base} px-2.5 py-1.5 text-sm`
-    : `${base} px-3 py-2 text-sm`
+    : `${base} px-3 py-2.5 text-sm`
 })
 
 watch(open, async (isOpen) => {
@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
     <div
       v-if="open"
       :id="`${id ?? 'app-select'}-list`"
-      class="absolute z-[80] mt-1 w-full rounded-md border border-default bg-surface shadow-lg overflow-hidden"
+      class="absolute z-[80] mt-1 w-full rounded-xl border border-default bg-surface shadow-lg overflow-hidden"
       role="listbox"
     >
       <div v-if="searchable" class="p-2 border-b border-subtle">

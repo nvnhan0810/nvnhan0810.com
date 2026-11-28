@@ -37,6 +37,14 @@ cargo test -p wallets
 
 Holiday imports accept CSV/TXT/XLS/XLSX, up to 5 MB and 10,000 rows. The first sheet needs `date`, `name`, `type` columns; use ISO `YYYY-MM-DD` or `DD/MM/YYYY` dates and `public`, `bank`, `custom` types. Download `/holiday-template.csv` for an example. Imported rows are validated by the Rust API inside the account transaction.
 
+## Layout and PWA
+
+Laptop/desktop (≥1024px) gets a fixed sidebar grouped into _Tài chính_, _Kế hoạch_ and _Cá nhân_. Phones and tablets get a top bar (back button and page title on sub-pages), section tabs on list pages, and a bottom bar: Tổng quan · Giao dịch · **+** · Ví · Thêm (a sheet with the other screens). The navigation is defined once in `src/application/app-navigation.ts`; shared component classes (`btn`, `card`, `form-input`, `chip`…) live in `src/styles.css`.
+
+The app is installable as a PWA: `public/manifest.webmanifest`, icons in `public/icons/` (regenerate with `python3 scripts/generate-icons.py`, needs Pillow), and a service worker built to `dist/sw.js` by `pwa/vite-plugin.ts` from `pwa/service-worker.js`. The worker precaches the build, serves navigations network-first with an offline app-shell fallback, and never intercepts API/Identity or other cross-origin requests, so no account data is cached. It is only registered in production builds (`npm run build` + `npm run preview` to try it locally). Android/desktop Chrome get an install banner on the dashboard and a button under _Cá nhân → Ứng dụng_; iOS Safari shows the _Chia sẻ → Thêm vào MH chính_ hint.
+
+Hosting requirements: serve over HTTPS, serve `/sw.js` and `/index.html` with `Cache-Control: no-cache`, serve `.webmanifest` as `application/manifest+json`, and keep hashed `/assets/*` immutable. The Identity client needs no change for the installed app; it uses the same origin and callback.
+
 ## Backend operations
 
 The shared migration runner creates typed finance tables (`wallets`, `transactions`, `loans`, `loan_periods`, `loan_payments`, recurring tables and debt goals) and a shared `holidays` calendar. The previous `wallets_accounts` document table is migrated and removed. The gateway mounts `/wallets/pages` and `/wallets/actions`; the owner comes from Identity authentication. For the legacy Laravel import command and schema upgrade/rollback instructions, see [database migration](../docs/wallets-database-migration.md).

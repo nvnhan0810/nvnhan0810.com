@@ -90,7 +90,7 @@ function typeLabel(type: string) {
               type="text"
               required
               placeholder="Tết Nguyên Đán"
-              class="mt-1 block w-full rounded-md border border-strong bg-surface text-content p-2 sm:text-sm"
+              class="form-input"
             />
           </div>
           <div>
