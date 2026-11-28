@@ -66,3 +66,47 @@ describe('Rust page contracts render in the preserved Vue screens', () => {
       wrapper.unmount()
     })
 })
+
+describe('VietQR transfer on the create screen', () => {
+  const fixture = fixtures.find((f) => f.component === 'Transactions/Create')!
+  it('fills an expense from a scanned code and picks the bank wallet', async () => {
+    const { buildVietQr } = await import('../domain')
+    const component = modules[
+      '../presentation/Pages/Transactions/Create.vue'
+    ] as Component
+    const wrapper = mount(component, {
+      props: {
+        ...(fixture.props as Record<string, unknown>),
+        prefill: { scan: '1' },
+      },
+      global: { mocks: { route }, stubs: { teleport: true } },
+    })
+    const scanner = wrapper.findComponent({ name: 'QrScanner' })
+    expect(scanner.props('open')).toBe(true)
+    const accept = scanner.props('accept') as (raw: string) => true | string
+    expect(accept('hello')).toMatch(/VietQR/)
+    expect(
+      accept(
+        buildVietQr({
+          bin: '970422',
+          accountNumber: '0123456789',
+          amount: 50000,
+          message: 'Tien nha',
+        }),
+      ),
+    ).toBe(true)
+    await wrapper.vm.$nextTick()
+    const text = wrapper.text()
+    expect(text).toContain('Chuyển khoản đến')
+    expect(text).toContain('0123456789')
+    expect(text).toContain('MBBank')
+    expect(text).toContain('Vietcombank') // source bank wallet from fixtures
+    const values = wrapper
+      .findAll('input')
+      .map((i) => (i.element as HTMLInputElement).value)
+    expect(values).toContain('Tien nha')
+    expect(values).toContain('Chuyển khoản')
+    expect(scanner.props('open')).toBe(false)
+    wrapper.unmount()
+  })
+})

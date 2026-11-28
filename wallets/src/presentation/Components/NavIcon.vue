@@ -18,6 +18,10 @@ const PATHS: Record<string, string[]> = {
   ],
   swap: ['M7 7h13m0 0-4-4m4 4-4 4', 'M17 17H4m0 0 4 4m-4-4 4-4'],
   plus: ['M12 5v14M5 12h14'],
+  qr: [
+    'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z',
+    'M14 14h2v2h-2zM18 14h2M14 18v2M18 18h2v2M16 16h2v2',
+  ],
   planning: [
     'M8 3v4m8-4v4M4 10h16',
     'M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z',
