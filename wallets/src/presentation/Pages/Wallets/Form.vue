@@ -34,7 +34,6 @@ const form = useForm({
   outstanding_balance: props.wallet?.outstanding_balance ?? 0,
   notes: props.wallet?.notes ?? '',
   bank_bin: (props.wallet ? walletBank(props.wallet)?.bin : undefined) ?? '',
-  bank_code: props.wallet?.bank_code ?? '',
   account_number: props.wallet?.account_number ?? '',
   account_holder: props.wallet?.account_holder ?? '',
   bank_branch: props.wallet?.bank_branch ?? '',
@@ -48,7 +47,7 @@ const bankOptions: AppSelectOption[] = [
   { value: '', label: '— Chưa chọn —' },
   ...BANKS.map((b) => ({
     value: b.bin,
-    label: `${bankLabel(b)} · ${b.bin}`,
+    label: bankLabel(b),
   })),
 ]
 const selectedBank = computed(() => findBankByBin(String(form.bank_bin)))
@@ -71,13 +70,19 @@ const availableCredit = computed(() =>
   ),
 )
 
+// BIN and code always come from the VietQR master list: the user only picks a bank.
 function submit() {
-  form.bank_code = selectedBank.value?.code ?? ''
   normalizeAccount()
+  const bank = selectedBank.value
+  const withBank = form.transform((data) => ({
+    ...data,
+    bank_bin: bank?.bin ?? '',
+    bank_code: bank?.code ?? '',
+  }))
   if (props.wallet) {
-    form.put(route('wallets.update', props.wallet.id))
+    withBank.put(route('wallets.update', props.wallet.id))
   } else {
-    form.post(route('wallets.store'))
+    withBank.post(route('wallets.store'))
   }
 }
 </script>
@@ -263,14 +268,30 @@ function submit() {
               class="mt-1"
               :options="bankOptions"
               :searchable="true"
-              search-placeholder="Tìm tên, mã hoặc BIN..."
+              search-placeholder="Tìm tên ngân hàng..."
             />
-            <p v-if="selectedBank" class="mt-1 text-xs text-content-muted">
-              {{ selectedBank.name }}
-              <template v-if="selectedBank.appName">
-                · App: {{ selectedBank.appName }}</template
-              >
-              <template v-else> · Chưa hỗ trợ mở app</template>
+            <dl
+              v-if="selectedBank"
+              class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-content-muted"
+              data-testid="bank-master-info"
+            >
+              <dt>Tên đầy đủ</dt>
+              <dd class="text-content-secondary">{{ selectedBank.name }}</dd>
+              <dt>Mã BIN</dt>
+              <dd class="font-mono text-content-secondary">
+                {{ selectedBank.bin }}
+              </dd>
+              <dt>Mã ngân hàng</dt>
+              <dd class="font-mono text-content-secondary">
+                {{ selectedBank.code }}
+              </dd>
+              <dt>App</dt>
+              <dd class="text-content-secondary">
+                {{ selectedBank.appName ?? 'Chưa hỗ trợ mở app' }}
+              </dd>
+            </dl>
+            <p v-if="selectedBank" class="mt-1 text-[11px] text-content-muted">
+              BIN và mã ngân hàng tự lấy theo danh sách VietQR, không cần nhập.
             </p>
             <p v-if="form.errors.bank_bin" class="form-error">
               {{ form.errors.bank_bin }}

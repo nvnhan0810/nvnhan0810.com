@@ -13,6 +13,8 @@ import {
   walletBank,
 } from '../domain'
 import { crc16, parseTlv } from '../domain/banking/vietqr'
+import { BANK_APPS, toBanks } from '../domain/banking/bank-list'
+import master from '../domain/banking/vietqr-banks.json'
 import { planBankHandoff } from '../application/bank-handoff'
 import { currentPlatform } from '../infrastructure/device'
 
@@ -24,6 +26,38 @@ describe('bank directory', () => {
     expect(new Set(BANKS.map((b) => b.bin)).size).toBe(BANKS.length)
     expect(new Set(BANKS.map((b) => b.code)).size).toBe(BANKS.length)
     expect(BANKS.every((b) => /^\d{6}$/.test(b.bin))).toBe(true)
+  })
+
+  it('is built from the verbatim vietqr.app/banks.json master data', () => {
+    expect(BANKS).toHaveLength(Number(master.no_banks))
+    expect(BANKS.map((b) => [b.bin, b.code])).toEqual(
+      master.data.map((r) => [r.bin, r.code]),
+    )
+    expect(vcb).toMatchObject({ shortName: 'Vietcombank', app: 'vcb' })
+    // Every app mapping points at a bank code that exists in the master data.
+    const codes = new Set(master.data.map((r) => r.code))
+    expect(Object.keys(BANK_APPS).filter((c) => !codes.has(c))).toEqual([])
+  })
+
+  it('merges app ids by code and keeps unknown banks selectable', () => {
+    const banks = toBanks(
+      {
+        data: [
+          { name: 'Ngân hàng A', code: 'AAA', bin: '970999', short_name: 'A' },
+          { name: 'Ngân hàng B', code: 'BBB', bin: '970998', short_name: 'B' },
+        ],
+      },
+      { AAA: { app: 'aaa', appName: 'A Mobile' } },
+    )
+    expect(banks[0]).toEqual({
+      code: 'AAA',
+      bin: '970999',
+      shortName: 'A',
+      name: 'Ngân hàng A',
+      app: 'aaa',
+      appName: 'A Mobile',
+    })
+    expect(banks[1].app).toBeUndefined()
   })
 
   it('finds banks by BIN or code and maps wallets', () => {

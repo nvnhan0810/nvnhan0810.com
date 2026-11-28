@@ -89,10 +89,10 @@ fn bank_details(kind: &str, d: &Value) -> Result<Vec<(&'static str, Value)>> {
     let holder = clean("account_holder").to_uppercase();
     let branch = clean("bank_branch");
     if !bin.is_empty() && (bin.len() != 6 || !bin.chars().all(|c| c.is_ascii_digit())) {
-        return Err("Mã BIN ngân hàng không hợp lệ".into());
+        return Err("Ngân hàng không hợp lệ, hãy chọn lại trong danh sách".into());
     }
     if code.len() > 20 || !code.chars().all(|c| c.is_ascii_alphanumeric()) {
-        return Err("Mã ngân hàng không hợp lệ".into());
+        return Err("Ngân hàng không hợp lệ, hãy chọn lại trong danh sách".into());
     }
     if !account.is_empty()
         && (account.len() > 19 || !account.chars().all(|c| c.is_ascii_alphanumeric()))
